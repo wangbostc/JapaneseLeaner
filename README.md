@@ -1,5 +1,7 @@
 # Kikitori · 聞き取り
 
+**Try it:** https://wangbostc.github.io/JapaneseLeaner/ (deployed from `main` by GitHub Pages)
+
 A Japanese listening and speaking trainer. Pick a passage, and the app takes you
 through the whole loop: **intensive listening → shadowing → blind listening →
 retelling**, then seven spaced reviews, until you can understand it at full speed
