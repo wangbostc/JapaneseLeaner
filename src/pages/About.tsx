@@ -26,6 +26,8 @@ const SOURCES: { name: string; use: string; licence: string; href: string }[] = 
     licence: 'IPADIC licence',
     href: 'https://github.com/takuyaa/kuromoji.js/blob/master/NOTICE.md',
   },
+  { name: 'Whisper (OpenAI)', use: 'whisper', licence: 'MIT', href: 'https://github.com/openai/whisper' },
+  { name: 'Transformers.js', use: 'transformers', licence: 'Apache 2.0', href: 'https://github.com/huggingface/transformers.js' },
   { name: 'ts-fsrs', use: 'fsrs', licence: 'MIT', href: 'https://github.com/open-spaced-repetition/ts-fsrs' },
   {
     name: 'Echo Loop',

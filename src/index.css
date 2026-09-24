@@ -358,3 +358,7 @@ ruby rt { font-size: 0.5em; color: var(--muted); letter-spacing: 0; }
   border-radius: 12px; padding: 12px 14px; margin-top: 4px;
 }
 .key-mask { background: var(--surface-2); padding: 6px 10px; border-radius: 8px; font-size: 0.85rem; align-self: center; }
+
+.transcribe { background: var(--surface-2); border-radius: var(--radius); padding: 12px 14px; }
+.transcribe .section-label { margin-top: 0; }
+.transcribe select { width: auto !important; }

@@ -4,6 +4,8 @@ import { useSettings } from '../app/useSettings'
 import type { Sentence } from '../lib/db'
 import { store } from '../lib/store'
 import { parseTranscript } from '../lib/subtitles'
+import { WHISPER_MODELS, type WhisperModelId } from '../lib/transcribe'
+import { transcribeToSrt, type TranscribeProgress } from '../lib/transcriber'
 
 export function Import() {
   const { t, settings } = useSettings()
@@ -15,6 +17,9 @@ export function Import() {
   const [transcriptName, setTranscriptName] = useState('pasted.txt')
   const [translation, setTranslation] = useState('')
   const [busy, setBusy] = useState(false)
+  const [model, setModel] = useState<WhisperModelId>(WHISPER_MODELS[0].id)
+  const [asr, setAsr] = useState<TranscribeProgress | 'done' | null>(null)
+  const [asrError, setAsrError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const sentences: Sentence[] = useMemo(() => {
@@ -35,6 +40,21 @@ export function Import() {
     setTranscript(await file.text())
     if (!title) setTitle(file.name.replace(/\.[^.]+$/, ''))
   }
+
+  const transcribe = async () => {
+    if (!audio) return
+    setAsrError(null)
+    try {
+      const srt = await transcribeToSrt(audio, model, setAsr)
+      setTranscript(srt)
+      setTranscriptName('transcribed.srt')
+      setAsr('done')
+    } catch (e) {
+      setAsrError(e instanceof Error ? e.message : String(e))
+      setAsr(null)
+    }
+  }
+  const asrRunning = asr !== null && asr !== 'done'
 
   const create = async () => {
     if (busy) return
@@ -71,6 +91,33 @@ export function Import() {
         <input type="file" accept="audio/*,video/mp4" onChange={(e) => setAudio(e.target.files?.[0] ?? null)} />
         <small className="muted">{t.fieldAudioHint}</small>
       </label>
+      {audio && !timed && (
+        <div className="transcribe" data-testid="transcribe">
+          <h2 className="section-label">{t.transcribeTitle}</h2>
+          <p className="muted small">{t.transcribeHint}</p>
+          <div className="row">
+            <select aria-label={t.transcribeModel} value={model} onChange={(e) => setModel(e.target.value as WhisperModelId)} disabled={asrRunning}>
+              {WHISPER_MODELS.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {t.transcribeModelSize(m.label, m.sizeMb)}
+                </option>
+              ))}
+            </select>
+            <button className="btn" onClick={transcribe} disabled={asrRunning}>
+              {t.transcribeRun}
+            </button>
+          </div>
+          {asr && asr !== 'done' && (
+            <p className="muted small" role="status">
+              {asr.phase === 'decoding' && t.transcribeDecoding}
+              {asr.phase === 'downloading' && t.transcribeDownloading(Math.round(asr.fraction * 100))}
+              {asr.phase === 'transcribing' && t.transcribeWorking}
+            </p>
+          )}
+          {asrError && <p className="error small">{asrError}</p>}
+        </div>
+      )}
+      {asr === 'done' && <p className="ok small">{t.transcribeDone}</p>}
       <label>
         {t.fieldTranscript}
         <textarea

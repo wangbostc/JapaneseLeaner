@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",
+    "@huggingface/transformers": "^4.3.0",
     "dexie": "^4.4.6",
     "dexie-react-hooks": "^4.4.0",
     "kuromoji": "^0.1.2",
