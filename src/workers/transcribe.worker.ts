@@ -8,16 +8,15 @@ import ortAsyncifyMjs from 'onnxruntime-web/ort-wasm-simd-threaded.asyncify.mjs?
 import ortAsyncifyWasm from 'onnxruntime-web/ort-wasm-simd-threaded.asyncify.wasm?url'
 import ortPlainMjs from 'onnxruntime-web/ort-wasm-simd-threaded.mjs?url'
 import ortPlainWasm from 'onnxruntime-web/ort-wasm-simd-threaded.wasm?url'
-import { pickAsyncifyBuild } from '../lib/ortBuild'
 
 env.allowLocalModels = false
-// Serve the ONNX runtime from our own origin instead of transformers.js's default CDN, so it
-// works offline once cached and doesn't depend on a third party serving a dev build.
-env.backends.onnx.wasm!.wasmPaths = pickAsyncifyBuild(navigator as WorkerNavigator & { vendor?: string; gpu?: unknown })
-  ? { wasm: ortAsyncifyWasm, mjs: ortAsyncifyMjs }
-  : { wasm: ortPlainWasm, mjs: ortPlainMjs }
 
-export type WorkerRequest = { samples: Float32Array; model: string }
+export type WorkerRequest = {
+  samples: Float32Array
+  model: string
+  /** Chosen on the main thread by pickAsyncifyBuild: navigator.vendor, which the Safari check needs, isn't exposed in workers. */
+  asyncify: boolean
+}
 export type WorkerMessage =
   | { type: 'progress'; loaded: number; total: number }
   | { type: 'transcribing' }
@@ -28,7 +27,10 @@ const pipelines = new Map<string, Promise<AutomaticSpeechRecognitionPipeline>>()
 const post = (m: WorkerMessage) => self.postMessage(m)
 
 self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
-  const { samples, model } = e.data
+  const { samples, model, asyncify } = e.data
+  // Serve the ONNX runtime from our own origin instead of transformers.js's default CDN, so it
+  // works offline once cached and doesn't depend on a third party serving a dev build.
+  env.backends.onnx.wasm!.wasmPaths = asyncify ? { wasm: ortAsyncifyWasm, mjs: ortAsyncifyMjs } : { wasm: ortPlainWasm, mjs: ortPlainMjs }
   try {
     const files = new Map<string, { loaded: number; total: number }>()
     if (!pipelines.has(model)) {

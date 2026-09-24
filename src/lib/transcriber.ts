@@ -1,4 +1,5 @@
-import type { WorkerMessage } from '../workers/transcribe.worker'
+import type { WorkerMessage, WorkerRequest } from '../workers/transcribe.worker'
+import { pickAsyncifyBuild } from './ortBuild'
 import { chunksToCues, cuesToSrt, decodeTo16kMono, TranscribeError, type AsrChunk, type WhisperModelId } from './transcribe'
 
 export type TranscribeProgress = { phase: 'decoding' } | { phase: 'downloading'; fraction: number } | { phase: 'transcribing' }
@@ -39,7 +40,8 @@ export async function transcribeToSrt(
         else reject(new TranscribeError('failed', m.message))
       }
       worker.onerror = (e) => reject(new TranscribeError('failed', e.message || 'transcription worker failed'))
-      worker.postMessage({ samples, model }, [samples.buffer])
+      const request: WorkerRequest = { samples, model, asyncify: pickAsyncifyBuild(navigator) }
+      worker.postMessage(request, [samples.buffer])
     })
     return cuesToSrt(chunksToCues(chunks, duration))
   } finally {

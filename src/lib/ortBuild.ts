@@ -3,7 +3,8 @@
  * (src/backends/onnx.js): the asyncify build by default, the plain build on
  * Safari below 26 without WebGPU, where upstream disables asyncify. We set
  * wasmPaths ourselves (to serve the runtime from our origin), which skips
- * upstream's choice, so we make the same one here.
+ * upstream's choice, so we make the same one here. Call it on the main thread:
+ * navigator.vendor isn't exposed in workers, where the check would always miss Safari.
  */
 export function pickAsyncifyBuild(nav: { userAgent: string; vendor?: string; gpu?: unknown }): boolean {
   return !(isSafariBelow26(nav) && !nav.gpu)
