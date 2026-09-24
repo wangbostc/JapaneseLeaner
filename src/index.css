@@ -341,3 +341,4 @@ ruby rt { font-size: 0.5em; color: var(--muted); letter-spacing: 0; }
 .support li:last-child { border-bottom: 0; }
 
 .icon { flex: none; }
+.self-rate .btn.danger { margin-top: 0; }

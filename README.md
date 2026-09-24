@@ -53,6 +53,9 @@ Import**:
 - An optional translation, one line per sentence.
 
 Everything is stored locally in IndexedDB. There's no account and no server.
+Use **Settings → Your data** to export a backup (a JSON file, audio included) and to restore it on another device.
+
+After the first visit, the app works offline. A service worker precaches the app shell, and it caches the dictionary the first time a lesson loads it.
 
 ## Browser support
 
@@ -99,4 +102,3 @@ itself, so it works whether or not the host also sends `Content-Encoding: gzip`
 - Pitch-accent display and feedback
 - A bundled offline dictionary (JMdict) for meanings on word cards
 - Automatic transcription of imported audio (Whisper)
-- PWA offline caching, and export/import of progress
