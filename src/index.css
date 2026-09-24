@@ -351,3 +351,10 @@ ruby rt { font-size: 0.5em; color: var(--muted); letter-spacing: 0; }
 .sources a { color: var(--accent); font-weight: 600; }
 .sources li { gap: 12px; align-items: flex-start; }
 .meanings.loading { min-height: 3.2em; }
+.explain { margin-top: 10px; }
+.explain .btn.ghost { padding-left: 0; color: var(--accent); }
+.explain-body {
+  white-space: pre-wrap; font-size: 0.95rem; line-height: 1.7; background: var(--surface-2);
+  border-radius: 12px; padding: 12px 14px; margin-top: 4px;
+}
+.key-mask { background: var(--surface-2); padding: 6px 10px; border-radius: 8px; font-size: 0.85rem; align-self: center; }

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
+import { setAiKey, useAiKey } from '../app/aiKey'
 import { sanitizeSettings } from '../app/sanitizeSettings'
 import { Link } from 'react-router-dom'
 import { useSettings } from '../app/useSettings'
@@ -12,6 +13,9 @@ export function SettingsPage() {
   const [pending, setPending] = useState<Backup | null>(null)
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
+  const aiKey = useAiKey()
+  const [keyDraft, setKeyDraft] = useState('')
+  const [keySaved, setKeySaved] = useState(false)
 
   const download = async () => {
     try {
@@ -97,6 +101,35 @@ export function SettingsPage() {
           </select>
         )}
       </label>
+
+      <h2 className="section-label">{t.aiTitle}</h2>
+      <p className="muted small">{t.aiHint}</p>
+      {aiKey ? (
+        <div className="row">
+          <code className="key-mask">{`${aiKey.slice(0, 7)}…${aiKey.slice(-4)}`}</code>
+          <button className="btn" onClick={() => (setAiKey(''), setKeySaved(false))}>
+            {t.aiClear}
+          </button>
+        </div>
+      ) : (
+        <label>
+          {t.aiKeyLabel}
+          <input type="password" autoComplete="off" spellCheck={false} value={keyDraft} onChange={(e) => setKeyDraft(e.target.value)} placeholder="sk-ant-…" />
+          <button
+            className="btn"
+            disabled={!keyDraft.trim()}
+            onClick={() => {
+              setAiKey(keyDraft.trim())
+              setKeyDraft('')
+              setKeySaved(true)
+            }}
+          >
+            {t.aiSave}
+          </button>
+        </label>
+      )}
+      {keySaved && aiKey && <p className="ok small">{t.aiSaved}</p>}
+      <p className="muted small">{t.aiKeyWarning}</p>
 
       <h2 className="section-label">{t.dataTitle}</h2>
       <p className="muted small">{t.dataHint}</p>

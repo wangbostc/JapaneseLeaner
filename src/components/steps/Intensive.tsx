@@ -3,6 +3,7 @@ import { useSettings } from '../../app/useSettings'
 import { readingOf } from '../../lib/scoring'
 import { store } from '../../lib/store'
 import type { Token } from '../../lib/tokenizer'
+import { ExplainPanel } from '../ExplainPanel'
 import { Icon } from '../Icon'
 import { JapaneseText } from '../JapaneseText'
 import { WordSheet } from '../WordSheet'
@@ -44,6 +45,7 @@ function IntensiveSentence({ lesson, analyzer, player, onPosition, onDone, i }: 
           <>
             <JapaneseText className="jp-large" text={s.text} analyzer={analyzer} furigana={settings.furigana} onWord={setWord} />
             {settings.translation && s.translations?.[settings.lang] && <p className="translation">{s.translations[settings.lang]}</p>}
+            <ExplainPanel sentence={s.text} context={lesson.sentences.map((x) => x.text)} />
           </>
         ) : (
           <button className="conceal" onClick={() => setRevealed(true)} aria-label={t.reveal}>

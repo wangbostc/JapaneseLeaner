@@ -1,4 +1,4 @@
-import { db, type Flashcard, type KikitoriDB, type Lesson, type PracticeLog, type Resume, type Sentence } from './db'
+import { db, type Flashcard, type KikitoriDB, type Lesson, type PracticeLog, type Resume, type Sentence, type UiLang } from './db'
 import { completeRound, dueAt, isGraduated, type LessonProgress } from './schedule'
 import { newCard, review, type Grade } from './srs'
 
@@ -40,6 +40,16 @@ export function createStore(database: KikitoriDB = db) {
         if (lesson?.mediaId) await database.media.delete(lesson.mediaId)
         await database.cards.where('lessonId').equals(id).delete()
         await database.lessons.delete(id)
+      })
+    },
+
+    /** Stores one translation per sentence for `lang`, keeping other languages. */
+    async setTranslations(id: number, lang: UiLang, translations: string[]) {
+      await database.transaction('rw', database.lessons, async () => {
+        const lesson = await database.lessons.get(id)
+        if (!lesson || lesson.sentences.length !== translations.length) throw new Error('translation count mismatch')
+        const sentences = lesson.sentences.map((s, i) => ({ ...s, translations: { ...s.translations, [lang]: translations[i] } }))
+        await database.lessons.update(id, { sentences })
       })
     },
 
