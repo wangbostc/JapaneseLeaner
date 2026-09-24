@@ -1,10 +1,49 @@
-import { useEffect, useState } from 'react'
-import { useSettings } from '../app/useSettings'
+import { useEffect, useRef, useState, type ChangeEvent } from 'react'
+import { useSettings, type Settings } from '../app/useSettings'
+import { exportBackup, parseBackup, restoreBackup, type Backup } from '../lib/backup'
+import { db } from '../lib/db'
 import { japaneseVoices, recognitionSupported, recordingSupported, ttsSupported } from '../lib/speech'
 
 export function SettingsPage() {
   const { t, settings, update } = useSettings()
   const [voices, setVoices] = useState<SpeechSynthesisVoice[] | null>(null)
+  const [pending, setPending] = useState<Backup | null>(null)
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
+  const fileInput = useRef<HTMLInputElement>(null)
+
+  const download = async () => {
+    const backup = await exportBackup(db, settings)
+    const url = URL.createObjectURL(new Blob([JSON.stringify(backup)], { type: 'application/json' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `kikitori-backup-${new Date().toISOString().slice(0, 10)}.json`
+    a.click()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }
+
+  const choose = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    try {
+      setPending(parseBackup(await file.text()))
+      setMessage(null)
+    } catch (err) {
+      setMessage({ ok: false, text: err instanceof Error ? err.message : String(err) })
+    }
+  }
+
+  const restore = async () => {
+    if (!pending) return
+    try {
+      await restoreBackup(db, pending)
+      if (pending.settings && typeof pending.settings === 'object') update(pending.settings as Partial<Settings>)
+      setMessage({ ok: true, text: t.restored(pending.lessons.length) })
+    } catch (err) {
+      setMessage({ ok: false, text: err instanceof Error ? err.message : String(err) })
+    }
+    setPending(null)
+  }
   useEffect(() => {
     japaneseVoices().then(setVoices)
   }, [])
@@ -13,6 +52,7 @@ export function SettingsPage() {
     [t.speechRec, recognitionSupported()],
     [t.micRec, recordingSupported()],
     [t.tts, ttsSupported() && !!voices?.length],
+    [t.offlineLabel, 'serviceWorker' in navigator],
   ]
 
   return (
@@ -52,6 +92,36 @@ export function SettingsPage() {
         )}
       </label>
 
+      <h2 className="section-label">{t.dataTitle}</h2>
+      <p className="muted small">{t.dataHint}</p>
+      <div className="row">
+        <button className="btn" onClick={download}>
+          {t.exportData}
+        </button>
+        <button className="btn" onClick={() => fileInput.current?.click()}>
+          {t.importData}
+        </button>
+        <input ref={fileInput} type="file" accept="application/json,.json" hidden onChange={choose} data-testid="restore-input" />
+      </div>
+      {pending && (
+        <div className="self-rate" role="alert">
+          <p>{t.confirmRestore}</p>
+          <div className="row">
+            <button className="btn danger confirm" onClick={restore}>
+              {t.importData}
+            </button>
+            <button className="btn" onClick={() => setPending(null)}>
+              {t.back}
+            </button>
+          </div>
+        </div>
+      )}
+      {message && (
+        <p className={message.ok ? 'ok' : 'error'} role="status">
+          {message.text}
+        </p>
+      )}
+
       <h2 className="section-label">{t.support}</h2>
       <ul className="support">
         {support.map(([name, ok]) => (
@@ -61,6 +131,7 @@ export function SettingsPage() {
           </li>
         ))}
       </ul>
+      <p className="muted small">{t.offlineReady}</p>
     </div>
   )
 }

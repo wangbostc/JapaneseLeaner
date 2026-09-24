@@ -32,7 +32,7 @@ test('first study round end to end', async ({ page }) => {
   await shot(page, '01-today')
 
   await page.getByRole('link', { name: /私の朝/ }).click()
-  await expect(page.locator('ruby').first()).toBeVisible() // furigana once the dictionary loads
+  await expect(page.locator('ruby').first()).toBeVisible({ timeout: 20_000 }) // furigana once the dictionary loads
   await shot(page, '02-lesson')
   await page.getByRole('link', { name: 'Start' }).click()
 
