@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useSettings } from '../../app/settings'
+import { useSettings } from '../../app/useSettings'
 import { readingOf } from '../../lib/scoring'
 import { store } from '../../lib/store'
 import type { Token } from '../../lib/tokenizer'
@@ -9,22 +9,25 @@ import { WordSheet } from '../WordSheet'
 import type { StepProps } from './types'
 
 /** Sentence by sentence: listen until it's clear, then check against the text. */
-export function Intensive({ lesson, analyzer, player, position, onPosition, onDone }: StepProps) {
+export function Intensive(props: StepProps) {
+  const i = Math.min(props.position, props.lesson.sentences.length - 1)
+  // Keyed by sentence so per-sentence state (revealed, saved) starts fresh.
+  return <IntensiveSentence key={i} {...props} i={i} />
+}
+
+function IntensiveSentence({ lesson, analyzer, player, onPosition, onDone, i }: StepProps & { i: number }) {
   const { t, settings } = useSettings()
   const [revealed, setRevealed] = useState(false)
   const [word, setWord] = useState<Token | null>(null)
   const [savedSentence, setSavedSentence] = useState(false)
-  const i = Math.min(position, lesson.sentences.length - 1)
   const s = lesson.sentences[i]
   const hard = lesson.hard.includes(i)
   const last = i === lesson.sentences.length - 1
 
   useEffect(() => {
-    setRevealed(false)
-    setSavedSentence(false)
     player.play(s, settings.rate)
     return () => player.stop()
-  }, [i]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps -- play once per sentence
 
   const saveSentence = async () => {
     await store.addCard({ lessonId: lesson.id, kind: 'sentence', front: s.text, reading: readingOf(analyzer, s.text), context: s.text })

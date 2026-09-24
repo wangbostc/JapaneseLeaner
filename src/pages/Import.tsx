@@ -1,6 +1,6 @@
 import { useMemo, useState, type ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useSettings } from '../app/settings'
+import { useSettings } from '../app/useSettings'
 import type { Sentence } from '../lib/db'
 import { store } from '../lib/store'
 import { parseTranscript } from '../lib/subtitles'

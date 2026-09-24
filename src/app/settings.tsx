@@ -1,14 +1,6 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
-import type { UiLang } from '../lib/db'
-import { STRINGS, type Strings } from './i18n'
-
-export interface Settings {
-  lang: UiLang
-  furigana: boolean
-  translation: boolean
-  rate: number
-  voiceURI?: string
-}
+import { useEffect, useState, type ReactNode } from 'react'
+import { STRINGS } from './i18n'
+import { SettingsContext, type Settings } from './useSettings'
 
 const KEY = 'kikitori.settings'
 
@@ -27,14 +19,6 @@ function load(): Settings {
   }
 }
 
-interface Ctx {
-  settings: Settings
-  update: (patch: Partial<Settings>) => void
-  t: Strings
-}
-
-const SettingsContext = createContext<Ctx | null>(null)
-
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState(load)
   useEffect(() => {
@@ -47,10 +31,4 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   }, [settings])
   const update = (patch: Partial<Settings>) => setSettings((s) => ({ ...s, ...patch }))
   return <SettingsContext.Provider value={{ settings, update, t: STRINGS[settings.lang] }}>{children}</SettingsContext.Provider>
-}
-
-export function useSettings() {
-  const ctx = useContext(SettingsContext)
-  if (!ctx) throw new Error('useSettings outside SettingsProvider')
-  return ctx
 }

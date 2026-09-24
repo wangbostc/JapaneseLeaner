@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useMemo, useState } from 'react'
-import { useSettings } from '../app/settings'
+import { useSettings } from '../app/useSettings'
 import { Icon } from '../components/Icon'
 import { db, type Flashcard } from '../lib/db'
 import { speak } from '../lib/speech'

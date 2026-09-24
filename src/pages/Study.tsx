@@ -2,7 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { relativeTime } from '../app/i18n'
-import { useSettings } from '../app/settings'
+import { useSettings } from '../app/useSettings'
 import { useAnalyzer } from '../app/useAnalyzer'
 import { Icon } from '../components/Icon'
 import { Blind } from '../components/steps/Blind'
@@ -47,9 +47,11 @@ function Runner({ lesson, media, analyzer }: { lesson: Lesson & { id: number }; 
   // The hard set changes as the learner drills; freeze it when the step starts.
   const [hardAtStart, setHardAtStart] = useState(lesson.hard)
   const step = round?.steps[stepIndex]
-  const stepStarted = useRef(Date.now())
+  const stepStarted = useRef(0)
   const stepRef = useRef(step)
-  stepRef.current = step
+  useEffect(() => {
+    stepRef.current = step
+  }, [step])
   const roundOver = useRef(false)
 
   const logStep = () => {
@@ -59,7 +61,10 @@ function Runner({ lesson, media, analyzer }: { lesson: Lesson & { id: number }; 
     store.log({ lessonId: lesson.id, step, mode: INPUT_STEPS.includes(step) ? 'input' : 'output', ms, at: Date.now() })
     stepStarted.current = Date.now()
   }
-  useEffect(() => logStep, []) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    stepStarted.current = Date.now()
+    return logStep
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (finished) return <RoundDone progress={finished} />
   if (!round) return <Navigate to={`/lesson/${lesson.id}`} replace />

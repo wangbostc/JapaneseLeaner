@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useSettings } from '../../app/settings'
+import { useSettings } from '../../app/useSettings'
 import { Icon } from '../Icon'
 import type { StepProps } from './types'
 

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useSettings } from '../../app/settings'
+import { useSettings } from '../../app/useSettings'
 import { contentLemmas, gradeFor, readingOf, scoreRetell, type RetellResult } from '../../lib/scoring'
 import { Icon } from '../Icon'
 import type { StepProps } from './types'

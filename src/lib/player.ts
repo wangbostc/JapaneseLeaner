@@ -38,10 +38,14 @@ export function createPlayer(media: Blob | null, voiceURI?: string): Player {
 
   const segment = (start: number, end: number | null, rate: number, signal: AbortSignal, onTime?: (t: number) => void) =>
     new Promise<void>((resolve) => {
+      let settled = false
       const done = () => {
+        if (settled) return
+        settled = true
         audio.pause()
         audio.removeEventListener('timeupdate', tick)
         audio.removeEventListener('ended', done)
+        signal.removeEventListener('abort', done)
         resolve()
       }
       const tick = () => {

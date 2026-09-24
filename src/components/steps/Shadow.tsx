@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { useSettings } from '../../app/settings'
+import { useEffect, useMemo, useState } from 'react'
+import { useSettings } from '../../app/useSettings'
 import { gradeFor, readingOf, scoreShadowing, type ShadowingResult } from '../../lib/scoring'
 import { store } from '../../lib/store'
 import { Icon } from '../Icon'
@@ -16,39 +16,44 @@ interface Props extends StepProps {
 
 const SELF_RATE_SCORE = { good: 90, ok: 65, bad: 30 } as const
 
-export function Shadow({ lesson, analyzer, player, position, onPosition, onDone, indices, mode }: Props) {
+export function Shadow(props: Props) {
+  const p = Math.min(props.position, props.indices.length - 1)
+  // Keyed by position so each sentence starts with a fresh attempt.
+  return <ShadowSentence key={p} {...props} p={p} />
+}
+
+function ShadowSentence({ lesson, analyzer, player, onPosition, onDone, indices, mode, p }: Props & { p: number }) {
   const { t, settings } = useSettings()
   const attempt = useAttempt()
-  const [result, setResult] = useState<ShadowingResult | null>(null)
-  const p = Math.min(position, indices.length - 1)
+  const [selfRated, setSelfRated] = useState<ShadowingResult | null>(null)
   const i = indices[p]
   const s = lesson.sentences[i]
   const last = p === indices.length - 1
 
   useEffect(() => {
-    attempt.reset()
-    setResult(null)
     player.play(s, settings.rate)
     return () => player.stop()
-  }, [p]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps -- play once per sentence
 
-  const settle = (score: number) => {
-    // A weak attempt puts the sentence in the hard set; a strong one in the drill takes it out.
-    if (gradeFor(score) === 'C') store.setHard(lesson.id, i, true)
-    else if (mode === 'hard' && score >= 75) store.setHard(lesson.id, i, false)
-  }
+  const scored = useMemo(
+    () =>
+      attempt.phase === 'done' && attempt.transcript
+        ? scoreShadowing(readingOf(analyzer, s.text), readingOf(analyzer, attempt.transcript))
+        : null,
+    [analyzer, s.text, attempt.phase, attempt.transcript],
+  )
+  const result = scored ?? selfRated
 
+  // A weak attempt puts the sentence in the hard set; a strong one in the drill takes it out.
   useEffect(() => {
-    if (attempt.phase !== 'done' || attempt.transcript === null) return
-    const r = scoreShadowing(readingOf(analyzer, s.text), readingOf(analyzer, attempt.transcript))
-    setResult(r)
-    settle(r.score)
-  }, [attempt.phase, attempt.transcript]) // eslint-disable-line react-hooks/exhaustive-deps
+    if (!result) return
+    if (result.grade === 'C') store.setHard(lesson.id, i, true)
+    else if (mode === 'hard' && result.score >= 75) store.setHard(lesson.id, i, false)
+  }, [result, lesson.id, i, mode])
 
   const selfRate = (k: keyof typeof SELF_RATE_SCORE) => {
     const score = SELF_RATE_SCORE[k]
-    setResult({ score, grade: gradeFor(score), marks: [] })
-    settle(score)
+    setSelfRated({ score, grade: gradeFor(score), marks: [] })
   }
 
   const needsSelfRate = attempt.phase === 'done' && !result && (!attempt.canScore || !attempt.transcript)
@@ -120,7 +125,7 @@ export function Shadow({ lesson, analyzer, player, position, onPosition, onDone,
             className="btn round mic"
             onClick={() => {
               player.stop()
-              setResult(null)
+              setSelfRated(null)
               attempt.start()
             }}
           >

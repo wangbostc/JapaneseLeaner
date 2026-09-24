@@ -86,4 +86,20 @@ describe('store', () => {
     expect(st.lastWeek.map((d) => d.ms)).toEqual([0, 0, 0, 0, 0, 60_000, 30_000])
     expect(await s.db.logs.count()).toBe(2)
   })
+
+  it('splits days at local midnight, not UTC midnight', async () => {
+    // Tests run in Australia/Sydney (UTC+11 in January), see src/test/setup.ts.
+    const beforeMidnight = new Date(2026, 0, 10, 23, 30).getTime()
+    const afterMidnight = new Date(2026, 0, 11, 0, 30).getTime()
+    expect(new Date(beforeMidnight).getUTCDate()).toBe(new Date(afterMidnight).getUTCDate()) // same UTC day
+    const id = await lesson('a')
+    await s.log({ lessonId: id, step: 'intensive', mode: 'input', ms: 60_000, at: beforeMidnight })
+    await s.log({ lessonId: id, step: 'intensive', mode: 'input', ms: 30_000, at: afterMidnight })
+    const st = await s.stats(afterMidnight)
+    expect(st.streak).toBe(2)
+    expect(st.lastWeek.slice(-2)).toEqual([
+      { day: new Date(2026, 0, 10).getTime(), ms: 60_000 },
+      { day: new Date(2026, 0, 11).getTime(), ms: 30_000 },
+    ])
+  })
 })

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useSettings } from '../app/settings'
+import { useSettings } from '../app/useSettings'
 import { speak } from '../lib/speech'
 import { store } from '../lib/store'
 import type { Token } from '../lib/tokenizer'

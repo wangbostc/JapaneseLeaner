@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useSettings } from '../app/settings'
+import { useSettings } from '../app/useSettings'
 import { japaneseVoices, recognitionSupported, recordingSupported, ttsSupported } from '../lib/speech'
 
 export function SettingsPage() {

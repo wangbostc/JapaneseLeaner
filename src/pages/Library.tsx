@@ -1,6 +1,7 @@
+import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Link } from 'react-router-dom'
-import { useSettings } from '../app/settings'
+import { useSettings } from '../app/useSettings'
 import { Icon } from '../components/Icon'
 import { LessonRow } from '../components/LessonRow'
 import { db } from '../lib/db'
@@ -8,7 +9,7 @@ import { db } from '../lib/db'
 export function Library() {
   const { t } = useSettings()
   const lessons = useLiveQuery(() => db.lessons.orderBy('createdAt').reverse().toArray(), [])
-  const now = Date.now()
+  const [now] = useState(() => Date.now())
   return (
     <div className="page">
       <div className="page-head">

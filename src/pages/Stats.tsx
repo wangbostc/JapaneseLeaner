@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { formatDuration } from '../app/i18n'
-import { useSettings } from '../app/settings'
+import { useSettings } from '../app/useSettings'
 import { store } from '../lib/store'
 
 export function Stats() {
@@ -9,7 +9,7 @@ export function Stats() {
   if (!s) return null
   const max = Math.max(...s.lastWeek.map((d) => d.ms), 60_000)
   const inputPct = s.totalMs ? Math.round((s.inputMs / s.totalMs) * 100) : 50
-  const dayName = new Intl.DateTimeFormat(settings.lang === 'zh' ? 'zh-CN' : 'en', { weekday: 'short', timeZone: 'UTC' })
+  const dayName = new Intl.DateTimeFormat(settings.lang === 'zh' ? 'zh-CN' : 'en', { weekday: 'short' })
 
   return (
     <div className="page">
@@ -52,7 +52,7 @@ export function Stats() {
         {s.lastWeek.map((d) => (
           <div key={d.day} className="week-col">
             <div className="week-bar" style={{ height: `${(d.ms / max) * 100}%` }} title={formatDuration(d.ms)} />
-            <span className="muted small">{dayName.format(new Date(d.day * 86_400_000))}</span>
+            <span className="muted small">{dayName.format(new Date(d.day))}</span>
           </div>
         ))}
       </div>
