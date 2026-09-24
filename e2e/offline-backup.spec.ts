@@ -13,12 +13,21 @@ test('works offline after the first visit', async ({ page, context }) => {
   // With the worker in control, loading a lesson pulls the dictionary through its cache.
   await page.getByRole('link', { name: /私の朝/ }).click()
   await expect(page.locator('ruby').first()).toBeVisible({ timeout: 20_000 })
+  // Opening a word pulls the JMdict file through the worker's cache too.
+  await page.getByRole('link', { name: 'Start' }).click()
+  await page.getByRole('button', { name: 'Show text' }).first().click()
+  await page.locator('.sentence-card .word').first().click()
+  await expect(page.getByTestId('meanings')).toBeVisible({ timeout: 20_000 })
 
   await context.setOffline(true)
   await page.goto('./')
   await expect(page.locator('.lesson-row')).toHaveCount(3)
   await page.getByRole('link', { name: /週末のカフェ/ }).click()
   await expect(page.locator('ruby').first()).toBeVisible({ timeout: 20_000 })
+  await page.getByRole('link', { name: 'Start' }).click()
+  await page.getByRole('button', { name: 'Show text' }).first().click()
+  await page.locator('.sentence-card .word', { hasText: '友達' }).click()
+  await expect(page.getByTestId('meanings')).toContainText('friend')
   await context.setOffline(false)
 })
 

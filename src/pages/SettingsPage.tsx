@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { sanitizeSettings } from '../app/sanitizeSettings'
+import { Link } from 'react-router-dom'
 import { useSettings } from '../app/useSettings'
 import { exportBackup, parseBackup, restoreBackup, type Backup } from '../lib/backup'
 import { db } from '../lib/db'
@@ -137,6 +138,9 @@ export function SettingsPage() {
         ))}
       </ul>
       <p className="muted small">{t.offlineReady}</p>
+      <Link to="/about" className="btn ghost back-link">
+        {t.about} →
+      </Link>
     </div>
   )
 }

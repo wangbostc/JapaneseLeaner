@@ -26,3 +26,5 @@ dist-ssr
 /e2e/screenshots
 /test-results
 /playwright-report
+/public/jmdict
+/public/licenses

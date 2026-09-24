@@ -10,9 +10,9 @@
     "test": "vitest run",
     "typecheck": "tsc -b",
     "lint": "oxlint",
-    "postinstall": "node scripts/copy-dict.mjs",
-    "predev": "node scripts/copy-dict.mjs",
-    "prebuild": "node scripts/copy-dict.mjs",
+    "postinstall": "node scripts/copy-dict.mjs && node scripts/build-jmdict.mjs",
+    "predev": "node scripts/copy-dict.mjs && node scripts/build-jmdict.mjs",
+    "prebuild": "node scripts/copy-dict.mjs && node scripts/build-jmdict.mjs",
     "e2e": "playwright test"
   },
   "dependencies": {

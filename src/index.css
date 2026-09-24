@@ -299,7 +299,7 @@ ruby rt { font-size: 0.5em; color: var(--muted); letter-spacing: 0; }
   padding: 32px 22px 16px; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; min-height: 260px;
 }
 .card-front { font-size: 2.4rem; font-family: var(--font-jp-serif); }
-.flashcard.sentence .card-front { font-size: 1.4rem; line-height: 1.9; }
+.flashcard.kind-sentence .card-front { font-size: 1.4rem; line-height: 1.9; }
 .card-context { margin: 0; color: var(--muted); font-size: 1.05rem; }
 .card-context mark { background: var(--accent-soft); color: var(--ink); border-radius: 4px; padding: 0 2px; }
 .card-back { border-top: 1px dashed var(--line); padding-top: 12px; width: 100%; }
@@ -342,3 +342,12 @@ ruby rt { font-size: 0.5em; color: var(--muted); letter-spacing: 0; }
 
 .icon { flex: none; }
 .self-rate .btn.danger { margin-top: 0; }
+
+.meanings { text-align: left; }
+.meanings ol { margin: 0; padding-left: 1.3em; }
+.meanings li { margin: 2px 0; }
+.meanings .pos { color: var(--muted); font-size: 0.8rem; }
+.meanings-note { color: var(--muted); font-size: 0.7rem; margin: 6px 0 0; letter-spacing: 0.02em; }
+.sources a { color: var(--accent); font-weight: 600; }
+.sources li { gap: 12px; align-items: flex-start; }
+.meanings.loading { min-height: 3.2em; }

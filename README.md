@@ -36,6 +36,7 @@ review pushes every later one back. Due reviews are listed before new lessons.
   in kana also count when the passage wrote them in kanji.
 - **Hard sentences manage themselves.** A shadowing attempt graded C marks the
   sentence as hard. Scoring A or better in the hard-sentence drill clears the mark.
+- **Meanings from JMdict.** The word sheet and flashcards show English glosses from JMdict's common-words set (about 22k entries). It's lazy-loaded (about 0.8 MB over the wire) and cached for offline use. JMdict has no Chinese glosses, so the Chinese UI shows English meanings too.
 - **Flashcards in context.** Tap any word to save its dictionary form along with
   the sentence it came from. Cards are scheduled with FSRS (`ts-fsrs`).
 - **Stats:** practice time, the listening/speaking split, unique words met, and
@@ -70,6 +71,29 @@ Where a feature is missing, the app falls back: you rate yourself instead of bei
 scored, and you read the text when no voice is available. **Settings** shows what
 your browser supports.
 
+## Credits and licences
+
+- **JMdict** © Electronic Dictionary Research and Development Group, used under
+  [CC BY-SA 4.0](https://www.edrdg.org/edrdg/licence.html). The JSON conversion is
+  from [jmdict-simplified](https://github.com/scriptin/jmdict-simplified). It's
+  downloaded at build time, pinned to a release and verified by checksum.
+- **kuromoji.js** (Apache 2.0) with **IPADIC** © NAIST.
+- **ts-fsrs** (MIT).
+- The app lists these under **Settings → About & sources**.
+
+### Updating JMdict
+
+JMdict is revised regularly. EDRDG asks apps to keep their copy current, and to refresh it at least every few months.
+
+1. Pick the newest release at https://github.com/scriptin/jmdict-simplified/releases.
+2. Write its tag and the sha256 of `jmdict-eng-common-<tag>.json.tgz` into
+   `scripts/jmdict-release.json`. That file is the only place the version lives. The build
+   script and the service-worker cache name (so returning visitors get the new data) both
+   read it.
+3. Run `pnpm install` (or `node scripts/build-jmdict.mjs`). The script sees that the built
+   file is from a different release and rebuilds it.
+4. Run `pnpm test && pnpm e2e`, then open a PR.
+
 ## Development
 
 ```bash
@@ -100,5 +124,4 @@ itself, so it works whether or not the host also sends `Content-Encoding: gzip`
 - AI explanations, translations for imported lessons, and an optional
   Claude-backed "why is this sentence like this?" feature
 - Pitch-accent display and feedback
-- A bundled offline dictionary (JMdict) for meanings on word cards
 - Automatic transcription of imported audio (Whisper)

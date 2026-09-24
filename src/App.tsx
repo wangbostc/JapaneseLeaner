@@ -5,6 +5,7 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import { Icon, type IconName } from './components/Icon'
 import { seedOnce } from './lib/seed'
 import { store } from './lib/store'
+import { About } from './pages/About'
 import { Cards } from './pages/Cards'
 import { Import } from './pages/Import'
 import { LessonPage } from './pages/LessonPage'
@@ -51,6 +52,7 @@ function Shell() {
           <Route path="/cards" element={<Cards />} />
           <Route path="/stats" element={<Stats />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/about" element={<About />} />
         </Routes>
         </ErrorBoundary>
       </main>

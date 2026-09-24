@@ -43,6 +43,7 @@ test('first study round end to end', async ({ page }) => {
   await page.getByRole('button', { name: 'Hard' }).click()
   await page.locator('.sentence-card .word', { hasText: '起' }).click()
   await expect(page.getByRole('dialog')).toContainText('起きる')
+  await expect(page.getByTestId('meanings')).toContainText('to get up')
   await page.waitForTimeout(300) // let the sheet finish sliding in
   await shot(page, '03-intensive-word')
   await page.getByRole('button', { name: 'Save word' }).click()
@@ -107,6 +108,7 @@ test('first study round end to end', async ({ page }) => {
   await expect(page.getByTestId('flashcard')).toContainText('起きる')
   await page.getByRole('button', { name: 'Show answer' }).click()
   await expect(page.getByTestId('flashcard')).toContainText('おきる')
+  await expect(page.getByTestId('flashcard').getByTestId('meanings')).toContainText('to get up')
   await shot(page, '09-card')
   await page.getByRole('button', { name: /Good/ }).click()
   // The counter holds steady as graded cards leave the due set.
@@ -118,6 +120,10 @@ test('first study round end to end', async ({ page }) => {
 
   await page.goto('./#/stats')
   await shot(page, '10-stats')
+
+  await page.goto('./#/about')
+  await expect(page.getByRole('link', { name: 'JMdict', exact: true })).toBeVisible()
+  await expect(page.getByText('CC BY-SA 4.0').first()).toBeVisible()
 })
 
 test('Chinese interface and import', async ({ page }) => {
