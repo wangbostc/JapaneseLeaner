@@ -50,16 +50,49 @@ export function cuesToSrt(cues: Cue[]): string {
   return cues.map((c, i) => `${i + 1}\n${stamp(c.start ?? 0)} --> ${stamp(c.end ?? c.start ?? 0)}\n${c.text}\n`).join('\n')
 }
 
-/** Decodes any audio the browser can play into 16 kHz mono samples, as Whisper expects. */
+/** Longest audio we transcribe in one go: decoding happens in memory, which phones can't spare for hours of audio. */
+export const MAX_TRANSCRIBE_SECONDS = 20 * 60
+
+export class TranscribeError extends Error {
+  code: 'tooLong' | 'undecodable' | 'failed'
+  constructor(code: TranscribeError['code'], detail: string = code) {
+    super(detail)
+    this.code = code
+  }
+}
+
+/** Reads the duration from the file's metadata, without decoding the audio. */
+export function probeDuration(file: Blob): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file)
+    const el = new Audio()
+    el.preload = 'metadata'
+    el.onloadedmetadata = () => (URL.revokeObjectURL(url), resolve(el.duration))
+    el.onerror = () => (URL.revokeObjectURL(url), reject(new TranscribeError('undecodable')))
+    el.src = url
+  })
+}
+
+/**
+ * Decodes any audio the browser can play into 16 kHz mono samples, as Whisper
+ * expects. An OfflineAudioContext decodes straight to 16 kHz, so no full-rate
+ * copy is held, and it needs no audio device (unlike AudioContext, of which
+ * browsers allow only a few).
+ */
 export async function decodeTo16kMono(file: Blob): Promise<{ samples: Float32Array; duration: number }> {
-  const bytes = await file.arrayBuffer()
-  const decoded = await new AudioContext().decodeAudioData(bytes)
-  const frames = Math.ceil(decoded.duration * 16000)
-  const offline = new OfflineAudioContext(1, frames, 16000)
-  const src = offline.createBufferSource()
-  src.buffer = decoded
-  src.connect(offline.destination)
-  src.start()
-  const rendered = await offline.startRendering()
-  return { samples: rendered.getChannelData(0), duration: decoded.duration }
+  const duration = await probeDuration(file)
+  if (Number.isFinite(duration) && duration > MAX_TRANSCRIBE_SECONDS) throw new TranscribeError('tooLong')
+  let decoded: AudioBuffer
+  try {
+    decoded = await new OfflineAudioContext(1, 1, 16000).decodeAudioData(await file.arrayBuffer())
+  } catch {
+    throw new TranscribeError('undecodable')
+  }
+  if (decoded.duration > MAX_TRANSCRIBE_SECONDS) throw new TranscribeError('tooLong')
+  const samples = new Float32Array(decoded.length)
+  for (let c = 0; c < decoded.numberOfChannels; c++) {
+    const channel = decoded.getChannelData(c)
+    for (let i = 0; i < samples.length; i++) samples[i] += channel[i] / decoded.numberOfChannels
+  }
+  return { samples, duration: decoded.duration }
 }

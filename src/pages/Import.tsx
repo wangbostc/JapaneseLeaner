@@ -1,10 +1,10 @@
-import { useMemo, useState, type ChangeEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSettings } from '../app/useSettings'
 import type { Sentence } from '../lib/db'
 import { store } from '../lib/store'
 import { parseTranscript } from '../lib/subtitles'
-import { WHISPER_MODELS, type WhisperModelId } from '../lib/transcribe'
+import { TranscribeError, WHISPER_MODELS, type WhisperModelId } from '../lib/transcribe'
 import { transcribeToSrt, type TranscribeProgress } from '../lib/transcriber'
 
 export function Import() {
@@ -19,7 +19,10 @@ export function Import() {
   const [busy, setBusy] = useState(false)
   const [model, setModel] = useState<WhisperModelId>(WHISPER_MODELS[0].id)
   const [asr, setAsr] = useState<TranscribeProgress | 'done' | null>(null)
-  const [asrError, setAsrError] = useState<string | null>(null)
+  const [asrError, setAsrError] = useState<TranscribeError['code'] | null>(null)
+  const asrRun = useRef<AbortController | null>(null)
+  // Leaving the page stops a transcription in progress (and its worker).
+  useEffect(() => () => asrRun.current?.abort(), [])
   const [error, setError] = useState<string | null>(null)
 
   const sentences: Sentence[] = useMemo(() => {
@@ -43,16 +46,29 @@ export function Import() {
 
   const transcribe = async () => {
     if (!audio) return
+    asrRun.current?.abort()
+    const run = new AbortController()
+    asrRun.current = run
     setAsrError(null)
     try {
-      const srt = await transcribeToSrt(audio, model, setAsr)
+      const srt = await transcribeToSrt(audio, model, setAsr, run.signal)
+      if (run.signal.aborted) return
       setTranscript(srt)
       setTranscriptName('transcribed.srt')
       setAsr('done')
     } catch (e) {
-      setAsrError(e instanceof Error ? e.message : String(e))
+      if (run.signal.aborted) return
+      setAsrError(e instanceof TranscribeError ? e.code : 'failed')
       setAsr(null)
     }
+  }
+
+  const chooseAudio = (file: File | null) => {
+    // A new file makes any running or finished transcription of the old one irrelevant.
+    asrRun.current?.abort()
+    setAsr(null)
+    setAsrError(null)
+    setAudio(file)
   }
   const asrRunning = asr !== null && asr !== 'done'
 
@@ -88,7 +104,7 @@ export function Import() {
       </label>
       <label>
         {t.fieldAudio}
-        <input type="file" accept="audio/*,video/mp4" onChange={(e) => setAudio(e.target.files?.[0] ?? null)} />
+        <input type="file" accept="audio/*,video/mp4" onChange={(e) => chooseAudio(e.target.files?.[0] ?? null)} />
         <small className="muted">{t.fieldAudioHint}</small>
       </label>
       {audio && !timed && (
@@ -114,7 +130,7 @@ export function Import() {
               {asr.phase === 'transcribing' && t.transcribeWorking}
             </p>
           )}
-          {asrError && <p className="error small">{asrError}</p>}
+          {asrError && <p className="error small">{t.transcribeErrors[asrError]}</p>}
         </div>
       )}
       {asr === 'done' && <p className="ok small">{t.transcribeDone}</p>}
@@ -124,6 +140,7 @@ export function Import() {
           rows={8}
           lang="ja"
           value={transcript}
+          readOnly={asrRunning}
           onChange={(e) => {
             setTranscript(e.target.value)
             setTranscriptName('pasted.txt')
@@ -133,7 +150,7 @@ export function Import() {
       </label>
       <label className="file-inline">
         {t.loadFile}
-        <input type="file" accept=".srt,.vtt,.lrc,.txt" onChange={loadTranscript} />
+        <input type="file" accept=".srt,.vtt,.lrc,.txt" onChange={loadTranscript} disabled={asrRunning} />
       </label>
       <label>
         {t.fieldTranslation}

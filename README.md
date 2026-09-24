@@ -56,7 +56,7 @@ Import**:
 **No subtitles?** Import can transcribe the audio on your device with Whisper
 ([Transformers.js](https://github.com/huggingface/transformers.js), running in a Web Worker).
 The model downloads once, when you first ask for it: Base is about 80 MB and Small about 250 MB.
-After that it works offline, and the audio never leaves the device. The result fills the
+The ONNX runtime is served from the app's own origin. After that first download it works offline, and the audio never leaves the device. Audio up to 20 minutes is accepted, because decoding happens in memory. The result fills the
 transcript box as timed SRT for you to review. Whisper's chunks are split into sentences, and
 timings are shared out by sentence length.
 

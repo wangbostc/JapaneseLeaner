@@ -177,6 +177,11 @@ const en = {
   transcribeDownloading: (pct: number) => `Downloading the model… ${pct}%`,
   transcribeWorking: 'Transcribing…',
   transcribeDone: 'Transcript ready below. Review it before creating the lesson.',
+  transcribeErrors: {
+    tooLong: 'That audio is longer than 20 minutes. Split it into shorter parts to transcribe.',
+    undecodable: 'This browser can’t decode that audio file.',
+    failed: 'Transcription failed. Check your connection (the first run downloads the model) and try again.',
+  } as Record<'tooLong' | 'undecodable' | 'failed', string>,
   crashTitle: 'Something went wrong',
   crashBody: 'Your progress is saved on this device. Reload to continue.',
   reload: 'Reload',
@@ -354,6 +359,11 @@ const zh: Strings = {
   transcribeDownloading: (pct) => `正在下载模型… ${pct}%`,
   transcribeWorking: '正在转写…',
   transcribeDone: '转写结果已填入下方。创建课程前请检查。',
+  transcribeErrors: {
+    tooLong: '音频超过 20 分钟。请分成较短的片段再转写。',
+    undecodable: '此浏览器无法解码该音频文件。',
+    failed: '转写失败。请检查网络（首次运行需要下载模型）后重试。',
+  },
   crashTitle: '出错了',
   crashBody: '你的进度已保存在本设备上。刷新即可继续。',
   reload: '刷新',

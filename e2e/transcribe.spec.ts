@@ -30,13 +30,39 @@ test('transcribing fills a timed transcript the learner can review', async ({ pa
   await expect(page.locator('.transcript li')).toHaveText(TRUTH)
 })
 
+test.describe('without the service worker', () => {
+  // Requests a service worker handles bypass page.route, so this test counts fetches without one.
+  test.use({ serviceWorkers: 'block' })
+
+test('a failed run can be retried with a fresh worker, and errors are shown, not hung', async ({ page }) => {
+  let workerRequests = 0
+  await page.route('**/assets/transcribe.worker-*.js', (route) => (++workerRequests === 1 ? route.fulfill({ status: 404 }) : route.continue()))
+  // No model downloads in this test: the second run gets a worker, then fails to fetch the model.
+  await page.route('https://huggingface.co/**', (route) => route.abort())
+  await openImportWithAudio(page)
+
+  await page.getByRole('button', { name: 'Transcribe' }).click()
+  await expect(page.getByText('Transcription failed.')).toBeVisible({ timeout: 20_000 })
+  await page.getByRole('button', { name: 'Transcribe' }).click()
+  await expect.poll(() => workerRequests).toBe(2)
+  await expect(page.getByText('Transcription failed.')).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByRole('button', { name: 'Transcribe' })).toBeEnabled()
+})
+})
+
 // Downloads the real Whisper model (~80 MB) and runs it in the browser. Opt in: WHISPER_E2E=1.
 test('real Whisper transcribes the fixture accurately', async ({ page }) => {
   test.skip(!process.env.WHISPER_E2E, 'set WHISPER_E2E=1 to download and run the real model')
   test.setTimeout(15 * 60_000)
+  const assetHosts = new Set<string>()
+  page.on('request', (r) => {
+    if (/\.(wasm|mjs)(\?|$)/.test(r.url())) assetHosts.add(new URL(r.url()).host)
+  })
   await openImportWithAudio(page)
   await page.getByRole('button', { name: 'Transcribe' }).click()
   await expect(page.getByText('Transcript ready below.')).toBeVisible({ timeout: 14 * 60_000 })
+  // The ONNX runtime comes from our own origin, not a CDN.
+  expect([...assetHosts]).toEqual([new URL(page.url()).host])
   const srt = await page.getByRole('textbox', { name: /^Transcript/ }).inputValue()
   const text = srt
     .split('\n')

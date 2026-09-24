@@ -2,8 +2,14 @@
 // Runs Whisper off the main thread. transformers.js fetches the model from the
 // Hugging Face hub once and keeps it in Cache Storage for later (and offline) use.
 import { env, pipeline, type AutomaticSpeechRecognitionPipeline } from '@huggingface/transformers'
+// Pinned to the exact onnxruntime-web transformers.js depends on, so these are its own files.
+import ortMjs from 'onnxruntime-web/ort-wasm-simd-threaded.asyncify.mjs?url'
+import ortWasm from 'onnxruntime-web/ort-wasm-simd-threaded.asyncify.wasm?url'
 
 env.allowLocalModels = false
+// Serve the ONNX runtime from our own origin instead of transformers.js's default CDN, so it
+// works offline once cached and doesn't depend on a third party serving a dev build.
+env.backends.onnx.wasm!.wasmPaths = { wasm: ortWasm, mjs: ortMjs }
 
 export type WorkerRequest = { samples: Float32Array; model: string }
 export type WorkerMessage =
