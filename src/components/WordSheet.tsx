@@ -4,6 +4,7 @@ import { speak } from '../lib/speech'
 import { store } from '../lib/store'
 import type { Token } from '../lib/tokenizer'
 import { Icon } from './Icon'
+import { Meanings } from './Meanings'
 
 interface Props {
   token: Token
@@ -44,6 +45,7 @@ export function WordSheet({ token, lessonId, context, analyzerReading, onClose }
             {token.surface} · {token.pos}
           </div>
         )}
+        <Meanings word={token.lemma} reading={analyzerReading(token.lemma)} />
         <div className="row">
           <button className="btn" onClick={() => speak(token.lemma, settings.rate, settings.voiceURI)}>
             <Icon name="play" /> {t.play}

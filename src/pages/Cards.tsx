@@ -2,6 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useMemo, useState } from 'react'
 import { useSettings } from '../app/useSettings'
 import { Icon } from '../components/Icon'
+import { Meanings } from '../components/Meanings'
 import { db, type Flashcard } from '../lib/db'
 import { speak } from '../lib/speech'
 import { previewIntervals, Rating, type Grade } from '../lib/srs'
@@ -68,7 +69,7 @@ export function Cards() {
           {done.size + 1} {t.of} {queue.length}
         </span>
       </div>
-      <div className={`flashcard ${card.kind}`} data-testid="flashcard">
+      <div className={`flashcard kind-${card.kind}`} data-testid="flashcard">
         <div className="card-front" lang="ja">
           {card.front}
         </div>
@@ -78,6 +79,7 @@ export function Cards() {
             <div className="card-reading" lang="ja">
               {card.reading}
             </div>
+            {card.kind === 'word' && <Meanings word={card.front} reading={card.reading} />}
             {translation && <p className="translation">{translation}</p>}
           </div>
         )}
