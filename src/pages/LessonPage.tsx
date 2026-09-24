@@ -2,11 +2,13 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { relativeTime } from '../app/i18n'
+import { useAiKey } from '../app/aiKey'
 import { useSettings } from '../app/useSettings'
 import { useAnalyzer } from '../app/useAnalyzer'
 import { Icon } from '../components/Icon'
 import { JapaneseText } from '../components/JapaneseText'
 import { RoundDots } from '../components/LessonRow'
+import { createAiClient, describeAiError, translateSentences } from '../lib/ai'
 import { db } from '../lib/db'
 import { dueAt, isGraduated, ROUNDS } from '../lib/schedule'
 import { store } from '../lib/store'
@@ -19,7 +21,24 @@ export function LessonPage() {
   const analyzer = useAnalyzer()
   const [confirming, setConfirming] = useState(false)
   const [now] = useState(() => Date.now())
+  const aiKey = useAiKey()
+  const [translating, setTranslating] = useState(false)
+  const [aiError, setAiError] = useState('')
   if (!lesson) return null
+
+  const missingTranslation = lesson.sentences.some((s) => !s.translations?.[settings.lang])
+  const translate = async () => {
+    setTranslating(true)
+    setAiError('')
+    try {
+      const out = await translateSentences(createAiClient(aiKey), lesson.sentences.map((s) => s.text), settings.lang)
+      await store.setTranslations(lesson.id!, settings.lang, out)
+    } catch (e) {
+      setAiError(describeAiError(e))
+    } finally {
+      setTranslating(false)
+    }
+  }
 
   const round = ROUNDS[lesson.progress.roundsDone]
   const due = dueAt(lesson.progress)
@@ -58,6 +77,15 @@ export function LessonPage() {
       ) : (
         <div className="next-round">
           <p>{isGraduated(lesson.progress) && t.mastered}</p>
+        </div>
+      )}
+
+      {aiKey && missingTranslation && (
+        <div className="row">
+          <button className="btn" onClick={translate} disabled={translating}>
+            ✦ {translating ? t.translating : t.translateAi}
+          </button>
+          {aiError && <span className="error small">{aiError}</span>}
         </div>
       )}
 

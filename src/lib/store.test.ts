@@ -49,6 +49,16 @@ describe('store', () => {
     expect((await s.agenda(T0)).due.map((l) => l.title)).toEqual(['c', 'a', 'b'])
   })
 
+  it('adds translations for one language without touching the others', async () => {
+    const id = await s.createLesson(
+      { title: 't', sentences: [{ start: null, end: null, text: '一。', translations: { en: 'One.' } }, { start: null, end: null, text: '二。' }] },
+      T0,
+    )
+    await s.setTranslations(id, 'zh', ['一。', '二。'])
+    expect((await s.db.lessons.get(id))!.sentences.map((x) => x.translations)).toEqual([{ en: 'One.', zh: '一。' }, { zh: '二。' }])
+    await expect(s.setTranslations(id, 'en', ['only one'])).rejects.toThrow('translation count mismatch')
+  })
+
   it('tracks hard sentences as a sorted set', async () => {
     const id = await lesson('a')
     await s.setHard(id, 3, true)
