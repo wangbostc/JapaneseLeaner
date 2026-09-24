@@ -1,0 +1,5 @@
+# Install scripts pnpm asks about. The app runs Whisper in the browser (onnxruntime-web),
+# so the native Node runtime and protobufjs's postinstall aren't needed.
+allowBuilds:
+  onnxruntime-node: false
+  protobufjs: false

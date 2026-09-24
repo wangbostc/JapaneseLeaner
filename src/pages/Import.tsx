@@ -1,9 +1,11 @@
-import { useMemo, useState, type ChangeEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSettings } from '../app/useSettings'
 import type { Sentence } from '../lib/db'
 import { store } from '../lib/store'
 import { parseTranscript } from '../lib/subtitles'
+import { TranscribeError, WHISPER_MODELS, type WhisperModelId } from '../lib/transcribe'
+import { transcribeToSrt, type TranscribeProgress } from '../lib/transcriber'
 
 export function Import() {
   const { t, settings } = useSettings()
@@ -15,6 +17,12 @@ export function Import() {
   const [transcriptName, setTranscriptName] = useState('pasted.txt')
   const [translation, setTranslation] = useState('')
   const [busy, setBusy] = useState(false)
+  const [model, setModel] = useState<WhisperModelId>(WHISPER_MODELS[0].id)
+  const [asr, setAsr] = useState<TranscribeProgress | 'done' | null>(null)
+  const [asrError, setAsrError] = useState<TranscribeError['code'] | null>(null)
+  const asrRun = useRef<AbortController | null>(null)
+  // Leaving the page stops a transcription in progress (and its worker).
+  useEffect(() => () => asrRun.current?.abort(), [])
   const [error, setError] = useState<string | null>(null)
 
   const sentences: Sentence[] = useMemo(() => {
@@ -35,6 +43,34 @@ export function Import() {
     setTranscript(await file.text())
     if (!title) setTitle(file.name.replace(/\.[^.]+$/, ''))
   }
+
+  const transcribe = async () => {
+    if (!audio) return
+    asrRun.current?.abort()
+    const run = new AbortController()
+    asrRun.current = run
+    setAsrError(null)
+    try {
+      const srt = await transcribeToSrt(audio, model, setAsr, run.signal)
+      if (run.signal.aborted) return
+      setTranscript(srt)
+      setTranscriptName('transcribed.srt')
+      setAsr('done')
+    } catch (e) {
+      if (run.signal.aborted) return
+      setAsrError(e instanceof TranscribeError ? e.code : 'failed')
+      setAsr(null)
+    }
+  }
+
+  const chooseAudio = (file: File | null) => {
+    // A new file makes any running or finished transcription of the old one irrelevant.
+    asrRun.current?.abort()
+    setAsr(null)
+    setAsrError(null)
+    setAudio(file)
+  }
+  const asrRunning = asr !== null && asr !== 'done'
 
   const create = async () => {
     if (busy) return
@@ -68,15 +104,43 @@ export function Import() {
       </label>
       <label>
         {t.fieldAudio}
-        <input type="file" accept="audio/*,video/mp4" onChange={(e) => setAudio(e.target.files?.[0] ?? null)} />
+        <input type="file" accept="audio/*,video/mp4" onChange={(e) => chooseAudio(e.target.files?.[0] ?? null)} />
         <small className="muted">{t.fieldAudioHint}</small>
       </label>
+      {audio && !timed && (
+        <div className="transcribe" data-testid="transcribe">
+          <h2 className="section-label">{t.transcribeTitle}</h2>
+          <p className="muted small">{t.transcribeHint}</p>
+          <div className="row">
+            <select aria-label={t.transcribeModel} value={model} onChange={(e) => setModel(e.target.value as WhisperModelId)} disabled={asrRunning}>
+              {WHISPER_MODELS.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {t.transcribeModelSize(m.label, m.sizeMb)}
+                </option>
+              ))}
+            </select>
+            <button className="btn" onClick={transcribe} disabled={asrRunning}>
+              {t.transcribeRun}
+            </button>
+          </div>
+          {asr && asr !== 'done' && (
+            <p className="muted small" role="status">
+              {asr.phase === 'decoding' && t.transcribeDecoding}
+              {asr.phase === 'downloading' && t.transcribeDownloading(Math.round(asr.fraction * 100))}
+              {asr.phase === 'transcribing' && t.transcribeWorking}
+            </p>
+          )}
+          {asrError && <p className="error small">{t.transcribeErrors[asrError]}</p>}
+        </div>
+      )}
+      {asr === 'done' && <p className="ok small">{t.transcribeDone}</p>}
       <label>
         {t.fieldTranscript}
         <textarea
           rows={8}
           lang="ja"
           value={transcript}
+          readOnly={asrRunning}
           onChange={(e) => {
             setTranscript(e.target.value)
             setTranscriptName('pasted.txt')
@@ -86,7 +150,7 @@ export function Import() {
       </label>
       <label className="file-inline">
         {t.loadFile}
-        <input type="file" accept=".srt,.vtt,.lrc,.txt" onChange={loadTranscript} />
+        <input type="file" accept=".srt,.vtt,.lrc,.txt" onChange={loadTranscript} disabled={asrRunning} />
       </label>
       <label>
         {t.fieldTranslation}

@@ -17,9 +17,15 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,webmanifest}'],
         // The 17 MB dictionary isn't precached on install; it's cached the
         // first time it's fetched, which every study session does.
-        // The AI chunk is only for learners with a key, and it needs the network anyway.
-        globIgnores: ['dict/**', '**/ai-*.js'],
+        // Opt-in features stay out of everyone's precache: the AI chunk needs the network anyway,
+        // and the transcription worker + ONNX runtime are cached on first use instead.
+        globIgnores: ['dict/**', '**/ai-*.js', '**/transcribe.worker-*.js'],
         runtimeCaching: [
+          {
+            urlPattern: ({ url }) => /\/assets\/(transcribe\.worker-[^/]+\.js|[^/]+\.wasm)$/.test(url.pathname),
+            handler: 'CacheFirst',
+            options: { cacheName: 'asr-runtime', expiration: { maxEntries: 8 } },
+          },
           {
             urlPattern: ({ url }) => url.pathname.includes('/dict/'),
             handler: 'CacheFirst',

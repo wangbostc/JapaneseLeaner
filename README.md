@@ -53,6 +53,24 @@ Import**:
 - Or plain Japanese text, voiced by TTS. It's split at 。！？ and line breaks.
 - An optional translation, one line per sentence.
 
+**No subtitles?** Import can transcribe the audio on your device with Whisper
+([Transformers.js](https://github.com/huggingface/transformers.js), running in a Web Worker).
+The model downloads once, when you first ask for it: Base is about 80 MB and Small about 250 MB.
+The ONNX runtime is served from the app's own origin. After that first download it works offline, and the audio never leaves the device. Audio up to 20 minutes is accepted, because decoding happens in memory. The result fills the
+transcript box as timed SRT for you to review. Whisper's chunks are split into sentences, and
+timings are shared out by sentence length.
+
+Measured on the synthetic fixture `e2e/fixtures/clip.wav` (three sentences in macOS's Kyoko
+voice, so a best case; real recordings will be worse):
+
+| Model | Character error rate | Notes |
+|---|---|---|
+| tiny (not offered) | 6.9% | 天気 → 点気, 散歩 → 3歩 |
+| **base** (default) | 6.9% | 散歩 → 参考; a separate timestamp for each sentence |
+| small | 0% | one timestamp chunk for the whole clip |
+
+`WHISPER_E2E=1 pnpm e2e` re-runs the base measurement in a real browser.
+
 Everything is stored locally in IndexedDB. There's no account and no server.
 Use **Settings → Your data** to export a backup (a JSON file, audio included) and to restore it on another device.
 
@@ -124,4 +142,3 @@ itself, so it works whether or not the host also sends `Content-Encoding: gzip`
 - AI explanations, translations for imported lessons, and an optional
   Claude-backed "why is this sentence like this?" feature
 - Pitch-accent display and feedback
-- Automatic transcription of imported audio (Whisper)
