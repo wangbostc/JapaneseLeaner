@@ -129,9 +129,15 @@ export function japaneseVoices(): Promise<SpeechSynthesisVoice[]> {
 export const estimateSpeechMs = (text: string, rate: number) => (text.length * 160) / rate + 600
 
 export async function speak(text: string, rate = 1, voiceURI?: string, signal?: AbortSignal): Promise<void> {
-  const fallback = () => new Promise<void>((r) => setTimeout(r, fake() ? 50 : estimateSpeechMs(text, rate)))
+  // No voice: wait roughly as long as speaking would take, so pacing still works.
+  const fallback = () =>
+    new Promise<void>((resolve) => {
+      const timer = setTimeout(resolve, fake() ? 50 : estimateSpeechMs(text, rate))
+      signal?.addEventListener('abort', () => (clearTimeout(timer), resolve()), { once: true })
+    })
   if (fake() || !ttsSupported()) return fallback()
   const voices = await japaneseVoices()
+  if (signal?.aborted) return
   if (!voices.length) return fallback()
   speechSynthesis.cancel()
   const u = new SpeechSynthesisUtterance(text)

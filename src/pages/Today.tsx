@@ -1,7 +1,8 @@
+import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Link } from 'react-router-dom'
 import { formatDuration } from '../app/i18n'
-import { useSettings } from '../app/settings'
+import { useSettings } from '../app/useSettings'
 import { Icon } from '../components/Icon'
 import { LessonRow } from '../components/LessonRow'
 import { db } from '../lib/db'
@@ -9,7 +10,7 @@ import { store } from '../lib/store'
 
 export function Today() {
   const { t } = useSettings()
-  const now = Date.now()
+  const [now] = useState(() => Date.now())
   const agenda = useLiveQuery(() => store.agenda(now), [])
   const cardsDue = useLiveQuery(() => db.cards.where('card.due').belowOrEqual(new Date()).count(), [])
   const stats = useLiveQuery(() => store.stats(), [])

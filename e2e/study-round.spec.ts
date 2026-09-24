@@ -47,6 +47,10 @@ test('first study round end to end', async ({ page }) => {
   await shot(page, '03-intensive-word')
   await page.getByRole('button', { name: 'Save word' }).click()
   await expect(page.getByRole('button', { name: 'Saved' })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await page.locator('.sentence-card .word', { hasText: '毎朝' }).click()
+  await page.getByRole('button', { name: 'Save word' }).click()
   await page.locator('.sheet-backdrop').click({ position: { x: 5, y: 5 } })
   for (let i = 1; i < SENTENCES.length; i++) await page.getByRole('button', { name: 'Next' }).click()
   await page.getByRole('button', { name: 'Done' }).click()
@@ -91,7 +95,7 @@ test('first study round end to end', async ({ page }) => {
   await page.getByRole('link', { name: 'Back to Today' }).click()
   await expect(page.locator('.lesson-row')).toHaveCount(3)
   await expect(page.getByText('Review 1/7')).toBeVisible()
-  await expect(page.getByText('1 card to review')).toBeVisible()
+  await expect(page.getByText('2 cards to review')).toBeVisible()
   await shot(page, '08-today-after')
 
   // Sentences 1 (marked by hand) and 3 (scored C) are hard.
@@ -99,11 +103,17 @@ test('first study round end to end', async ({ page }) => {
   await expect(page.locator('.transcript li.is-hard')).toHaveCount(2)
 
   await page.goto('./#/cards')
+  await expect(page.getByText('1 of 2')).toBeVisible()
   await expect(page.getByTestId('flashcard')).toContainText('起きる')
   await page.getByRole('button', { name: 'Show answer' }).click()
   await expect(page.getByTestId('flashcard')).toContainText('おきる')
   await shot(page, '09-card')
   await page.getByRole('button', { name: /Good/ }).click()
+  // The counter holds steady as graded cards leave the due set.
+  await expect(page.getByText('2 of 2')).toBeVisible()
+  await expect(page.getByTestId('flashcard')).toContainText('毎朝')
+  await page.getByRole('button', { name: 'Show answer' }).click()
+  await page.getByRole('button', { name: /Easy/ }).click()
   await expect(page.getByText('All caught up.')).toBeVisible()
 
   await page.goto('./#/stats')

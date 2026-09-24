@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useSettings } from '../app/settings'
+import { useEffect, useRef, useState } from 'react'
+import { useSettings } from '../app/useSettings'
 import { speak } from '../lib/speech'
 import { store } from '../lib/store'
 import type { Token } from '../lib/tokenizer'
@@ -17,13 +17,24 @@ interface Props {
 export function WordSheet({ token, lessonId, context, analyzerReading, onClose }: Props) {
   const { t, settings } = useSettings()
   const [saved, setSaved] = useState(false)
+  const saveButton = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null
+    saveButton.current?.focus()
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      opener?.focus()
+    }
+  }, [onClose])
   const save = async () => {
     await store.addCard({ lessonId, kind: 'word', front: token.lemma, reading: analyzerReading(token.lemma), context })
     setSaved(true)
   }
   return (
     <div className="sheet-backdrop" onClick={onClose}>
-      <div className="sheet" role="dialog" aria-label={token.lemma} onClick={(e) => e.stopPropagation()}>
+      <div className="sheet" role="dialog" aria-modal="true" aria-label={token.lemma} onClick={(e) => e.stopPropagation()}>
         <div className="sheet-word" lang="ja">
           {token.lemma}
           <span className="sheet-reading">{analyzerReading(token.lemma)}</span>
@@ -37,7 +48,7 @@ export function WordSheet({ token, lessonId, context, analyzerReading, onClose }
           <button className="btn" onClick={() => speak(token.lemma, settings.rate, settings.voiceURI)}>
             <Icon name="play" /> {t.play}
           </button>
-          <button className="btn primary" onClick={save} disabled={saved}>
+          <button ref={saveButton} className="btn primary" onClick={save} disabled={saved}>
             <Icon name={saved ? 'check' : 'star'} /> {saved ? t.saved : t.saveWord}
           </button>
         </div>

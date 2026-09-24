@@ -22,7 +22,7 @@ describe('store', () => {
     expect((await s.agenda(T0)).due.map((l) => l.title)).toEqual(['a'])
 
     await s.saveResume(id, { round: 0, stepIndex: 2, sentenceIndex: 0 })
-    const p = await s.finishRound(id, T0)
+    const p = await s.finishRound(id, 0, T0)
     expect(p).toEqual({ roundsDone: 1, lastCompletedAt: T0 })
     expect((await s.db.lessons.get(id))!.resume).toBeNull()
 
@@ -32,12 +32,20 @@ describe('store', () => {
     expect((await s.agenda(T0 + 6 * H)).due.map((l) => l.title)).toEqual(['a'])
   })
 
+  it('ignores a repeated finish for the same round', async () => {
+    const id = await lesson('a')
+    const [p1, p2] = await Promise.all([s.finishRound(id, 0, T0), s.finishRound(id, 0, T0 + 1)])
+    expect(p1).toEqual({ roundsDone: 1, lastCompletedAt: T0 })
+    expect(p2).toEqual({ roundsDone: 1, lastCompletedAt: T0 })
+    expect((await s.db.lessons.get(id))!.progress.roundsDone).toBe(1)
+  })
+
   it('puts due reviews before new lessons', async () => {
     const a = await lesson('a', T0)
     await lesson('b', T0 + 1)
     const c = await lesson('c', T0 + 2)
-    await s.finishRound(a, T0 - D) // a's first review was due 18h ago
-    await s.finishRound(c, T0 - 2 * D) // c's was due 42h ago
+    await s.finishRound(a, 0, T0 - D) // a's first review was due 18h ago
+    await s.finishRound(c, 0, T0 - 2 * D) // c's was due 42h ago
     expect((await s.agenda(T0)).due.map((l) => l.title)).toEqual(['c', 'a', 'b'])
   })
 
@@ -85,5 +93,21 @@ describe('store', () => {
     expect(st).toMatchObject({ totalMs: 90_000, inputMs: 60_000, outputMs: 30_000, words: 3, cards: 0, streak: 2 })
     expect(st.lastWeek.map((d) => d.ms)).toEqual([0, 0, 0, 0, 0, 60_000, 30_000])
     expect(await s.db.logs.count()).toBe(2)
+  })
+
+  it('splits days at local midnight, not UTC midnight', async () => {
+    // Tests run in Australia/Sydney (UTC+11 in January), see src/test/setup.ts.
+    const beforeMidnight = new Date(2026, 0, 10, 23, 30).getTime()
+    const afterMidnight = new Date(2026, 0, 11, 0, 30).getTime()
+    expect(new Date(beforeMidnight).getUTCDate()).toBe(new Date(afterMidnight).getUTCDate()) // same UTC day
+    const id = await lesson('a')
+    await s.log({ lessonId: id, step: 'intensive', mode: 'input', ms: 60_000, at: beforeMidnight })
+    await s.log({ lessonId: id, step: 'intensive', mode: 'input', ms: 30_000, at: afterMidnight })
+    const st = await s.stats(afterMidnight)
+    expect(st.streak).toBe(2)
+    expect(st.lastWeek.slice(-2)).toEqual([
+      { day: new Date(2026, 0, 10).getTime(), ms: 60_000 },
+      { day: new Date(2026, 0, 11).getTime(), ms: 30_000 },
+    ])
   })
 })

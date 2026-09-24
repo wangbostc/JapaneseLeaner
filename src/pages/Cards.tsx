@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { useMemo, useState } from 'react'
-import { useSettings } from '../app/settings'
+import { useEffect, useMemo, useState } from 'react'
+import { useSettings } from '../app/useSettings'
 import { Icon } from '../components/Icon'
 import { db, type Flashcard } from '../lib/db'
 import { speak } from '../lib/speech'
@@ -25,10 +25,14 @@ function Context({ card }: { card: Flashcard }) {
 
 export function Cards() {
   const { t, settings } = useSettings()
-  // Snapshot the queue so a graded card doesn't reshuffle the session.
-  const [startedAt] = useState(() => Date.now())
-  const queue = useLiveQuery(() => store.dueCards(startedAt), [startedAt])
+  // Load the due queue once: graded cards get future due dates, and a live
+  // query would drop them mid-session and throw off the counter.
+  const [queue, setQueue] = useState<Flashcard[] | null>(null)
+  useEffect(() => {
+    store.dueCards().then(setQueue)
+  }, [])
   const [done, setDone] = useState<Set<number>>(new Set())
+  const [busy, setBusy] = useState(false)
   const [flipped, setFlipped] = useState(false)
   const card = queue?.find((c) => !done.has(c.id!))
   const lesson = useLiveQuery(() => (card ? db.lessons.get(card.lessonId) : undefined), [card?.lessonId])
@@ -45,9 +49,15 @@ export function Cards() {
 
   const translation = lesson?.sentences.find((s) => s.text === card.context)?.translations?.[settings.lang]
   const grade = async (g: Grade) => {
-    await store.gradeCard(card.id!, g)
-    setDone((d) => new Set(d).add(card.id!))
-    setFlipped(false)
+    if (busy) return
+    setBusy(true)
+    try {
+      await store.gradeCard(card.id!, g)
+      setDone((d) => new Set(d).add(card.id!))
+      setFlipped(false)
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
@@ -85,7 +95,7 @@ export function Cards() {
               [Rating.Easy, t.easy],
             ] as [Grade, string][]
           ).map(([g, label]) => (
-            <button key={g} className={`btn grade-btn g${g}`} onClick={() => grade(g)}>
+            <button key={g} className={`btn grade-btn g${g}`} disabled={busy} onClick={() => grade(g)}>
               {label}
               <small>{intervals && fmtDays(intervals[g])}</small>
             </button>

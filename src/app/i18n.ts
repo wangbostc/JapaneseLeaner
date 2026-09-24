@@ -64,7 +64,7 @@ const en = {
   blindAll: 'Almost all',
   blindGist: 'The gist',
   blindLittle: 'Very little',
-  blindLittleHint: 'Those sentences will come back in the hard-sentence drill.',
+  blindLittleHint: 'Give it one more listen before moving on. The text stays hidden.',
   keyWords: 'Key words',
   coverage: (n: number) => `You reused ${n}% of the key words`,
   missed: 'Missed',
@@ -119,6 +119,9 @@ const en = {
   dictFailed: 'Could not load the dictionary. Check your connection and reload.',
   sampleBadge: 'Sample',
   of: 'of',
+  crashTitle: 'Something went wrong',
+  crashBody: 'Your progress is saved on this device. Reload to continue.',
+  reload: 'Reload',
 }
 
 export type Strings = typeof en
@@ -135,7 +138,7 @@ const zh: Strings = {
   dueNow: '现在该练',
   upcoming: '即将到期',
   graduated: '已通关',
-  nothingDue: '现在没有到期任务。去资料库开始新课，或者休息一下——下一轮复习会准时提醒你。',
+  nothingDue: '现在没有到期任务。去资料库开始新课，或者休息一下——下一轮复习到期后会出现在这里。',
   newLesson: '新课',
   reviewN: (n) => `第 ${n}/7 轮复习`,
   firstStudy: '首次学习',
@@ -181,7 +184,7 @@ const zh: Strings = {
   blindAll: '几乎全懂',
   blindGist: '大意',
   blindLittle: '很少',
-  blindLittleHint: '这些句子会在难句补练中再次出现。',
+  blindLittleHint: '继续之前再听一遍，文字仍然隐藏。',
   keyWords: '关键词',
   coverage: (n) => `你用上了 ${n}% 的关键词`,
   missed: '未用到',
@@ -236,6 +239,9 @@ const zh: Strings = {
   dictFailed: '词典加载失败。请检查网络后刷新。',
   sampleBadge: '示例',
   of: '/',
+  crashTitle: '出错了',
+  crashBody: '你的进度已保存在本设备上。刷新即可继续。',
+  reload: '刷新',
 }
 
 export const STRINGS: Record<UiLang, Strings> = { en, zh }

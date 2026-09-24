@@ -2,7 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { relativeTime } from '../app/i18n'
-import { useSettings } from '../app/settings'
+import { useSettings } from '../app/useSettings'
 import { useAnalyzer } from '../app/useAnalyzer'
 import { Icon } from '../components/Icon'
 import { Blind } from '../components/steps/Blind'
@@ -44,12 +44,16 @@ function Runner({ lesson, media, analyzer }: { lesson: Lesson & { id: number }; 
   const player = useMemo(() => createPlayer(media, settings.voiceURI), [media, settings.voiceURI])
   useEffect(() => () => player.dispose(), [player])
 
-  // The hard set changes as the learner drills; freeze it when the step starts.
-  const [hardAtStart, setHardAtStart] = useState(lesson.hard)
+  // The hard set changes as the learner drills; freeze it when the step starts
+  // and keep it in the resume point, so positions stay valid after a reload.
+  const [hardAtStart, setHardAtStart] = useState(resume?.queue ?? lesson.hard)
+  const busy = useRef(false)
   const step = round?.steps[stepIndex]
-  const stepStarted = useRef(Date.now())
+  const stepStarted = useRef(0)
   const stepRef = useRef(step)
-  stepRef.current = step
+  useEffect(() => {
+    stepRef.current = step
+  }, [step])
   const roundOver = useRef(false)
 
   const logStep = () => {
@@ -59,32 +63,53 @@ function Runner({ lesson, media, analyzer }: { lesson: Lesson & { id: number }; 
     store.log({ lessonId: lesson.id, step, mode: INPUT_STEPS.includes(step) ? 'input' : 'output', ms, at: Date.now() })
     stepStarted.current = Date.now()
   }
-  useEffect(() => logStep, []) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    stepStarted.current = Date.now()
+    return logStep
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (finished) return <RoundDone progress={finished} />
   if (!round) return <Navigate to={`/lesson/${lesson.id}`} replace />
 
   const onPosition = (p: number) => {
     setPosition(p)
-    store.saveResume(lesson.id, { round: round.index, stepIndex, sentenceIndex: p })
+    store.saveResume(lesson.id, { round: round.index, stepIndex, sentenceIndex: p, queue: step === 'hardSentences' ? hardAtStart : undefined })
   }
 
   const onDone = async () => {
+    if (busy.current) return
+    busy.current = true
+    try {
+      await advance()
+    } finally {
+      busy.current = false
+    }
+  }
+
+  const advance = async () => {
     logStep()
     if (step === 'intensive') {
       await store.addKnownWords(contentLemmas(lesson.sentences.flatMap((s) => analyzer.tokenize(s.text))))
     }
     if (stepIndex + 1 >= round.steps.length) {
       roundOver.current = true
-      const progress = await store.finishRound(lesson.id)
+      player.stop()
+      const progress = await store.finishRound(lesson.id, round.index)
       setFinished(progress ?? null)
       return
     }
     const next = stepIndex + 1
+    const queue = (await db.lessons.get(lesson.id))?.hard ?? []
+    player.stop()
     setStepIndex(next)
     setPosition(0)
-    setHardAtStart((await db.lessons.get(lesson.id))?.hard ?? [])
-    store.saveResume(lesson.id, { round: round.index, stepIndex: next, sentenceIndex: 0 })
+    setHardAtStart(queue)
+    store.saveResume(lesson.id, {
+      round: round.index,
+      stepIndex: next,
+      sentenceIndex: 0,
+      queue: round.steps[next] === 'hardSentences' ? queue : undefined,
+    })
   }
 
   const props: StepProps = { lesson, analyzer, player, position, onPosition, onDone }

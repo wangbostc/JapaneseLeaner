@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { HashRouter, NavLink, Route, Routes, useLocation } from 'react-router-dom'
-import { useSettings } from './app/settings'
+import { useSettings } from './app/useSettings'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { Icon, type IconName } from './components/Icon'
 import { seedOnce } from './lib/seed'
 import { store } from './lib/store'
@@ -40,6 +41,7 @@ function Shell() {
         </nav>
       )}
       <main>
+        <ErrorBoundary key={pathname} t={t}>
         <Routes>
           <Route path="/" element={<Today />} />
           <Route path="/library" element={<Library />} />
@@ -50,6 +52,7 @@ function Shell() {
           <Route path="/stats" element={<Stats />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>
+        </ErrorBoundary>
       </main>
     </div>
   )

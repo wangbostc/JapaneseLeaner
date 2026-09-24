@@ -2,7 +2,18 @@ import { db, type Flashcard, type KikitoriDB, type Lesson, type PracticeLog, typ
 import { completeRound, dueAt, isGraduated, type LessonProgress } from './schedule'
 import { newCard, review, type Grade } from './srs'
 
-const DAY = 86_400_000
+/** Local midnight of the day containing `ms`: streaks follow the learner's clock, not UTC. */
+export function localDay(ms: number): number {
+  const d = new Date(ms)
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
+}
+
+/** Local midnight `n` days before `day` (DST-safe: steps by calendar date, not 24h). */
+function daysBefore(day: number, n: number): number {
+  const d = new Date(day)
+  d.setDate(d.getDate() - n)
+  return d.getTime()
+}
 
 export function createStore(database: KikitoriDB = db) {
   return {
@@ -45,10 +56,15 @@ export function createStore(database: KikitoriDB = db) {
       })
     },
 
-    async finishRound(id: number, now = Date.now()): Promise<LessonProgress | undefined> {
+    /**
+     * Completes round `expectedRound`. A repeat call for the same round (a
+     * double tap on Done) is a no-op instead of skipping the next review.
+     */
+    async finishRound(id: number, expectedRound: number, now = Date.now()): Promise<LessonProgress | undefined> {
       return database.transaction('rw', database.lessons, async () => {
         const lesson = await database.lessons.get(id)
         if (!lesson) return undefined
+        if (lesson.progress.roundsDone !== expectedRound) return lesson.progress
         const progress = completeRound(lesson.progress, now)
         await database.lessons.update(id, { progress, resume: null })
         return progress
@@ -102,12 +118,13 @@ export function createStore(database: KikitoriDB = db) {
       const sum = (xs: PracticeLog[]) => xs.reduce((n, l) => n + l.ms, 0)
       const input = sum(logs.filter((l) => l.mode === 'input'))
       const output = sum(logs.filter((l) => l.mode === 'output'))
-      const days = new Set(logs.map((l) => Math.floor(l.at / DAY)))
+      const days = new Set(logs.map((l) => localDay(l.at)))
+      const today = localDay(now)
       let streak = 0
-      for (let d = Math.floor(now / DAY); days.has(d); d--) streak++
+      while (days.has(daysBefore(today, streak))) streak++
       const lastWeek = Array.from({ length: 7 }, (_, i) => {
-        const day = Math.floor(now / DAY) - 6 + i
-        return { day, ms: sum(logs.filter((l) => Math.floor(l.at / DAY) === day)) }
+        const day = daysBefore(today, 6 - i)
+        return { day, ms: sum(logs.filter((l) => localDay(l.at) === day)) }
       })
       return {
         totalMs: input + output,

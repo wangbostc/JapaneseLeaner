@@ -32,28 +32,50 @@ export function createPlayer(media: Blob | null, voiceURI?: string): Player {
     }
   }
 
-  const url = URL.createObjectURL(media)
-  const audio = new Audio(url)
-  audio.preservesPitch = true
+  // Created lazily and torn down on dispose, so a disposed player (React
+  // StrictMode runs effect cleanups once in dev) still works if reused.
+  let audio: HTMLAudioElement | null = null
+  let url: string | null = null
+  const ensureAudio = () => {
+    if (!audio) {
+      url = URL.createObjectURL(media)
+      audio = new Audio(url)
+      audio.preservesPitch = true
+    }
+    return audio
+  }
 
   const segment = (start: number, end: number | null, rate: number, signal: AbortSignal, onTime?: (t: number) => void) =>
     new Promise<void>((resolve) => {
+      const el = ensureAudio()
+      let settled = false
+      let frame = 0
       const done = () => {
-        audio.pause()
-        audio.removeEventListener('timeupdate', tick)
-        audio.removeEventListener('ended', done)
+        if (settled) return
+        settled = true
+        cancelAnimationFrame(frame)
+        el.pause()
+        el.removeEventListener('timeupdate', tick)
+        el.removeEventListener('ended', done)
+        signal.removeEventListener('abort', done)
         resolve()
       }
       const tick = () => {
-        onTime?.(audio.currentTime)
-        if (end !== null && audio.currentTime >= end) done()
+        onTime?.(el.currentTime)
+        if (end !== null && el.currentTime >= end) done()
       }
-      audio.addEventListener('timeupdate', tick)
-      audio.addEventListener('ended', done)
+      // timeupdate fires only every ~250 ms; checking each frame stops within
+      // a frame of the cue end instead of bleeding into the next sentence.
+      const poll = () => {
+        tick()
+        if (!settled) frame = requestAnimationFrame(poll)
+      }
+      el.addEventListener('timeupdate', tick)
+      el.addEventListener('ended', done)
       signal.addEventListener('abort', done, { once: true })
-      audio.currentTime = start
-      audio.playbackRate = rate
-      audio.play().catch(done)
+      el.currentTime = start
+      el.playbackRate = rate
+      el.play().then(poll, done)
     })
 
   return {
@@ -70,8 +92,10 @@ export function createPlayer(media: Blob | null, voiceURI?: string): Player {
     stop: () => fresh(),
     dispose: () => {
       abort.abort()
-      audio.pause()
-      URL.revokeObjectURL(url)
+      audio?.pause()
+      audio = null
+      if (url) URL.revokeObjectURL(url)
+      url = null
     },
   }
 }

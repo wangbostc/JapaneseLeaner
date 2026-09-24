@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { relativeTime } from '../app/i18n'
-import { useSettings } from '../app/settings'
+import { useSettings } from '../app/useSettings'
 import type { Lesson } from '../lib/db'
 import { dueAt, isGraduated, TOTAL_ROUNDS } from '../lib/schedule'
 

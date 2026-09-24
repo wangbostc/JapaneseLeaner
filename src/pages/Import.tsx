@@ -1,6 +1,6 @@
 import { useMemo, useState, type ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useSettings } from '../app/settings'
+import { useSettings } from '../app/useSettings'
 import type { Sentence } from '../lib/db'
 import { store } from '../lib/store'
 import { parseTranscript } from '../lib/subtitles'
@@ -14,6 +14,8 @@ export function Import() {
   const [transcript, setTranscript] = useState('')
   const [transcriptName, setTranscriptName] = useState('pasted.txt')
   const [translation, setTranslation] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const sentences: Sentence[] = useMemo(() => {
     const lines = translation.split(/\r?\n/).map((l) => l.trim())
@@ -35,13 +37,22 @@ export function Import() {
   }
 
   const create = async () => {
-    const id = await store.createLesson({
-      title: title.trim(),
-      level: level.trim() || undefined,
-      sentences,
-      media: audio ? { blob: audio, name: audio.name } : undefined,
-    })
-    navigate(`/lesson/${id}`)
+    if (busy) return
+    setBusy(true)
+    setError(null)
+    try {
+      const id = await store.createLesson({
+        title: title.trim(),
+        level: level.trim() || undefined,
+        sentences,
+        media: audio ? { blob: audio, name: audio.name } : undefined,
+      })
+      navigate(`/lesson/${id}`)
+    } catch (e) {
+      // e.g. an IndexedDB quota error for a large audio file on iOS.
+      setError(e instanceof Error ? e.message : String(e))
+      setBusy(false)
+    }
   }
 
   return (
@@ -86,7 +97,12 @@ export function Import() {
         {t.preview(sentences.length)}
         {audio && !timed && sentences.length > 0 && <span className="error"> · {t.needsTimings}</span>}
       </p>
-      <button className="btn primary big" disabled={!valid} onClick={create}>
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
+      <button className="btn primary big" disabled={!valid || busy} onClick={create}>
         {t.create}
       </button>
     </div>

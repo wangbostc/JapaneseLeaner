@@ -14,6 +14,8 @@ export interface Resume {
   round: number
   stepIndex: number
   sentenceIndex: number
+  /** The hard-sentence drill's queue, frozen when the step began. */
+  queue?: number[]
 }
 
 export interface Lesson {

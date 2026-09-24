@@ -24,6 +24,28 @@ describe('parseTranscript', () => {
   })
 })
 
+describe('robustness', () => {
+  it('accepts SRT timestamps without milliseconds', () => {
+    expect(parseTranscript('a.srt', '1\n00:00:01 --> 00:00:03\nはい\n')).toEqual([{ start: 1, end: 3, text: 'はい' }])
+  })
+
+  it('never throws on a stray arrow in plain text', () => {
+    expect(parseTranscript('pasted.txt', '矢印は-->です。次の文。').map((c) => c.text)).toEqual(['矢印は-->です。', '次の文。'])
+  })
+
+  it('skips malformed cue blocks', () => {
+    const srt = '1\nnonsense --> 00:00:02,000\nだめ\n\n2\n00:00:03,000 --> 00:00:04,000\nいい\n'
+    expect(parseTranscript('a.srt', srt)).toEqual([{ start: 3, end: 4, text: 'いい' }])
+  })
+
+  it('recognises pasted LRC by content, keeping its timings', () => {
+    expect(parseTranscript('pasted.txt', '[00:01.00]一\n[00:02.50]二')).toEqual([
+      { start: 1, end: 2.5, text: '一' },
+      { start: 2.5, end: null, text: '二' },
+    ])
+  })
+})
+
 describe('splitSentences', () => {
   it('splits after sentence enders and at line breaks', () => {
     expect(splitSentences('今日は雨です。傘を持っていますか？\nはい！').map((c) => c.text)).toEqual([

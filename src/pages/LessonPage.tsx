@@ -2,7 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { relativeTime } from '../app/i18n'
-import { useSettings } from '../app/settings'
+import { useSettings } from '../app/useSettings'
 import { useAnalyzer } from '../app/useAnalyzer'
 import { Icon } from '../components/Icon'
 import { JapaneseText } from '../components/JapaneseText'
@@ -18,11 +18,11 @@ export function LessonPage() {
   const lesson = useLiveQuery(() => db.lessons.get(Number(id)), [id])
   const analyzer = useAnalyzer()
   const [confirming, setConfirming] = useState(false)
+  const [now] = useState(() => Date.now())
   if (!lesson) return null
 
   const round = ROUNDS[lesson.progress.roundsDone]
   const due = dueAt(lesson.progress)
-  const now = Date.now()
   const resuming = lesson.resume?.round === lesson.progress.roundsDone
 
   const remove = async () => {
