@@ -1,0 +1,10 @@
+{
+  "name": "Kikitori · 聞き取り",
+  "short_name": "Kikitori",
+  "description": "Japanese listening and speaking practice with spaced review.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f6f3ec",
+  "theme_color": "#2c4a8c",
+  "icons": [{ "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}
