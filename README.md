@@ -37,6 +37,7 @@ review pushes every later one back. Due reviews are listed before new lessons.
 - **Hard sentences manage themselves.** A shadowing attempt graded C marks the
   sentence as hard. Scoring A or better in the hard-sentence drill clears the mark.
 - **Meanings from JMdict.** The word sheet and flashcards show English glosses from JMdict's common-words set (about 22k entries). It's lazy-loaded (about 0.8 MB over the wire) and cached for offline use. JMdict has no Chinese glosses, so the Chinese UI shows English meanings too.
+- **Optional AI assistant (bring your own key).** Add an Anthropic API key in Settings to unlock two features: **Explain**, which streams a short explanation of a sentence's meaning, grammar and nuance in your UI language, and **Translate with AI**, which fills in missing translations for an imported lesson. Both use Claude Opus 5, called directly from the browser. The key is stored only in this browser and never in backups. Without a key, no AI buttons appear, and the study loop never depends on them.
 - **Flashcards in context.** Tap any word to save its dictionary form along with
   the sentence it came from. Cards are scheduled with FSRS (`ts-fsrs`).
 - **Stats:** practice time, the listening/speaking split, unique words met, and
@@ -71,7 +72,7 @@ voice, so a best case; real recordings will be worse):
 
 `WHISPER_E2E=1 pnpm e2e` re-runs the base measurement in a real browser.
 
-Everything is stored locally in IndexedDB. There's no account and no server.
+Everything is stored locally in IndexedDB. There's no account and no server. The one exception is the optional AI assistant: if you add an API key, those requests go from your browser to Anthropic.
 Use **Settings → Your data** to export a backup (a JSON file, audio included) and to restore it on another device.
 
 After the first visit, the app works offline. A service worker precaches the app shell, and it caches the dictionary the first time a lesson loads it.
@@ -139,6 +140,6 @@ itself, so it works whether or not the host also sends `Content-Encoding: gzip`
 
 ## Roadmap
 
-- AI explanations, translations for imported lessons, and an optional
-  Claude-backed "why is this sentence like this?" feature
-- Pitch-accent display and feedback
+- Review reminders (Web Push needs a server; for now, due reviews show on Today)
+- Long-sentence chunking (意群) and pitch-accent display
+- A free-practice mode outside the scheduled rounds
