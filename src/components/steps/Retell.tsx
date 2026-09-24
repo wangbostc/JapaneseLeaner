@@ -37,9 +37,9 @@ export function Retell({ lesson, analyzer, player, onDone }: StepProps) {
         ))}
       </div>
 
-      {attempt.phase === 'recording' && <p className="interim" lang="ja">{attempt.interim || t.listening}</p>}
+      {attempt.phase === 'recording' && <p className="interim" lang="ja" aria-live="polite">{attempt.interim || t.listening}</p>}
       {result && (
-        <div className={`result grade-${gradeFor(result.coverage)}`} data-testid="retell-result">
+        <div className={`result grade-${gradeFor(result.coverage)}`} data-testid="retell-result" role="status" aria-live="polite">
           <div className="grade">{result.coverage}%</div>
           <div>
             <div>{t.coverage(result.coverage)}</div>

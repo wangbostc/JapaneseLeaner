@@ -14,6 +14,7 @@ export function Import() {
   const [transcript, setTranscript] = useState('')
   const [transcriptName, setTranscriptName] = useState('pasted.txt')
   const [translation, setTranslation] = useState('')
+  const [busy, setBusy] = useState(false)
 
   const sentences: Sentence[] = useMemo(() => {
     const lines = translation.split(/\r?\n/).map((l) => l.trim())
@@ -35,6 +36,8 @@ export function Import() {
   }
 
   const create = async () => {
+    if (busy) return
+    setBusy(true)
     const id = await store.createLesson({
       title: title.trim(),
       level: level.trim() || undefined,
@@ -86,7 +89,7 @@ export function Import() {
         {t.preview(sentences.length)}
         {audio && !timed && sentences.length > 0 && <span className="error"> · {t.needsTimings}</span>}
       </p>
-      <button className="btn primary big" disabled={!valid} onClick={create}>
+      <button className="btn primary big" disabled={!valid || busy} onClick={create}>
         {t.create}
       </button>
     </div>

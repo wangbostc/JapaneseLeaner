@@ -138,7 +138,7 @@ const zh: Strings = {
   dueNow: '现在该练',
   upcoming: '即将到期',
   graduated: '已通关',
-  nothingDue: '现在没有到期任务。去资料库开始新课，或者休息一下——下一轮复习会准时提醒你。',
+  nothingDue: '现在没有到期任务。去资料库开始新课，或者休息一下——下一轮复习到期后会出现在这里。',
   newLesson: '新课',
   reviewN: (n) => `第 ${n}/7 轮复习`,
   firstStudy: '首次学习',

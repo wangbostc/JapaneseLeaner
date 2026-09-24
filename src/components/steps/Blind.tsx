@@ -28,7 +28,7 @@ export function Blind({ lesson, player, onDone }: StepProps) {
   return (
     <div className="step">
       <div className="blind-stage">
-        <button className={`btn big-play ${playing ? 'live' : ''}`} onClick={play} aria-label={t.play}>
+        <button className={`btn big-play ${playing ? 'live' : ''}`} onClick={play} aria-label={playing ? t.stop : t.play}>
           <Icon name={playing ? 'pause' : 'play'} size={44} />
         </button>
         <div className="dots" aria-hidden="true">

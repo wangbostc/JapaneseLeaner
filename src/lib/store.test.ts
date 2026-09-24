@@ -22,7 +22,7 @@ describe('store', () => {
     expect((await s.agenda(T0)).due.map((l) => l.title)).toEqual(['a'])
 
     await s.saveResume(id, { round: 0, stepIndex: 2, sentenceIndex: 0 })
-    const p = await s.finishRound(id, T0)
+    const p = await s.finishRound(id, 0, T0)
     expect(p).toEqual({ roundsDone: 1, lastCompletedAt: T0 })
     expect((await s.db.lessons.get(id))!.resume).toBeNull()
 
@@ -32,12 +32,20 @@ describe('store', () => {
     expect((await s.agenda(T0 + 6 * H)).due.map((l) => l.title)).toEqual(['a'])
   })
 
+  it('ignores a repeated finish for the same round', async () => {
+    const id = await lesson('a')
+    const [p1, p2] = await Promise.all([s.finishRound(id, 0, T0), s.finishRound(id, 0, T0 + 1)])
+    expect(p1).toEqual({ roundsDone: 1, lastCompletedAt: T0 })
+    expect(p2).toEqual({ roundsDone: 1, lastCompletedAt: T0 })
+    expect((await s.db.lessons.get(id))!.progress.roundsDone).toBe(1)
+  })
+
   it('puts due reviews before new lessons', async () => {
     const a = await lesson('a', T0)
     await lesson('b', T0 + 1)
     const c = await lesson('c', T0 + 2)
-    await s.finishRound(a, T0 - D) // a's first review was due 18h ago
-    await s.finishRound(c, T0 - 2 * D) // c's was due 42h ago
+    await s.finishRound(a, 0, T0 - D) // a's first review was due 18h ago
+    await s.finishRound(c, 0, T0 - 2 * D) // c's was due 42h ago
     expect((await s.agenda(T0)).due.map((l) => l.title)).toEqual(['c', 'a', 'b'])
   })
 

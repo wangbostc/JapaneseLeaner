@@ -56,10 +56,15 @@ export function createStore(database: KikitoriDB = db) {
       })
     },
 
-    async finishRound(id: number, now = Date.now()): Promise<LessonProgress | undefined> {
+    /**
+     * Completes round `expectedRound`. A repeat call for the same round (a
+     * double tap on Done) is a no-op instead of skipping the next review.
+     */
+    async finishRound(id: number, expectedRound: number, now = Date.now()): Promise<LessonProgress | undefined> {
       return database.transaction('rw', database.lessons, async () => {
         const lesson = await database.lessons.get(id)
         if (!lesson) return undefined
+        if (lesson.progress.roundsDone !== expectedRound) return lesson.progress
         const progress = completeRound(lesson.progress, now)
         await database.lessons.update(id, { progress, resume: null })
         return progress

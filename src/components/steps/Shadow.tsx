@@ -70,7 +70,7 @@ function ShadowSentence({ lesson, analyzer, player, onPosition, onDone, indices,
       </div>
 
       {result && (
-        <div className={`result grade-${result.grade}`} data-testid="shadow-result">
+        <div className={`result grade-${result.grade}`} data-testid="shadow-result" role="status" aria-live="polite">
           <div className="grade">{result.grade}</div>
           <div>
             <div className="score">{result.score}</div>
@@ -92,7 +92,7 @@ function ShadowSentence({ lesson, analyzer, player, onPosition, onDone, indices,
         </div>
       )}
       {attempt.error && <p className="error">{attempt.error}</p>}
-      {attempt.phase === 'recording' && <p className="interim" lang="ja">{attempt.interim || t.listening}</p>}
+      {attempt.phase === 'recording' && <p className="interim" lang="ja" aria-live="polite">{attempt.interim || t.listening}</p>}
       {needsSelfRate && (
         <div className="self-rate">
           <p>{attempt.canScore ? t.selfRate : t.noRecognition}</p>
@@ -135,7 +135,7 @@ function ShadowSentence({ lesson, analyzer, player, onPosition, onDone, indices,
         )}
       </div>
       <div className="nav-row">
-        <button className="btn ghost" disabled={p === 0} onClick={() => onPosition(p - 1)}>
+        <button className="btn ghost" disabled={p === 0 || attempt.phase === 'recording'} onClick={() => onPosition(p - 1)}>
           <Icon name="back" /> {t.back}
         </button>
         <button className="btn primary" disabled={attempt.phase === 'recording'} onClick={() => (last ? onDone() : onPosition(p + 1))}>

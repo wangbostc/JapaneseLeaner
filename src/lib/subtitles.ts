@@ -5,12 +5,14 @@ export interface Cue {
   text: string
 }
 
-const TIMESTAMP = /(?:(\d+):)?(\d{1,2}):(\d{2})[.,](\d{1,3})/
+// Milliseconds are optional: some SRT exporters write `00:00:01 --> 00:00:03`.
+const TIMESTAMP = /(?:(\d+):)?(\d{1,2}):(\d{2})(?:[.,](\d{1,3}))?/
 
-function seconds(stamp: string): number {
+/** Seconds, or null if `stamp` isn't a timestamp; imports never throw on bad input. */
+function seconds(stamp: string): number | null {
   const m = TIMESTAMP.exec(stamp)
-  if (!m) throw new Error(`bad timestamp: ${stamp}`)
-  const [, h = '0', min, s, frac] = m
+  if (!m) return null
+  const [, h = '0', min, s, frac = '0'] = m
   return Number(h) * 3600 + Number(min) * 60 + Number(s) + Number(frac.padEnd(3, '0')) / 1000
 }
 
@@ -22,12 +24,15 @@ function parseBlocks(text: string): Cue[] {
     const timing = lines.findIndex((l) => l.includes('-->'))
     if (timing < 0) continue
     const [a, b] = lines[timing].split('-->')
+    const start = seconds(a)
+    const end = seconds(b ?? '')
+    if (start === null || end === null) continue
     const body = lines
       .slice(timing + 1)
       .join(' ')
       .replace(/<[^>]+>/g, '')
       .trim()
-    if (body) cues.push({ start: seconds(a), end: seconds(b), text: body })
+    if (body) cues.push({ start, end, text: body })
   }
   return cues
 }
@@ -39,7 +44,8 @@ function parseLrc(text: string): Cue[] {
     const m = /^\[(\d+:\d{2}[.:]\d{1,3})\](.*)$/.exec(raw.trim())
     if (!m) continue
     const body = m[2].trim()
-    if (body) lines.push({ start: seconds(m[1].replace(/:(\d+)$/, '.$1')), text: body })
+    const start = seconds(m[1].replace(/:(\d+)$/, '.$1'))
+    if (body && start !== null) lines.push({ start, text: body })
   }
   return lines.map((l, i) => ({ start: l.start, end: lines[i + 1]?.start ?? null, text: l.text }))
 }
@@ -53,9 +59,16 @@ export function splitSentences(text: string): Cue[] {
     .map((s) => ({ start: null, end: null, text: s }))
 }
 
+const LRC_LINE = /^\s*\[\d+:\d{2}[.:]\d{1,3}\]/m
+const CUE_TIMING = /\d:\d{2}(?:[.,]\d{1,3})?\s*-->/
+
+/** Picks the format by extension, then by content, so an edited paste keeps its timings. */
 export function parseTranscript(fileName: string, text: string): Cue[] {
   const ext = fileName.toLowerCase().split('.').pop()
-  if (ext === 'lrc') return parseLrc(text)
-  if (ext === 'srt' || ext === 'vtt' || text.includes('-->')) return parseBlocks(text)
+  if (ext === 'lrc' || LRC_LINE.test(text)) return parseLrc(text)
+  if (ext === 'srt' || ext === 'vtt' || CUE_TIMING.test(text)) {
+    const cues = parseBlocks(text)
+    if (cues.length || ext === 'srt' || ext === 'vtt') return cues
+  }
   return splitSentences(text)
 }
