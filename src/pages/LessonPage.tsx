@@ -30,13 +30,15 @@ export function LessonPage() {
   const translate = async () => {
     setTranslating(true)
     setAiError(null)
-    // Loaded on demand: learners without a key never download the SDK.
-    const ai = await import('../lib/ai')
+    let ai: typeof import('../lib/ai') | null = null
     try {
+      // Loaded on demand: learners without a key never download the SDK.
+      ai = await import('../lib/ai')
       const out = await ai.translateSentences(ai.createAiClient(aiKey), lesson.sentences.map((s) => s.text), settings.lang)
       await store.setTranslations(lesson.id!, settings.lang, out)
     } catch (e) {
-      setAiError(ai.aiErrorCode(e))
+      // No module means the chunk itself failed to load (offline, or replaced by a deploy).
+      setAiError(ai ? ai.aiErrorCode(e) : 'offline')
     } finally {
       setTranslating(false)
     }

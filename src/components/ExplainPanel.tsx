@@ -22,9 +22,10 @@ export function ExplainPanel({ sentence, context }: { sentence: string; context:
     setText('')
     setError(null)
     setState('loading')
-    // Loaded on demand: learners without a key never download the SDK.
-    const ai = await import('../lib/ai')
+    let ai: typeof import('../lib/ai') | null = null
     try {
+      // Loaded on demand: learners without a key never download the SDK.
+      ai = await import('../lib/ai')
       await ai.explainSentence(ai.createAiClient(key), {
         sentence,
         lang: settings.lang,
@@ -35,7 +36,8 @@ export function ExplainPanel({ sentence, context }: { sentence: string; context:
       if (!ctrl.signal.aborted) setState('done')
     } catch (e) {
       if (ctrl.signal.aborted) return
-      setError(ai.aiErrorCode(e))
+      // No module means the chunk itself failed to load (offline, or replaced by a deploy).
+      setError(ai ? ai.aiErrorCode(e) : 'offline')
       setState('error')
     }
   }
