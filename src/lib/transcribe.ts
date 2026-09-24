@@ -61,14 +61,26 @@ export class TranscribeError extends Error {
   }
 }
 
-/** Reads the duration from the file's metadata, without decoding the audio. */
+const PROBE_TIMEOUT_MS = 5000
+
+/**
+ * Reads the duration from the file's metadata, without decoding the audio.
+ * Resolves NaN if the browser can't tell in time; the cap is then checked after decoding.
+ */
 export function probeDuration(file: Blob): Promise<number> {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const url = URL.createObjectURL(file)
     const el = new Audio()
+    const done = (d: number) => {
+      clearTimeout(timer)
+      URL.revokeObjectURL(url)
+      resolve(d)
+    }
+    const timer = setTimeout(() => done(NaN), PROBE_TIMEOUT_MS)
     el.preload = 'metadata'
-    el.onloadedmetadata = () => (URL.revokeObjectURL(url), resolve(el.duration))
-    el.onerror = () => (URL.revokeObjectURL(url), reject(new TranscribeError('undecodable')))
+    el.onloadedmetadata = () => done(el.duration)
+    // Metadata unreadable: let decodeAudioData have its own say.
+    el.onerror = () => done(NaN)
     el.src = url
   })
 }

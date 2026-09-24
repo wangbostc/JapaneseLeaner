@@ -2,14 +2,20 @@
 // Runs Whisper off the main thread. transformers.js fetches the model from the
 // Hugging Face hub once and keeps it in Cache Storage for later (and offline) use.
 import { env, pipeline, type AutomaticSpeechRecognitionPipeline } from '@huggingface/transformers'
-// Pinned to the exact onnxruntime-web transformers.js depends on, so these are its own files.
-import ortMjs from 'onnxruntime-web/ort-wasm-simd-threaded.asyncify.mjs?url'
-import ortWasm from 'onnxruntime-web/ort-wasm-simd-threaded.asyncify.wasm?url'
+// Pinned to the exact onnxruntime-web transformers.js depends on (a unit test checks), so these
+// are its own files. Both builds are bundled; pickAsyncifyBuild picks one the way upstream does.
+import ortAsyncifyMjs from 'onnxruntime-web/ort-wasm-simd-threaded.asyncify.mjs?url'
+import ortAsyncifyWasm from 'onnxruntime-web/ort-wasm-simd-threaded.asyncify.wasm?url'
+import ortPlainMjs from 'onnxruntime-web/ort-wasm-simd-threaded.mjs?url'
+import ortPlainWasm from 'onnxruntime-web/ort-wasm-simd-threaded.wasm?url'
+import { pickAsyncifyBuild } from '../lib/ortBuild'
 
 env.allowLocalModels = false
 // Serve the ONNX runtime from our own origin instead of transformers.js's default CDN, so it
 // works offline once cached and doesn't depend on a third party serving a dev build.
-env.backends.onnx.wasm!.wasmPaths = { wasm: ortWasm, mjs: ortMjs }
+env.backends.onnx.wasm!.wasmPaths = pickAsyncifyBuild(navigator as WorkerNavigator & { vendor?: string; gpu?: unknown })
+  ? { wasm: ortAsyncifyWasm, mjs: ortAsyncifyMjs }
+  : { wasm: ortPlainWasm, mjs: ortPlainMjs }
 
 export type WorkerRequest = { samples: Float32Array; model: string }
 export type WorkerMessage =
