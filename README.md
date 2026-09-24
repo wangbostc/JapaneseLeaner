@@ -81,6 +81,19 @@ your browser supports.
 - **ts-fsrs** (MIT).
 - The app lists these under **Settings → About & sources**.
 
+### Updating JMdict
+
+JMdict is revised regularly. EDRDG asks apps to keep their copy current, and to refresh it at least every few months.
+
+1. Pick the newest release at https://github.com/scriptin/jmdict-simplified/releases.
+2. Write its tag and the sha256 of `jmdict-eng-common-<tag>.json.tgz` into
+   `scripts/jmdict-release.json`. That file is the only place the version lives. The build
+   script and the service-worker cache name (so returning visitors get the new data) both
+   read it.
+3. Run `pnpm install` (or `node scripts/build-jmdict.mjs`). The script sees that the built
+   file is from a different release and rebuilds it.
+4. Run `pnpm test && pnpm e2e`, then open a PR.
+
 ## Development
 
 ```bash

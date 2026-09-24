@@ -350,3 +350,4 @@ ruby rt { font-size: 0.5em; color: var(--muted); letter-spacing: 0; }
 .meanings-note { color: var(--muted); font-size: 0.7rem; margin: 6px 0 0; letter-spacing: 0.02em; }
 .sources a { color: var(--accent); font-weight: 600; }
 .sources li { gap: 12px; align-items: flex-start; }
+.meanings.loading { min-height: 3.2em; }

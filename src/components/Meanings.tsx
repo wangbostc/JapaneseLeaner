@@ -5,6 +5,8 @@ import { useSettings } from '../app/useSettings'
 export function Meanings({ word, reading }: { word: string; reading?: string }) {
   const { t } = useSettings()
   const dict = useDictionary()
+  // Reserve the space while loading so the card doesn't jump; render nothing if the file is absent.
+  if (dict === undefined) return <div className="meanings loading" aria-hidden="true" />
   if (!dict) return null
   const entries = dict.lookup(word, reading)
   if (!entries.length) return <p className="muted small">{t.noMeaning}</p>

@@ -2,6 +2,7 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import jmdictRelease from './scripts/jmdict-release.json' with { type: 'json' }
 
 export default defineConfig({
   // Relative base + hash routing: the build runs from any static host path.
@@ -25,10 +26,10 @@ export default defineConfig({
             cacheName: 'kuromoji-dict-0.1.2', expiration: { maxEntries: 20 } },
           },
           {
-            // Word meanings, fetched on first use; versioned with the pinned JMdict release.
+            // Word meanings, fetched on first use; the cache is named after the pinned release.
             urlPattern: ({ url }) => url.pathname.endsWith('/jmdict/common.json'),
             handler: 'CacheFirst',
-            options: { cacheName: 'jmdict-3.6.2-20260921', expiration: { maxEntries: 2 } },
+            options: { cacheName: `jmdict-${jmdictRelease.version}`, expiration: { maxEntries: 2 } },
           },
         ],
         navigateFallback: 'index.html',

@@ -10,6 +10,7 @@ const data: DictData = {
     [['今日'], ['きょう', 'けふ'], [[['n'], ['today', 'this day']]]],
     [['起きる'], ['おきる'], [[['v1'], ['to get up', 'to rise']]]],
     [[], ['カッと', 'かっと'], [[['adv'], ['flaring up']]]],
+    [['お守り', '御守り', '御守', 'お守'], ['おまもり'], [[['n'], ['charm']]]],
   ],
 }
 
@@ -31,6 +32,10 @@ describe('dictionary', () => {
   it('matches kana regardless of hiragana/katakana', () => {
     expect(dict.lookup('かっと')[0].senses[0].glosses).toEqual(['flaring up'])
     expect(dict.lookup('カッと')[0].senses[0].glosses).toEqual(['flaring up'])
+  })
+
+  it('finds a word by any of its written forms, not just the first few', () => {
+    expect(dict.lookup('お守')[0].senses[0].glosses).toEqual(['charm'])
   })
 
   it('returns nothing for unknown words', () => {
