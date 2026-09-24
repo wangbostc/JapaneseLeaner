@@ -21,7 +21,8 @@ export default defineConfig({
           {
             urlPattern: ({ url }) => url.pathname.includes('/dict/'),
             handler: 'CacheFirst',
-            options: { cacheName: 'kuromoji-dict', expiration: { maxEntries: 20 } },
+            options: { // Versioned with kuromoji so a dictionary upgrade isn't masked by the old cache.
+            cacheName: 'kuromoji-dict-0.1.2', expiration: { maxEntries: 20 } },
           },
         ],
         navigateFallback: 'index.html',

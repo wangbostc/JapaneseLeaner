@@ -38,22 +38,30 @@ function base64ToBlob(base64: string, type: string): Blob {
   return new Blob([bytes], { type })
 }
 
-/** Everything on this device, audio included, as one JSON-serialisable object. */
-export async function exportBackup(db: KikitoriDB, settings?: unknown, now = Date.now()): Promise<Backup> {
-  const media = await db.media.toArray()
-  return {
+/**
+ * Everything on this device, audio included, as a JSON file. It's assembled
+ * from Blob parts, one per audio file, so no single string holds the whole
+ * library (a JS string tops out around 500M characters).
+ */
+export async function exportBackup(db: KikitoriDB, settings?: unknown, now = Date.now()): Promise<Blob> {
+  const rest = {
     format: BACKUP_FORMAT,
     version: BACKUP_VERSION,
     exportedAt: now,
     lessons: await db.lessons.toArray(),
-    media: await Promise.all(
-      media.map(async (m) => ({ id: m.id!, name: m.name, type: m.blob.type, base64: await blobToBase64(m.blob) })),
-    ),
     cards: await db.cards.toArray(),
     logs: await db.logs.toArray(),
     words: await db.words.toArray(),
     settings,
   }
+  const parts: BlobPart[] = [JSON.stringify(rest).slice(0, -1), ',"media":[']
+  const media = await db.media.toArray()
+  for (const [i, m] of media.entries()) {
+    const dump: MediaDump = { id: m.id!, name: m.name, type: m.blob.type, base64: await blobToBase64(m.blob) }
+    parts.push(i ? ',' : '', JSON.stringify(dump))
+  }
+  parts.push(']}')
+  return new Blob(parts, { type: 'application/json' })
 }
 
 export class BackupError extends Error {}
@@ -77,6 +85,22 @@ export function parseBackup(json: string): Backup {
   for (const key of ['lessons', 'media', 'cards', 'logs', 'words'] as const) {
     if (!Array.isArray(data[key])) throw new BackupError(`backup is missing ${key}`)
   }
+  // Check the fields pages rely on, so a malformed file fails here and not mid-render.
+  data.lessons!.forEach((l, i) => {
+    const ok =
+      typeof l?.title === 'string' &&
+      Array.isArray(l.sentences) &&
+      l.sentences.every((x) => typeof x?.text === 'string') &&
+      Array.isArray(l.hard) &&
+      typeof l.progress?.roundsDone === 'number'
+    if (!ok) throw new BackupError(`lesson ${i + 1} is malformed`)
+  })
+  data.cards!.forEach((c, i) => {
+    if (typeof c?.front !== 'string' || !c.card || Number.isNaN(new Date(c.card.due).getTime())) throw new BackupError(`card ${i + 1} is malformed`)
+  })
+  data.media!.forEach((m, i) => {
+    if (typeof m?.id !== 'number' || typeof m.base64 !== 'string') throw new BackupError(`audio ${i + 1} is malformed`)
+  })
   return data as Backup
 }
 

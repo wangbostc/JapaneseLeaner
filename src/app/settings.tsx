@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { STRINGS } from './i18n'
+import { sanitizeSettings } from './sanitizeSettings'
 import { SettingsContext, type Settings } from './useSettings'
 
 const KEY = 'kikitori.settings'
@@ -13,7 +14,7 @@ const defaults = (): Settings => ({
 
 function load(): Settings {
   try {
-    return { ...defaults(), ...JSON.parse(localStorage.getItem(KEY) ?? '{}') }
+    return { ...defaults(), ...sanitizeSettings(JSON.parse(localStorage.getItem(KEY) ?? '{}')) }
   } catch {
     return defaults()
   }
@@ -29,6 +30,6 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     }
     document.documentElement.lang = settings.lang === 'zh' ? 'zh-CN' : 'en'
   }, [settings])
-  const update = (patch: Partial<Settings>) => setSettings((s) => ({ ...s, ...patch }))
+  const update = (patch: Partial<Settings>) => setSettings((s) => ({ ...s, ...sanitizeSettings(patch) }))
   return <SettingsContext.Provider value={{ settings, update, t: STRINGS[settings.lang] }}>{children}</SettingsContext.Provider>
 }

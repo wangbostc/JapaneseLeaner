@@ -30,7 +30,7 @@ describe('backup', () => {
     await src.log({ lessonId: id, step: 'intensive', mode: 'input', ms: 60_000, at: T0 })
     await src.addKnownWords(['散歩'], T0)
 
-    const json = JSON.stringify(await exportBackup(src.db, { lang: 'zh' }, T0))
+    const json = await (await exportBackup(src.db, { lang: 'zh' }, T0)).text()
     const dstDb = fresh('dst')
     const dst = createStore(dstDb)
     await dst.createLesson({ title: 'will be replaced', sentences: [] }, T0)
@@ -60,5 +60,19 @@ describe('backup', () => {
     expect(() => parseBackup('{"format":"other"}')).toThrow('not a Kikitori backup')
     expect(() => parseBackup('{"format":"kikitori-backup","version":99}')).toThrow('unsupported backup version 99')
     expect(() => parseBackup('{"format":"kikitori-backup","version":1,"lessons":[]}')).toThrow('backup is missing media')
+  })
+
+  it('rejects malformed lessons, cards and audio before touching the database', () => {
+    const base = { format: 'kikitori-backup', version: 1, lessons: [], media: [], cards: [], logs: [], words: [] }
+    const bad = (patch: object) => JSON.stringify({ ...base, ...patch })
+    expect(() => parseBackup(bad({ lessons: [{ title: 'x', sentences: [], hard: [] }] }))).toThrow('lesson 1 is malformed')
+    expect(() => parseBackup(bad({ cards: [{ front: 'x', card: { due: 'not a date' } }] }))).toThrow('card 1 is malformed')
+    expect(() => parseBackup(bad({ media: [{ id: '1', base64: '' }] }))).toThrow('audio 1 is malformed')
+    expect(parseBackup(bad({})).lessons).toEqual([])
+  })
+
+  it('exports an empty database as valid JSON', async () => {
+    const empty = fresh('empty')
+    expect(parseBackup(await (await exportBackup(empty, undefined, T0)).text()).media).toEqual([])
   })
 })

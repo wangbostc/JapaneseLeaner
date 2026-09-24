@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
-import { useSettings, type Settings } from '../app/useSettings'
+import { sanitizeSettings } from '../app/sanitizeSettings'
+import { useSettings } from '../app/useSettings'
 import { exportBackup, parseBackup, restoreBackup, type Backup } from '../lib/backup'
 import { db } from '../lib/db'
 import { japaneseVoices, recognitionSupported, recordingSupported, ttsSupported } from '../lib/speech'
@@ -12,13 +13,17 @@ export function SettingsPage() {
   const fileInput = useRef<HTMLInputElement>(null)
 
   const download = async () => {
-    const backup = await exportBackup(db, settings)
-    const url = URL.createObjectURL(new Blob([JSON.stringify(backup)], { type: 'application/json' }))
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `kikitori-backup-${new Date().toISOString().slice(0, 10)}.json`
-    a.click()
-    setTimeout(() => URL.revokeObjectURL(url), 1000)
+    try {
+      const blob = await exportBackup(db, settings)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `kikitori-backup-${new Date().toISOString().slice(0, 10)}.json`
+      a.click()
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+    } catch (err) {
+      setMessage({ ok: false, text: err instanceof Error ? err.message : String(err) })
+    }
   }
 
   const choose = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -37,7 +42,7 @@ export function SettingsPage() {
     if (!pending) return
     try {
       await restoreBackup(db, pending)
-      if (pending.settings && typeof pending.settings === 'object') update(pending.settings as Partial<Settings>)
+      update(sanitizeSettings(pending.settings))
       setMessage({ ok: true, text: t.restored(pending.lessons.length) })
     } catch (err) {
       setMessage({ ok: false, text: err instanceof Error ? err.message : String(err) })
