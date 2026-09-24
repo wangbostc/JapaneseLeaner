@@ -24,6 +24,12 @@ export default defineConfig({
             options: { // Versioned with kuromoji so a dictionary upgrade isn't masked by the old cache.
             cacheName: 'kuromoji-dict-0.1.2', expiration: { maxEntries: 20 } },
           },
+          {
+            // Word meanings, fetched on first use; versioned with the pinned JMdict release.
+            urlPattern: ({ url }) => url.pathname.endsWith('/jmdict/common.json'),
+            handler: 'CacheFirst',
+            options: { cacheName: 'jmdict-3.6.2-20260921', expiration: { maxEntries: 2 } },
+          },
         ],
         navigateFallback: 'index.html',
       },
