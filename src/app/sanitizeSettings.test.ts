@@ -19,6 +19,13 @@ describe('sanitizeSettings', () => {
     expect(sanitizeSettings('en')).toEqual({})
   })
 
+  it('lets an explicit undefined reset the voice', () => {
+    const out = sanitizeSettings({ voiceURI: undefined })
+    expect(Object.hasOwn(out, 'voiceURI')).toBe(true)
+    expect({ voiceURI: 'x', ...out }.voiceURI).toBeUndefined()
+    expect(sanitizeSettings({ voiceURI: 3 })).toEqual({})
+  })
+
   it('clamps the playback rate', () => {
     expect(sanitizeSettings({ rate: 9 })).toEqual({ rate: 2 })
     expect(sanitizeSettings({ rate: Infinity })).toEqual({})
