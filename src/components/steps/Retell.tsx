@@ -66,7 +66,7 @@ export function Retell({ lesson, analyzer, player, onDone }: StepProps) {
       {attempt.error && <p className="error">{attempt.error}</p>}
 
       <div className="controls">
-        <button className="btn round" onClick={listenAgain} disabled={playing || attempt.phase === 'recording'}>
+        <button className="btn round" onClick={listenAgain} disabled={playing || attempt.busy}>
           <Icon name="replay" size={24} />
           <span>{t.replay}</span>
         </button>
@@ -78,6 +78,7 @@ export function Retell({ lesson, analyzer, player, onDone }: StepProps) {
         ) : (
           <button
             className="btn round mic"
+            disabled={attempt.phase === 'starting'}
             onClick={() => {
               player.stop()
               attempt.start()
@@ -89,7 +90,7 @@ export function Retell({ lesson, analyzer, player, onDone }: StepProps) {
         )}
       </div>
       <div className="nav-row end">
-        <button className="btn primary" disabled={attempt.phase === 'recording'} onClick={onDone}>
+        <button className="btn primary" disabled={attempt.busy} onClick={onDone}>
           {t.finishStep} <Icon name="next" />
         </button>
       </div>

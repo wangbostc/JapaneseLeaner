@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { listen, record, recognitionSupported, recordingSupported, type Listening, type Recording } from '../../lib/speech'
 
-export type AttemptPhase = 'idle' | 'recording' | 'done'
+export type AttemptPhase = 'idle' | 'starting' | 'recording' | 'done'
 
 /**
  * One spoken attempt: records the mic (for playback) and runs speech
@@ -18,12 +18,15 @@ export function useAttempt() {
   const heard = useRef<Listening | null>(null)
   const stopping = useRef<Promise<void> | null>(null)
   const alive = useRef(true)
+  /** Bumped by every start and cancel; a start that finds it changed after awaiting the mic backs out. */
+  const generation = useRef(0)
   const canScore = recognitionSupported()
 
   useEffect(() => () => void (audioUrl && URL.revokeObjectURL(audioUrl)), [audioUrl])
 
   /** Release the mic and recogniser without producing a result. */
   const cancel = () => {
+    generation.current++
     heard.current?.stop()
     heard.current = null
     rec.current?.stop()
@@ -63,13 +66,22 @@ export function useAttempt() {
   }
 
   const start = async () => {
+    if (phase === 'starting' || phase === 'recording') return
     cancel()
+    const mine = generation.current
     setError(null)
     setInterim('')
     setTranscript(null)
     setAudioUrl(null)
+    setPhase('starting')
     try {
-      if (recordingSupported() && !window.__kikitoriFake) rec.current = await record()
+      // Awaiting mic permission can take a while; the learner may leave meanwhile.
+      const recording = recordingSupported() && !window.__kikitoriFake ? await record() : null
+      if (!alive.current || generation.current !== mine) {
+        recording?.stop()
+        return
+      }
+      rec.current = recording
       if (canScore) {
         const listening = listen(setInterim)
         heard.current = listening
@@ -79,13 +91,17 @@ export function useAttempt() {
         }
         listening.result.then(endedByBrowser, endedByBrowser)
       }
-      if (alive.current) setPhase('recording')
+      setPhase('recording')
     } catch (e) {
+      if (!alive.current || generation.current !== mine) return
       cancel()
       setError(e instanceof Error ? e.message : String(e))
       setPhase('idle')
     }
   }
 
-  return { phase, interim, transcript, audioUrl, error, canScore, start, stop }
+  /** True while the mic is being opened or is live: navigation should wait. */
+  const busy = phase === 'starting' || phase === 'recording'
+
+  return { phase, busy, interim, transcript, audioUrl, error, canScore, start, stop }
 }

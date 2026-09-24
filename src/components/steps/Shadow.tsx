@@ -111,7 +111,7 @@ function ShadowSentence({ lesson, analyzer, player, onPosition, onDone, indices,
       )}
 
       <div className="controls">
-        <button className="btn round" onClick={() => player.play(s, settings.rate)} disabled={attempt.phase === 'recording'}>
+        <button className="btn round" onClick={() => player.play(s, settings.rate)} disabled={attempt.busy}>
           <Icon name="replay" size={24} />
           <span>{t.replay}</span>
         </button>
@@ -123,6 +123,7 @@ function ShadowSentence({ lesson, analyzer, player, onPosition, onDone, indices,
         ) : (
           <button
             className="btn round mic"
+            disabled={attempt.phase === 'starting'}
             onClick={() => {
               player.stop()
               setSelfRated(null)
@@ -135,10 +136,10 @@ function ShadowSentence({ lesson, analyzer, player, onPosition, onDone, indices,
         )}
       </div>
       <div className="nav-row">
-        <button className="btn ghost" disabled={p === 0 || attempt.phase === 'recording'} onClick={() => onPosition(p - 1)}>
+        <button className="btn ghost" disabled={p === 0 || attempt.busy} onClick={() => onPosition(p - 1)}>
           <Icon name="back" /> {t.back}
         </button>
-        <button className="btn primary" disabled={attempt.phase === 'recording'} onClick={() => (last ? onDone() : onPosition(p + 1))}>
+        <button className="btn primary" disabled={attempt.busy} onClick={() => (last ? onDone() : onPosition(p + 1))}>
           {last ? t.finishStep : t.next} <Icon name="next" />
         </button>
       </div>

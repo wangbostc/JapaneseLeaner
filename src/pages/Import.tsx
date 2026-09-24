@@ -15,6 +15,7 @@ export function Import() {
   const [transcriptName, setTranscriptName] = useState('pasted.txt')
   const [translation, setTranslation] = useState('')
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const sentences: Sentence[] = useMemo(() => {
     const lines = translation.split(/\r?\n/).map((l) => l.trim())
@@ -38,13 +39,20 @@ export function Import() {
   const create = async () => {
     if (busy) return
     setBusy(true)
-    const id = await store.createLesson({
-      title: title.trim(),
-      level: level.trim() || undefined,
-      sentences,
-      media: audio ? { blob: audio, name: audio.name } : undefined,
-    })
-    navigate(`/lesson/${id}`)
+    setError(null)
+    try {
+      const id = await store.createLesson({
+        title: title.trim(),
+        level: level.trim() || undefined,
+        sentences,
+        media: audio ? { blob: audio, name: audio.name } : undefined,
+      })
+      navigate(`/lesson/${id}`)
+    } catch (e) {
+      // e.g. an IndexedDB quota error for a large audio file on iOS.
+      setError(e instanceof Error ? e.message : String(e))
+      setBusy(false)
+    }
   }
 
   return (
@@ -89,6 +97,11 @@ export function Import() {
         {t.preview(sentences.length)}
         {audio && !timed && sentences.length > 0 && <span className="error"> · {t.needsTimings}</span>}
       </p>
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
       <button className="btn primary big" disabled={!valid || busy} onClick={create}>
         {t.create}
       </button>
