@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { describe, expect, it } from 'vitest'
-import { AI_MODEL, describeAiError, explainSentence, translateSentences } from './ai'
+import { AI_MODEL, aiErrorCode, explainSentence, translateSentences } from './ai'
 
 type Captured = { url: string; body: Record<string, unknown>; headers: Headers }
 
@@ -54,13 +54,20 @@ describe('translateSentences', () => {
 
   it('rejects a reply with the wrong number of translations', async () => {
     const { client } = clientReturning(() => message(JSON.stringify({ translations: ['only one'] })))
-    await expect(translateSentences(client, ['一。', '二。'], 'zh')).rejects.toThrow('expected 2 translations, got 1')
+    const err = await translateSentences(client, ['一。', '二。'], 'zh').catch((e) => e)
+    expect(err.message).toBe('expected 2 translations, got 1')
+    expect(aiErrorCode(err)).toBe('count')
   })
 
   it('reports a refusal instead of parsing nothing', async () => {
     const { client } = clientReturning(() => message('', 'refusal'))
     const err = await translateSentences(client, ['一。'], 'en').catch((e) => e)
-    expect(describeAiError(err)).toBe('The assistant declined to translate this lesson.')
+    expect(aiErrorCode(err)).toBe('refusal')
+  })
+
+  it('reports a cut-off reply as too long rather than unreadable', async () => {
+    const { client } = clientReturning(() => message('{"translations":["一', 'max_tokens'))
+    expect(aiErrorCode(await translateSentences(client, ['一。'], 'en').catch((e) => e))).toBe('tooLong')
   })
 
   it('turns a rejected key into a readable message', async () => {
@@ -68,7 +75,7 @@ describe('translateSentences', () => {
       Response.json({ type: 'error', error: { type: 'authentication_error', message: 'invalid x-api-key' } }, { status: 401 }),
     )
     const err = await translateSentences(client, ['一。'], 'en').catch((e) => e)
-    expect(describeAiError(err)).toBe('The API key was rejected. Check it in Settings.')
+    expect(aiErrorCode(err)).toBe('auth')
   })
 })
 

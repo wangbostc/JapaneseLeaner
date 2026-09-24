@@ -17,7 +17,8 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,webmanifest}'],
         // The 17 MB dictionary isn't precached on install; it's cached the
         // first time it's fetched, which every study session does.
-        globIgnores: ['dict/**'],
+        // The AI chunk is only for learners with a key, and it needs the network anyway.
+        globIgnores: ['dict/**', '**/ai-*.js'],
         runtimeCaching: [
           {
             urlPattern: ({ url }) => url.pathname.includes('/dict/'),

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAiKey } from '../app/aiKey'
 import { useSettings } from '../app/useSettings'
-import { createAiClient, describeAiError, explainSentence } from '../lib/ai'
+import type { AiErrorCode } from '../lib/ai'
 
 /** "Explain" button that streams an AI explanation of the sentence; hidden without an API key. */
 export function ExplainPanel({ sentence, context }: { sentence: string; context: string[] }) {
@@ -9,7 +9,7 @@ export function ExplainPanel({ sentence, context }: { sentence: string; context:
   const key = useAiKey()
   const [text, setText] = useState('')
   const [state, setState] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
-  const [error, setError] = useState('')
+  const [error, setError] = useState<AiErrorCode | null>(null)
   const abort = useRef<AbortController | null>(null)
   useEffect(() => () => abort.current?.abort(), [])
 
@@ -20,10 +20,12 @@ export function ExplainPanel({ sentence, context }: { sentence: string; context:
     const ctrl = new AbortController()
     abort.current = ctrl
     setText('')
-    setError('')
+    setError(null)
     setState('loading')
+    // Loaded on demand: learners without a key never download the SDK.
+    const ai = await import('../lib/ai')
     try {
-      await explainSentence(createAiClient(key), {
+      await ai.explainSentence(ai.createAiClient(key), {
         sentence,
         lang: settings.lang,
         context,
@@ -33,22 +35,23 @@ export function ExplainPanel({ sentence, context }: { sentence: string; context:
       if (!ctrl.signal.aborted) setState('done')
     } catch (e) {
       if (ctrl.signal.aborted) return
-      setError(describeAiError(e))
+      setError(ai.aiErrorCode(e))
       setState('error')
     }
   }
 
   return (
     <div className="explain">
-      {state === 'idle' ? (
-        <button className="btn ghost" onClick={run}>
-          ✦ {t.explain}
-        </button>
-      ) : (
+      {state !== 'idle' && (
         <div className="explain-body" role="status" aria-live="polite" data-testid="explanation">
           {text || (state === 'loading' && <span className="muted">{t.explaining}</span>)}
-          {state === 'error' && <p className="error">{error}</p>}
+          {error && <p className="error">{t.aiErrors[error]}</p>}
         </div>
+      )}
+      {state !== 'loading' && (
+        <button className="btn ghost" onClick={run}>
+          ✦ {state === 'idle' ? t.explain : t.retry}
+        </button>
       )}
     </div>
   )

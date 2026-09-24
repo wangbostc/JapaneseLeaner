@@ -19,7 +19,16 @@ export function createAiClient(apiKey: string): Anthropic {
   return new Anthropic({ apiKey, dangerouslyAllowBrowser: true })
 }
 
-export class AiRefusal extends Error {}
+/** Failure kinds the UI translates; see `aiErrors` in i18n. */
+export type AiErrorCode = 'refusal' | 'tooLong' | 'unreadable' | 'count' | 'auth' | 'rateLimit' | 'offline' | 'api' | 'unknown'
+
+export class AiError extends Error {
+  code: AiErrorCode
+  constructor(code: AiErrorCode, detail: string = code) {
+    super(detail)
+    this.code = code
+  }
+}
 
 export function explainPrompt(sentence: string, lang: UiLang, context: string[]) {
   const system = `You are a Japanese tutor for a learner whose own language is ${LANG_NAME[lang]}. \
@@ -51,7 +60,8 @@ export async function explainSentence(
   )
   stream.on('text', args.onText)
   const final = await stream.finalMessage()
-  if (final.stop_reason === 'refusal') throw new AiRefusal('The assistant declined to explain this sentence.')
+  if (final.stop_reason === 'refusal') throw new AiError('refusal')
+  if (final.stop_reason === 'max_tokens') throw new AiError('tooLong')
 }
 
 const Translations = z.object({ translations: z.array(z.string()) })
@@ -78,24 +88,25 @@ export async function translateSentences(client: Anthropic, sentences: string[],
     system,
     messages: [{ role: 'user', content: user }],
   })
-  if (res.stop_reason === 'refusal') throw new AiRefusal('The assistant declined to translate this lesson.')
+  if (res.stop_reason === 'refusal') throw new AiError('refusal')
+  if (res.stop_reason === 'max_tokens') throw new AiError('tooLong')
   const text = res.content.flatMap((b) => (b.type === 'text' ? [b.text] : [])).join('')
   let out: string[] | undefined
   try {
     out = Translations.parse(JSON.parse(text)).translations
   } catch {
-    throw new Error('the assistant returned an unreadable translation')
+    throw new AiError('unreadable')
   }
-  if (out.length !== sentences.length) throw new Error(`expected ${sentences.length} translations, got ${out.length}`)
+  if (out.length !== sentences.length) throw new AiError('count', `expected ${sentences.length} translations, got ${out.length}`)
   return out
 }
 
-/** A readable message for the common failures (bad key, rate limit, offline). */
-export function describeAiError(e: unknown): string {
-  if (e instanceof AiRefusal) return e.message
-  if (e instanceof Anthropic.AuthenticationError) return 'The API key was rejected. Check it in Settings.'
-  if (e instanceof Anthropic.RateLimitError) return 'Rate limited by the API. Try again in a minute.'
-  if (e instanceof Anthropic.APIConnectionError) return 'Could not reach the API. Are you online?'
-  if (e instanceof Anthropic.APIError) return `API error: ${e.message}`
-  return e instanceof Error ? e.message : String(e)
+/** Classifies a failure so the UI can explain it in the learner's language. */
+export function aiErrorCode(e: unknown): AiErrorCode {
+  if (e instanceof AiError) return e.code
+  if (e instanceof Anthropic.AuthenticationError) return 'auth'
+  if (e instanceof Anthropic.RateLimitError) return 'rateLimit'
+  if (e instanceof Anthropic.APIConnectionError) return 'offline'
+  if (e instanceof Anthropic.APIError) return 'api'
+  return 'unknown'
 }

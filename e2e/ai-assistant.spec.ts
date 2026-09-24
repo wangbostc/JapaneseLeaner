@@ -77,3 +77,28 @@ test('translates a lesson and explains a sentence with the learner’s own key',
   expect(requests).toHaveLength(2)
   expect(requests.every((r) => r.key === 'sk-ant-test-1234' && r.model === 'claude-opus-5')).toBe(true)
 })
+
+test('shows AI errors in the interface language and offers a retry', async ({ page }) => {
+  let calls = 0
+  await page.route('https://api.anthropic.com/**', async (route: Route) => {
+    if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers: CORS })
+    calls++
+    return route.fulfill({
+      status: 401,
+      headers: CORS,
+      json: { type: 'error', error: { type: 'authentication_error', message: 'invalid x-api-key' } },
+    })
+  })
+  await page.addInitScript(() => {
+    localStorage.setItem('kikitori.settings', JSON.stringify({ lang: 'zh' }))
+    localStorage.setItem('kikitori.anthropicKey', 'sk-ant-bad')
+  })
+  await page.goto('./')
+  await page.getByRole('link', { name: /私の朝/ }).click()
+  await page.getByRole('link', { name: '开始' }).click()
+  await page.getByRole('button', { name: '显示原文' }).first().click()
+  await page.getByRole('button', { name: /讲解/ }).click()
+  await expect(page.getByTestId('explanation')).toContainText('API 密钥被拒绝')
+  await page.getByRole('button', { name: /重试/ }).click()
+  await expect.poll(() => calls).toBe(2)
+})

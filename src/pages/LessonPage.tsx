@@ -8,7 +8,7 @@ import { useAnalyzer } from '../app/useAnalyzer'
 import { Icon } from '../components/Icon'
 import { JapaneseText } from '../components/JapaneseText'
 import { RoundDots } from '../components/LessonRow'
-import { createAiClient, describeAiError, translateSentences } from '../lib/ai'
+import type { AiErrorCode } from '../lib/ai'
 import { db } from '../lib/db'
 import { dueAt, isGraduated, ROUNDS } from '../lib/schedule'
 import { store } from '../lib/store'
@@ -23,18 +23,20 @@ export function LessonPage() {
   const [now] = useState(() => Date.now())
   const aiKey = useAiKey()
   const [translating, setTranslating] = useState(false)
-  const [aiError, setAiError] = useState('')
+  const [aiError, setAiError] = useState<AiErrorCode | null>(null)
   if (!lesson) return null
 
   const missingTranslation = lesson.sentences.some((s) => !s.translations?.[settings.lang])
   const translate = async () => {
     setTranslating(true)
-    setAiError('')
+    setAiError(null)
+    // Loaded on demand: learners without a key never download the SDK.
+    const ai = await import('../lib/ai')
     try {
-      const out = await translateSentences(createAiClient(aiKey), lesson.sentences.map((s) => s.text), settings.lang)
+      const out = await ai.translateSentences(ai.createAiClient(aiKey), lesson.sentences.map((s) => s.text), settings.lang)
       await store.setTranslations(lesson.id!, settings.lang, out)
     } catch (e) {
-      setAiError(describeAiError(e))
+      setAiError(ai.aiErrorCode(e))
     } finally {
       setTranslating(false)
     }
@@ -85,7 +87,7 @@ export function LessonPage() {
           <button className="btn" onClick={translate} disabled={translating}>
             ✦ {translating ? t.translating : t.translateAi}
           </button>
-          {aiError && <span className="error small">{aiError}</span>}
+          {aiError && <span className="error small">{t.aiErrors[aiError]}</span>}
         </div>
       )}
 

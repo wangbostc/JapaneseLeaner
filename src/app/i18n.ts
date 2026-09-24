@@ -1,4 +1,5 @@
 import type { UiLang } from '../lib/db'
+import type { AiErrorCode } from '../lib/ai'
 import type { Step } from '../lib/schedule'
 
 const en = {
@@ -153,6 +154,18 @@ const en = {
   explaining: 'Thinking…',
   translateAi: 'Translate with AI',
   translating: 'Translating…',
+  aiErrors: {
+    refusal: 'The assistant declined this request.',
+    tooLong: 'The lesson is too long for one request. Try a shorter lesson.',
+    unreadable: 'The assistant returned something unreadable. Try again.',
+    count: 'The assistant returned the wrong number of translations. Try again.',
+    auth: 'The API key was rejected. Check it in Settings.',
+    rateLimit: 'Rate limited by the API. Try again in a minute.',
+    offline: 'Could not reach the API. Are you online?',
+    api: 'The API returned an error. Try again later.',
+    unknown: 'Something went wrong. Try again.',
+  } satisfies Record<AiErrorCode, string>,
+  retry: 'Try again',
   crashTitle: 'Something went wrong',
   crashBody: 'Your progress is saved on this device. Reload to continue.',
   reload: 'Reload',
@@ -307,6 +320,18 @@ const zh: Strings = {
   explaining: '思考中…',
   translateAi: '用 AI 翻译',
   translating: '翻译中…',
+  aiErrors: {
+    refusal: '助手拒绝了此请求。',
+    tooLong: '课程太长，一次请求放不下。请换一门较短的课程。',
+    unreadable: '助手返回的内容无法解析。请重试。',
+    count: '助手返回的翻译数量不对。请重试。',
+    auth: 'API 密钥被拒绝。请在设置中检查。',
+    rateLimit: '请求过于频繁，请一分钟后再试。',
+    offline: '无法连接 API。请检查网络。',
+    api: 'API 返回错误，请稍后再试。',
+    unknown: '出错了，请重试。',
+  },
+  retry: '重试',
   crashTitle: '出错了',
   crashBody: '你的进度已保存在本设备上。刷新即可继续。',
   reload: '刷新',
