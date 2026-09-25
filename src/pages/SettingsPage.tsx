@@ -7,7 +7,8 @@ import { backgroundRemindersOn, enablePushReminders, enableReminders, pushSubscr
 import { sanitizeSettings } from '../app/sanitizeSettings'
 import { Link } from 'react-router-dom'
 import { useSettings } from '../app/useSettings'
-import { exportBackup, parseBackup, restoreBackup, type Backup } from '../lib/backup'
+import { parseBackup, restoreBackup, type Backup } from '../lib/backup'
+import { downloadBackup } from '../app/backupFile'
 import { db } from '../lib/db'
 import { japaneseVoices, recognitionSupported, recordingSupported, ttsSupported } from '../lib/speech'
 
@@ -52,13 +53,7 @@ export function SettingsPage() {
 
   const download = async () => {
     try {
-      const blob = await exportBackup(db, settings)
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `kikitori-backup-${new Date().toISOString().slice(0, 10)}.json`
-      a.click()
-      setTimeout(() => URL.revokeObjectURL(url), 1000)
+      await downloadBackup(db, settings)
     } catch (err) {
       setMessage({ ok: false, text: err instanceof Error ? err.message : String(err) })
     }
