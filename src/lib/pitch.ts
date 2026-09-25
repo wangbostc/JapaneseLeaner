@@ -1,4 +1,4 @@
-import { toHiragana } from './kana'
+import { isKana, toHiragana } from './kana'
 
 /**
  * Dictionary-form pitch accent (Tokyo standard), from UniDic's aType: the mora after
@@ -36,8 +36,9 @@ export function pitchPattern(reading: string, aType: number): Pitch | null {
   const m = morae(toHiragana(reading))
   if (!m.length || aType < 0 || aType > m.length) return null
   const high = m.map((_, i) => {
+    // The first mora is low unless it carries the accent (気が is low-high, 木が high-low).
     if (aType === 1) return i === 0
-    if (i === 0) return m.length === 1 && aType === 0 // one-mora 平板 words start high
+    if (i === 0) return false
     return aType === 0 || i < aType
   })
   const name: PatternName = aType === 0 ? 'heiban' : aType === 1 ? 'atamadaka' : aType === m.length ? 'odaka' : 'nakadaka'
@@ -53,15 +54,40 @@ export function parseAType(value: string): number[] {
 }
 
 export interface AccentTable {
-  lookup(word: string, reading: string): number[] | null
+  /** `pos` is kuromoji's (IPADIC) part of speech, when known; it picks among homographs (くる: 来る vs the adverb). */
+  lookup(word: string, reading: string, pos?: string): number[] | null
+}
+
+// IPADIC part of speech -> the UniDic ones it covers (UniDic splits out 代名詞 and 形状詞).
+const UNIDIC_POS: Record<string, string[]> = {
+  名詞: ['名詞', '代名詞', '形状詞'],
+  動詞: ['動詞'],
+  形容詞: ['形容詞'],
+  副詞: ['副詞'],
+  連体詞: ['連体詞'],
+  接続詞: ['接続詞'],
+  感動詞: ['感動詞'],
+}
+
+/**
+ * Table values are "2" when every part of speech agrees, else "動詞:1;副詞:2" with the
+ * most common reading first. Without a matching part of speech, the most common wins.
+ */
+function pick(value: string, pos?: string): string {
+  if (!value.includes(':')) return value
+  const entries = value.split(';').map((e) => e.split(':') as [string, string])
+  const wanted = pos ? UNIDIC_POS[pos] : undefined
+  return (wanted && entries.find(([p]) => wanted.includes(p))?.[1]) || entries[0][1]
 }
 
 export function createAccentTable(data: { accents: Record<string, string> }): AccentTable {
   return {
-    lookup(word, reading) {
+    lookup(word, reading, pos) {
       const r = toHiragana(reading)
-      const hit = data.accents[`${word}|${r}`] ?? data.accents[`${r}|${r}`]
-      return hit ? parseAType(hit) : null
+      // A word written in kana may be stored under its hiragana form; a kanji word never
+      // falls back to reading alone, which would show some homophone's accent.
+      const hit = data.accents[`${word}|${r}`] ?? (isKana(word) ? data.accents[`${r}|${r}`] : undefined)
+      return hit ? parseAType(pick(hit, pos)) : null
     },
   }
 }

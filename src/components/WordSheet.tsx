@@ -46,7 +46,7 @@ export function WordSheet({ token, lessonId, context, analyzerReading, onClose }
             {token.surface} · {token.pos}
           </div>
         )}
-        <PitchAccent word={token.lemma} reading={analyzerReading(token.lemma)} />
+        <PitchAccent word={token.lemma} reading={analyzerReading(token.lemma)} pos={token.pos} />
         <Meanings word={token.lemma} reading={analyzerReading(token.lemma)} />
         <div className="row">
           <button className="btn" onClick={() => speak(token.lemma, settings.rate, settings.voiceURI)}>

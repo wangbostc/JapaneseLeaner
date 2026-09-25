@@ -6,7 +6,7 @@ import { getAccentTable, pitchPattern, type AccentTable } from '../lib/pitch'
  * The word's dictionary-form pitch: an overline over high morae, a step down where
  * pitch falls, and a faint が showing whether a following particle stays high.
  */
-export function PitchAccent({ word, reading }: { word: string; reading: string }) {
+export function PitchAccent({ word, reading, pos }: { word: string; reading: string; pos?: string }) {
   const { t } = useSettings()
   const [table, setTable] = useState<AccentTable | null | undefined>(undefined)
   useEffect(() => {
@@ -17,7 +17,7 @@ export function PitchAccent({ word, reading }: { word: string; reading: string }
     }
   }, [])
   if (!table) return null
-  const types = table.lookup(word, reading)
+  const types = table.lookup(word, reading, pos)
   const pitch = types?.length ? pitchPattern(reading, types[0]) : null
   if (!pitch) return null
   return (

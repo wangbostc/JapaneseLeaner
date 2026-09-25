@@ -30,9 +30,9 @@ describe('pitchPattern', () => {
     expect(pitchPattern('あめ', 0)).toMatchObject({ name: 'heiban', dropAfter: null })
   })
 
-  it('starts a one-mora 平板 word high', () => {
-    expect(hl('き', 0)).toBe('H+H') // 気
-    expect(hl('き', 1)).toBe('H+L') // 木
+  it('starts a one-mora 平板 word low, rising on the particle', () => {
+    expect(hl('き', 0)).toBe('L+H') // 気が
+    expect(hl('き', 1)).toBe('H+L') // 木が
   })
 
   it('rejects an accent beyond the word', () => {
@@ -41,15 +41,58 @@ describe('pitchPattern', () => {
 })
 
 describe('accent table', () => {
-  const table = createAccentTable({ accents: { '橋|はし': '2', '箸|はし': '1', 'ありがとう|ありがとう': '2', '上手|じょうず': '3' } })
+  const table = createAccentTable({
+    accents: {
+      '橋|はし': '2',
+      '箸|はし': '1',
+      'ありがとう|ありがとう': '2',
+      'くる|くる': '動詞:1;副詞:2',
+      'する|する': '0',
+    },
+  })
   it('looks up by word and reading, and by reading for kana words', () => {
     expect(table.lookup('橋', 'ハシ')).toEqual([2])
     expect(table.lookup('箸', 'はし')).toEqual([1])
     expect(table.lookup('ありがとう', 'ありがとう')).toEqual([2])
+    expect(table.lookup('スル', 'する')).toEqual([0]) // kana word: reading form is fine
+  })
+  it('never falls back to reading alone for a kanji word', () => {
     expect(table.lookup('端', 'はし')).toBeNull()
+    expect(table.lookup('為る', 'する')).toBeNull()
+  })
+  it('picks the homograph matching the part of speech, else the most common', () => {
+    expect(table.lookup('くる', 'くる', '動詞')).toEqual([1])
+    expect(table.lookup('くる', 'くる', '副詞')).toEqual([2])
+    expect(table.lookup('くる', 'くる')).toEqual([1])
+    expect(table.lookup('くる', 'くる', '名詞')).toEqual([1])
   })
   it('parses several accepted types', () => {
     expect(parseAType('0,2')).toEqual([0, 2])
     expect(parseAType('*')).toEqual([])
+  })
+})
+
+describe('the committed accent table', () => {
+  it('gives common words their standard Tokyo accent, looked up the way the word sheet does', async () => {
+    const { readFileSync } = await import('node:fs')
+    const { testAnalyzer } = await import('../test/analyzer')
+    const { readingOf } = await import('./scoring')
+    const table = createAccentTable(JSON.parse(readFileSync(new URL('../../public/pitch/accents.json', import.meta.url), 'utf8')))
+    const a = await testAnalyzer()
+    // [sentence, the word tapped (its surface), expected aType of its dictionary form]
+    const cases: [string, string, number][] = [
+      ['勉強します。', 'し', 0], // する: 為る 0, not 刷る 1
+      ['友達が来ます。', '来', 1], // 来る 1
+      ['学校に行きます。', '行き', 0], // 行く 0
+      ['ここに置きます。', '置き', 0], // 置く 0
+      ['葉が落ちる。', '葉', 0], // 葉 0 vs 歯 1
+      ['歯が痛い。', '歯', 1],
+      ['橋を渡る。', '橋', 2],
+      ['毎朝起きます。', '起き', 2],
+    ]
+    for (const [sentence, surface, expected] of cases) {
+      const token = a.tokenize(sentence).find((t) => t.surface === surface)!
+      expect({ sentence, types: table.lookup(token.lemma, readingOf(a, token.lemma), token.pos) }).toEqual({ sentence, types: [expected] })
+    }
   })
 })
