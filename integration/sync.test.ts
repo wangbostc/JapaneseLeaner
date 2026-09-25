@@ -1,7 +1,8 @@
 // Two devices syncing through the real Worker code (in-process) against a local D1 + R2.
 // Lives outside the typecheck projects: it spans browser (Dexie) and Workers types.
 import Dexie from 'dexie'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { exportBackup, parseBackup, restoreBackup } from '../src/lib/backup'
 import { KikitoriDB, sampleUid } from '../src/lib/db'
 import { Rating } from '../src/lib/srs'
 import { createStore } from '../src/lib/store'
@@ -41,7 +42,8 @@ async function device(env: Awaited<ReturnType<typeof server>>, name: string) {
     state = r.state
     return r
   }
-  return { store, db: store.db, sync, state: () => state }
+  const setState = (s: SyncState) => (state = s)
+  return { store, db: store.db, sync, state: () => state, setState }
 }
 
 const byTitle = async (db: KikitoriDB, title: string) => (await db.lessons.toArray()).find((l) => l.title === title)
@@ -151,5 +153,88 @@ describe('sync between two devices', () => {
     await b.sync()
     expect((await b.sync()).pushed).toBe(0)
     expect((await a.sync()).pushed).toBe(0)
+  })
+
+  it('links audio for lessons made before mediaUid existed', async () => {
+    const env = await server()
+    const a = await device(env, 'a')
+    const b = await device(env, 'b')
+    const id = await a.store.createLesson({ title: 'old audio', sentences: [], media: { blob: new Blob([new Uint8Array([9])], { type: 'audio/mpeg' }), name: 'a.mp3' } })
+    await a.db.lessons.update(id, { mediaUid: undefined }) // as a pre-sync lesson row
+    await a.sync()
+    await b.sync()
+    const lesson = (await byTitle(b.db, 'old audio'))!
+    expect(lesson.mediaId).toBeDefined()
+    expect((await b.db.media.get(lesson.mediaId!))!.name).toBe('a.mp3')
+  })
+
+  describe('with device clocks an hour apart', () => {
+    afterEach(() => vi.restoreAllMocks())
+    const skewed = async <T>(fn: () => Promise<T>) => {
+      const real = Date.now.bind(Date)
+      const spy = vi.spyOn(Date, 'now').mockImplementation(() => real() + 3_600_000)
+      try {
+        return await fn()
+      } finally {
+        spy.mockRestore()
+      }
+    }
+
+    it('keeps an edit made on the device whose clock is behind', async () => {
+      const env = await server()
+      const a = await device(env, 'a')
+      const b = await device(env, 'b') // B's clock runs an hour fast
+      await a.store.createLesson({ title: 'L', sentences: [{ start: null, end: null, text: '一。' }, { start: null, end: null, text: '二。' }] })
+      await a.sync()
+      await skewed(async () => {
+        await b.sync()
+        await b.store.setHard((await byTitle(b.db, 'L'))!.id!, 0, true)
+        await b.sync()
+      })
+      await a.sync()
+      await a.store.setHard((await byTitle(a.db, 'L'))!.id!, 1, true) // later in real time, earlier by A's clock
+      await a.sync()
+      await skewed(() => b.sync())
+      await a.sync()
+      for (const d of [a, b]) expect((await byTitle(d.db, 'L'))!.hard).toEqual([0, 1])
+    })
+
+    it('deletes a lesson last edited by the fast device', async () => {
+      const env = await server()
+      const a = await device(env, 'a')
+      const b = await device(env, 'b')
+      await a.store.createLesson({ title: 'D', sentences: [] })
+      await a.sync()
+      await skewed(async () => {
+        await b.sync()
+        await b.store.setHard((await byTitle(b.db, 'D'))!.id!, 0, true)
+        await b.sync()
+      })
+      await a.sync()
+      await a.store.deleteLesson((await byTitle(a.db, 'D'))!.id!)
+      await a.sync()
+      await skewed(() => b.sync())
+      expect(await byTitle(a.db, 'D')).toBeUndefined()
+      expect(await byTitle(b.db, 'D')).toBeUndefined()
+    })
+  })
+
+  it('pulls everything again after a backup restore (with the cursor reset the app does)', async () => {
+    const env = await server()
+    const a = await device(env, 'a')
+    const b = await device(env, 'b')
+    await a.store.createLesson({ title: 'mine', sentences: [] })
+    await a.sync()
+    const backup = parseBackup(await (await exportBackup(a.db)).text())
+    await b.sync()
+    await b.store.createLesson({ title: 'fromB', sentences: [] })
+    await b.sync()
+    await a.sync()
+    expect(await byTitle(a.db, 'fromB')).toBeDefined()
+
+    await restoreBackup(a.db, backup) // an older backup, without fromB
+    a.setState({ ...initialSyncState(), uploaded: a.state().uploaded }) // what resetSyncCursor() does
+    await a.sync()
+    expect(await byTitle(a.db, 'fromB')).toBeDefined()
   })
 })

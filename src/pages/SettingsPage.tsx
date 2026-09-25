@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { setAiKey, useAiKey } from '../app/aiKey'
 import { relativeTime } from '../app/i18n'
-import { connect, disconnect, syncNow, useSyncStatus } from '../app/sync'
+import { connect, disconnect, resetSyncCursor, syncNow, useSyncStatus } from '../app/sync'
 import { backgroundRemindersOn, enableReminders, registerBackgroundCheck, reminderSupport, type ReminderSupport } from '../app/reminders'
 import { sanitizeSettings } from '../app/sanitizeSettings'
 import { Link } from 'react-router-dom'
@@ -74,6 +74,7 @@ export function SettingsPage() {
     if (!pending) return
     try {
       await restoreBackup(db, pending)
+      resetSyncCursor()
       update(sanitizeSettings(pending.settings))
       setMessage({ ok: true, text: t.restored(pending.lessons.length) })
     } catch (err) {

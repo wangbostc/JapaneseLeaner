@@ -99,6 +99,12 @@ export function markSyncApply(trans: Transaction) {
 }
 const isSyncApply = (trans: Transaction) => (trans as unknown as Record<symbol, boolean>)[SYNC_APPLY] === true
 
+/**
+ * A change time that is always later than the version it replaces, even if this device's clock
+ * is behind the device that wrote that version: otherwise the newer edit would lose the merge.
+ */
+export const nextStamp = (previous: number | undefined, now = Date.now()) => Math.max(now, (previous ?? 0) + 1)
+
 /** Fields that only mean something on this device and never travel. */
 const LOCAL_ONLY = new Set(['mediaId', 'lessonId'])
 
@@ -168,13 +174,13 @@ export class KikitoriDB extends Dexie {
         obj.uid ??= sample ? sampleUid((obj as Lesson).title) : newUid()
         obj.updatedAt ??= Date.now()
       })
-      table.hook('updating', (mods, _key, _obj, trans) => {
+      table.hook('updating', (mods, _key, obj, trans) => {
         // Writes that apply the server's version keep its updatedAt, even when unchanged.
         if (isSyncApply(trans)) return undefined
         // Changes to device-local fields (which audio row a lesson points at) aren't edits to sync.
         const keys = Object.keys(mods)
         if ('updatedAt' in mods || keys.every((k) => LOCAL_ONLY.has(k))) return undefined
-        return { updatedAt: Date.now() }
+        return { updatedAt: nextStamp(obj.updatedAt) }
       })
     }
   }

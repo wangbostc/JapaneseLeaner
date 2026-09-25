@@ -51,6 +51,32 @@ test('a lesson made on one device shows up on the other, and deleting it there r
   await expect(phone.locator('.lesson-row')).toHaveCount(3)
 })
 
+test('restoring an older backup on a connected device brings back what other devices made since', async ({ browser }) => {
+  const phone = await newDevice(browser, 'Phone2')
+  await phone.goto('./#/settings')
+  const [download] = await Promise.all([phone.waitForEvent('download'), phone.getByRole('button', { name: 'Export backup' }).click()])
+  const backupPath = test.info().outputPath('old-backup.json')
+  await download.saveAs(backupPath)
+
+  const laptop = await newDevice(browser, 'Laptop2')
+  await laptop.goto('./#/import')
+  await laptop.getByRole('textbox', { name: /^Title/ }).fill('あとから')
+  await laptop.getByRole('textbox', { name: /^Transcript/ }).fill('あとで作りました。')
+  await laptop.getByRole('button', { name: 'Create lesson' }).click()
+  await expect(laptop.getByRole('heading', { name: 'あとから' })).toBeVisible()
+  await syncNow(laptop)
+  await syncNow(phone)
+
+  // Restore the backup from before that lesson existed: the app resets its sync cursor.
+  await phone.goto('./#/settings')
+  await phone.getByTestId('restore-input').setInputFiles(backupPath)
+  await phone.getByRole('alert').getByRole('button', { name: 'Restore backup' }).click()
+  await expect(phone.getByText(/Restored \d+ lessons?\./)).toBeVisible()
+  await expect(phone.getByTestId('sync-status')).toContainText('Last synced', { timeout: 20_000 })
+  await phone.goto('./#/library')
+  await expect(phone.getByRole('link', { name: /あとから/ })).toBeVisible({ timeout: 20_000 })
+})
+
 test('the static build (no server) hides sync entirely', async ({ page }) => {
   await page.goto('http://localhost:' + (process.env.E2E_PORT ?? '4173') + '/#/settings')
   await expect(page.getByRole('heading', { name: 'Reminders' })).toBeVisible()

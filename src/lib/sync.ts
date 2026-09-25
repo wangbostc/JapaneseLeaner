@@ -28,14 +28,15 @@ const CHUNK = 1000
 
 const toIso = (d: Date | string | undefined) => (d === undefined ? undefined : new Date(d).toISOString())
 
-function toWireLesson(l: Lesson): WireLesson {
+function toWireLesson(l: Lesson, mediaUidById: Map<number, string>): WireLesson {
   return {
     uid: l.uid!,
     updatedAt: l.updatedAt!,
     title: l.title,
     level: l.level,
     sentences: l.sentences,
-    mediaUid: l.mediaUid ?? null,
+    // Lessons made before mediaUid existed only know their local mediaId.
+    mediaUid: l.mediaUid ?? (l.mediaId !== undefined ? mediaUidById.get(l.mediaId) : undefined) ?? null,
     progress: l.progress,
     resume: l.resume,
     hard: l.hard,
@@ -66,8 +67,10 @@ async function gatherChanges(db: KikitoriDB, state: SyncState): Promise<SyncBatc
   const since = state.pushedAt
   const lessons = await db.lessons.toArray()
   const lessonUid = new Map(lessons.map((l) => [l.id!, l.uid!]))
+  const mediaUidById = new Map<number, string>()
+  await db.media.each((m) => void mediaUidById.set(m.id!, m.uid!))
   const batch = emptyBatch()
-  batch.lessons = lessons.filter((l) => l.updatedAt! > since).map(toWireLesson)
+  batch.lessons = lessons.filter((l) => l.updatedAt! > since).map((l) => toWireLesson(l, mediaUidById))
   batch.cards = (await db.cards.where('updatedAt').above(since).toArray())
     .filter((c) => lessonUid.has(c.lessonId))
     .map((c) => toWireCard(c, lessonUid.get(c.lessonId)!))
@@ -207,7 +210,12 @@ export class SyncError extends Error {
 }
 
 /** One full sync: push local changes, apply the server's, then move audio both ways. */
-export async function syncOnce(db: KikitoriDB, api: Api, state: SyncState, now = () => Date.now()): Promise<SyncResult> {
+export interface SyncHooks {
+  /** Called true/false around writing server changes locally (so the app can ignore those writes). */
+  applying?: (on: boolean) => void
+}
+
+export async function syncOnce(db: KikitoriDB, api: Api, state: SyncState, now = () => Date.now(), hooks: SyncHooks = {}): Promise<SyncResult> {
   const startedAt = now()
   const local = await gatherChanges(db, state)
   const pushed = Object.values(local).reduce((n, list) => n + list.length, 0)
@@ -220,11 +228,22 @@ export async function syncOnce(db: KikitoriDB, api: Api, state: SyncState, now =
     if (!res.ok) throw new SyncError(`sync failed: ${res.status}`, res.status)
     const reply = (await res.json()) as SyncResponse
     pulled += Object.entries(reply).reduce((n, [k, v]) => (k === 'seq' ? n : n + (v as unknown[]).length), 0)
-    needBytes.push(...(await applyChanges(db, reply, startedAt)))
+    hooks.applying?.(true)
+    try {
+      needBytes.push(...(await applyChanges(db, reply, startedAt)))
+    } finally {
+      hooks.applying?.(false)
+    }
     since = reply.seq
   }
   const uploaded = new Set(state.uploaded)
   await uploadMedia(db, api, uploaded)
-  const pendingDownloads = await downloadMedia(db, api, needBytes)
+  hooks.applying?.(true)
+  let pendingDownloads: WireMedia[]
+  try {
+    pendingDownloads = await downloadMedia(db, api, needBytes)
+  } finally {
+    hooks.applying?.(false)
+  }
   return { pushed, pulled, state: { since, pushedAt: startedAt, uploaded: [...uploaded], pendingDownloads } }
 }

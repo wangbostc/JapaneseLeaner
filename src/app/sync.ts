@@ -83,6 +83,17 @@ export async function connect(setupCode: string, name: string): Promise<ConnectR
   return { ok: true }
 }
 
+/**
+ * After a backup restore replaced the local data, pull everything again and push everything
+ * restored: records pulled before the restore were wiped locally and wouldn't come back otherwise.
+ */
+export function resetSyncCursor() {
+  const state = read<SyncState>(STATE_KEY)
+  if (!state) return
+  write(STATE_KEY, { ...initialSyncState(), uploaded: state.uploaded })
+  void syncNow()
+}
+
 /** Forgets this device's token (and revokes it on the server if reachable). */
 export async function disconnect() {
   const d = device()
@@ -107,8 +118,8 @@ export function syncNow(): Promise<void> {
   running = (async () => {
     setStatus({ kind: 'syncing', device: d.name, lastSyncedAt })
     try {
-      applying = true
-      const result = await syncOnce(db, authed(d.token), read<SyncState>(STATE_KEY) ?? initialSyncState())
+      // Only the sync's own local writes are ignored; the user's edits meanwhile schedule another sync.
+      const result = await syncOnce(db, authed(d.token), read<SyncState>(STATE_KEY) ?? initialSyncState(), undefined, { applying: (on) => (applying = on) })
       write(STATE_KEY, result.state)
       lastSyncedAt = Date.now()
       write('kikitori.lastSyncedAt', lastSyncedAt)
@@ -122,7 +133,6 @@ export function syncNow(): Promise<void> {
         setStatus({ kind: 'error', device: d.name, lastSyncedAt, message: e instanceof Error ? e.message : String(e) })
       }
     } finally {
-      applying = false
       running = null
     }
     if (again) {

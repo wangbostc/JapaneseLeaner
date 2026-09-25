@@ -71,6 +71,9 @@ export async function sync(env: Env, req: SyncRequest): Promise<SyncResponse> {
          ON CONFLICT (uid) DO UPDATE SET kind = excluded.kind, data = excluded.data, updated_at = excluded.updated_at, deleted_at = NULL, seq = excluded.seq`,
       ).bind(uid, kind, JSON.stringify(data), updatedAt),
     )
+  // When a device's version loses (to a newer edit, or to a deletion), re-mark the winner as
+  // changed so that device pulls it back; otherwise it would keep its losing copy forever.
+  const touch = (uid: string) => writes.push(env.DB.prepare(`UPDATE records SET seq = ${SEQ} WHERE uid = ?`).bind(uid))
   const removedMedia: string[] = []
 
   for (const kind of KINDS) {
@@ -78,6 +81,7 @@ export async function sync(env: Env, req: SyncRequest): Promise<SyncResponse> {
       const row = existing.get(rec.uid)
       if (row?.deleted_at != null) {
         if (survivesDeletion(rec, row.deleted_at)) put(kind, rec.uid, rec, rec.updatedAt)
+        else touch(rec.uid) // the pusher gets the deletion back
         continue
       }
       if (!row) {
@@ -89,12 +93,17 @@ export async function sync(env: Env, req: SyncRequest): Promise<SyncResponse> {
       const current = JSON.parse(row.data!)
       const merged = kind === 'lessons' ? mergeLesson(current as WireLesson, rec as WireLesson) : mergeCard(current as WireCard, rec as WireCard)
       if (JSON.stringify(merged) !== row.data) put(kind, rec.uid, merged, merged.updatedAt)
+      else if (JSON.stringify(merged) !== JSON.stringify(rec)) touch(rec.uid) // the pusher gets the winner back
     }
   }
 
   for (const del of req.deletions as WireDeletion[]) {
     const row = existing.get(del.uid)
-    if (row && (row.deleted_at != null || survivesDeletion({ updatedAt: row.updated_at }, del.at))) continue
+    if (row?.deleted_at != null) continue
+    if (row && survivesDeletion({ updatedAt: row.updated_at }, del.at)) {
+      touch(del.uid) // edited after the deletion: the deleting device gets the record back
+      continue
+    }
     writes.push(
       env.DB.prepare(
         `INSERT INTO records (uid, kind, data, updated_at, deleted_at, seq) VALUES (?, ?, NULL, ?, ?, ${SEQ})
