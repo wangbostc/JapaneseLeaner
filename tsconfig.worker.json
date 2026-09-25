@@ -15,6 +15,6 @@
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true
   },
-  "include": ["worker"],
+  "include": ["worker", "src/lib/merge.ts", "src/lib/syncWire.ts"],
   "exclude": ["worker/**/*.test.ts", "worker/testEnv.ts"]
 }

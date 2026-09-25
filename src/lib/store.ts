@@ -1,4 +1,4 @@
-import { db, type Flashcard, type KikitoriDB, type Lesson, type PracticeLog, type Resume, type Sentence, type UiLang } from './db'
+import { db, nextStamp, type Flashcard, type KikitoriDB, type Lesson, type PracticeLog, type Resume, type Sentence, type UiLang } from './db'
 import { completeRound, dueAt, isGraduated, type LessonProgress } from './schedule'
 import { newCard, review, type Grade } from './srs'
 
@@ -33,11 +33,13 @@ export function createStore(database: KikitoriDB = db) {
       now = Date.now(),
     ) {
       const mediaId = input.media ? ((await database.media.add(input.media)) as number) : undefined
+      const mediaUid = mediaId ? (await database.media.get(mediaId))?.uid : undefined
       return (await database.lessons.add({
         title: input.title,
         level: input.level,
         sentences: input.sentences,
         mediaId,
+        mediaUid,
         progress: { roundsDone: 0, lastCompletedAt: null },
         resume: null,
         hard: [],
@@ -55,12 +57,15 @@ export function createStore(database: KikitoriDB = db) {
         if (!lesson) return
         const cards = await database.cards.where('lessonId').equals(id).toArray()
         const media = lesson.mediaId ? await database.media.get(lesson.mediaId) : undefined
+        // A deletion must be later than the version it deletes, whatever this device's clock says.
         const tombstones = [
-          { uid: lesson.uid!, table: 'lessons' as const, at: now },
-          ...(media ? [{ uid: media.uid!, table: 'media' as const, at: now }] : []),
-          ...cards.map((c) => ({ uid: c.uid!, table: 'cards' as const, at: now })),
+          { uid: lesson.uid!, table: 'lessons' as const, at: nextStamp(lesson.updatedAt, now) },
+          ...(media ? [{ uid: media.uid!, table: 'media' as const, at: nextStamp(media.updatedAt, now) }] : []),
+          ...cards.map((c) => ({ uid: c.uid!, table: 'cards' as const, at: nextStamp(c.updatedAt, now) })),
         ]
-        await database.deletions.bulkPut(tombstones)
+        // Replace any earlier tombstone for the same uid (a record deleted, brought back by a later edit elsewhere, deleted again).
+        await database.deletions.where('uid').anyOf(tombstones.map((t) => t.uid)).delete()
+        await database.deletions.bulkAdd(tombstones)
         if (lesson.mediaId) await database.media.delete(lesson.mediaId)
         await database.cards.where('lessonId').equals(id).delete()
         await database.lessons.delete(id)
@@ -132,7 +137,8 @@ export function createStore(database: KikitoriDB = db) {
       await database.transaction('rw', [database.cards, database.deletions], async () => {
         const card = await database.cards.get(id)
         if (!card) return
-        await database.deletions.put({ uid: card.uid!, table: 'cards', at: now })
+        await database.deletions.where('uid').equals(card.uid!).delete()
+        await database.deletions.add({ uid: card.uid!, table: 'cards', at: nextStamp(card.updatedAt, now) })
         await database.cards.delete(id)
       })
     },
