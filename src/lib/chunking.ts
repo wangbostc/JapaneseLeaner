@@ -46,6 +46,9 @@ export function phrases(tokens: Token[]): Range[] {
 // Particles after which a listener naturally pauses: て/で forms, が・けど, から・ので, ば, たら, ながら, し.
 const CLAUSE_LINKS = new Set(['て', 'で', 'が', 'けど', 'けれど', 'けれども', 'から', 'ので', 'ば', 'たら', 'ながら', 'し', 'のに'])
 
+// 〜ばいい / 〜たらいい / 〜ばよかった: the conditional is part of one expression, not a pause.
+const COMPLETES_CONDITIONAL = new Set(['いい', 'よい', '良い', 'よかっ', '良かっ', 'いけ', 'なら'])
+
 function endsClause(tokens: Token[], [start, end]: Range): boolean {
   for (let i = end - 1; i >= start; i--) {
     const t = tokens[i]
@@ -69,7 +72,9 @@ export function senseGroups(tokens: Token[]): Range[] {
   const groups: Range[] = []
   let start = 0
   for (const range of phrases(tokens)) {
-    if (endsClause(tokens, range) && range[1] < tokens.length) {
+    const next = tokens[range[1]]
+    const conditional = ['ば', 'たら'].includes(tokens[range[1] - 1]?.surface) && next && COMPLETES_CONDITIONAL.has(next.surface)
+    if (endsClause(tokens, range) && range[1] < tokens.length && !conditional) {
       groups.push([start, range[1]])
       start = range[1]
     }

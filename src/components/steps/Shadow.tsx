@@ -73,6 +73,7 @@ function ShadowSentence({ lesson, analyzer, player, onPosition, onDone, indices,
           chunked={settings.chunks}
           onPlayGroup={lesson.mediaId ? undefined : (text) => player.play({ start: null, end: null, text }, settings.rate)}
           playLabel={t.playChunk}
+              uiLang={settings.lang}
         />
         {settings.translation && s.translations?.[settings.lang] && <p className="translation">{s.translations[settings.lang]}</p>}
       </div>

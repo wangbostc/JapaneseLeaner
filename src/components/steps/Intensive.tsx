@@ -52,6 +52,7 @@ function IntensiveSentence({ lesson, analyzer, player, onPosition, onDone, i }: 
               chunked={settings.chunks}
               onPlayGroup={lesson.mediaId ? undefined : (text) => player.play({ start: null, end: null, text }, settings.rate)}
               playLabel={t.playChunk}
+              uiLang={settings.lang}
             />
             {settings.translation && s.translations?.[settings.lang] && <p className="translation">{s.translations[settings.lang]}</p>}
             <ExplainPanel sentence={s.text} context={lesson.sentences.map((x) => x.text)} />

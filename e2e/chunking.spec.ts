@@ -15,6 +15,7 @@ test('long sentences show sense units that can be played one by one', async ({ p
   await expect(groups.nth(0)).toContainText('時期')
   await expect(groups.nth(1)).toContainText('面倒')
   await expect(page.locator('.sentence-card .play-group')).toHaveCount(2)
+  await expect(page.getByRole('button', { name: 'Play part 2' })).toHaveAttribute('lang', 'en')
   await page.locator('.sentence-card .play-group').nth(1).click()
   await page.screenshot({ path: `e2e/screenshots/${test.info().project.name}-12-chunks.png` })
 

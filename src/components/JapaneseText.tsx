@@ -14,11 +14,13 @@ interface Props {
   chunked?: boolean
   /** When given, each sense unit gets a small play button (text-only lessons, read by TTS). */
   onPlayGroup?: (text: string) => void
-  playLabel?: string
+  /** Accessible label for a group's play button, given its 1-based number; in the UI language. */
+  playLabel?: (n: number) => string
+  uiLang?: string
 }
 
 /** Japanese text with optional furigana; content words are tappable. */
-export function JapaneseText({ text, analyzer, furigana, onWord, className, chunked, onPlayGroup, playLabel }: Props) {
+export function JapaneseText({ text, analyzer, furigana, onWord, className, chunked, onPlayGroup, playLabel, uiLang }: Props) {
   if (!analyzer) return <span className={className} lang="ja">{text}</span>
   const tokens = analyzer.tokenize(text)
   const renderToken = (t: Token, i: number) => {
@@ -51,7 +53,7 @@ export function JapaneseText({ text, analyzer, furigana, onWord, className, chun
   const split = groups.length > 1
   return (
     <span className={`${className ?? ''} chunked`} lang="ja">
-      {groups.map(([gs, ge]) => {
+      {groups.map(([gs, ge], g) => {
         const inGroup: ReactNode[] = phraseRanges
           .filter(([ps]) => ps >= gs && ps < ge)
           .map(([ps, pe]) => (
@@ -63,7 +65,7 @@ export function JapaneseText({ text, analyzer, furigana, onWord, className, chun
           <span key={gs} className={split ? 'sense-group' : undefined} data-testid={split ? 'sense-group' : undefined}>
             {inGroup}
             {split && onPlayGroup && (
-              <button type="button" className="play-group" aria-label={playLabel} onClick={() => onPlayGroup(textOf(tokens, [gs, ge]))}>
+              <button type="button" className="play-group" lang={uiLang} aria-label={playLabel?.(g + 1)} onClick={() => onPlayGroup(textOf(tokens, [gs, ge]))}>
                 ▶
               </button>
             )}

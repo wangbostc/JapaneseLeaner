@@ -49,6 +49,11 @@ describe('senseGroups (意群)', () => {
     expect((await chunk('駅から少し遠かったけど、店はとても静かでした。')).groups).toEqual(['駅から少し遠かったけど、', '店はとても静かでした。'])
   })
 
+  it('keeps 〜ばいい and 〜たらいい together', async () => {
+    expect((await chunk('どうすればいいのか分からなくて困っています。')).groups).toEqual(['どうすればいいのか分からなくて', '困っています。'])
+    expect((await chunk('分からないときは先生に聞いたらいいと思います。')).groups).toEqual(['分からないときは先生に聞いたらいいと思います。'])
+  })
+
   it('never ends on an empty group', async () => {
     expect((await chunk('天気に気分を左右されないように、自分なりの過ごし方を見つけておくといいでしょう、')).groups.every(Boolean)).toBe(true)
   })
