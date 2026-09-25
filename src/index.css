@@ -370,3 +370,4 @@ ruby rt { font-size: 0.5em; color: var(--muted); letter-spacing: 0; }
   font-size: 0.55em; vertical-align: middle; border: 0; background: var(--accent-soft); color: var(--accent);
   border-radius: 999px; width: 1.8em; height: 1.8em; margin: 0 0.25em; cursor: pointer; line-height: 1;
 }
+.row.center { justify-content: center; }

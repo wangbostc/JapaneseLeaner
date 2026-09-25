@@ -5,6 +5,7 @@ import { relativeTime } from '../app/i18n'
 import { useAiKey } from '../app/aiKey'
 import { useSettings } from '../app/useSettings'
 import { useAnalyzer } from '../app/useAnalyzer'
+import { AddToCalendar } from '../components/AddToCalendar'
 import { Icon } from '../components/Icon'
 import { JapaneseText } from '../components/JapaneseText'
 import { RoundDots } from '../components/LessonRow'
@@ -74,6 +75,7 @@ export function LessonPage() {
             <div className="step-list">{round.steps.map((s) => t.steps[s]).join(' → ')}</div>
             {due !== null && due > now && <div className="muted small">{t.dueIn(relativeTime(settings.lang, due, now))}</div>}
           </div>
+          {due !== null && due > now && <AddToCalendar lesson={lesson as typeof lesson & { id: number }} />}
           <Link to={`/lesson/${lesson.id}/study`} className="btn primary big">
             <Icon name="play" /> {resuming ? t.continue : t.start}
           </Link>

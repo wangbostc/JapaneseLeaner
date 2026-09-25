@@ -1,17 +1,26 @@
-import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { formatDuration } from '../app/i18n'
 import { useSettings } from '../app/useSettings'
 import { Icon } from '../components/Icon'
 import { LessonRow } from '../components/LessonRow'
 import { db } from '../lib/db'
+import { summarizeDue } from '../lib/reminders'
 import { store } from '../lib/store'
 
 export function Today() {
   const { t } = useSettings()
-  const [now] = useState(() => Date.now())
-  const agenda = useLiveQuery(() => store.agenda(now), [])
+  const [now, setNow] = useState(() => Date.now())
+  const agenda = useLiveQuery(() => store.agenda(now), [now])
+  const lessons = useLiveQuery(() => db.lessons.toArray(), [])
+  // A review that comes due while Today is open moves to "Due now" on its own.
+  const nextDue = lessons ? summarizeDue(lessons, now).nextDue : null
+  useEffect(() => {
+    if (nextDue === null) return
+    const timer = setTimeout(() => setNow(Date.now()), Math.min(nextDue - Date.now() + 500, 2 ** 31 - 1))
+    return () => clearTimeout(timer)
+  }, [nextDue])
   const cardsDue = useLiveQuery(() => db.cards.where('card.due').belowOrEqual(new Date()).count(), [])
   const stats = useLiveQuery(() => store.stats(), [])
   if (!agenda) return null

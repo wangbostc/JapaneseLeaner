@@ -4,6 +4,7 @@ import { Link, Navigate, useParams } from 'react-router-dom'
 import { relativeTime } from '../app/i18n'
 import { useSettings } from '../app/useSettings'
 import { useAnalyzer } from '../app/useAnalyzer'
+import { AddToCalendar } from '../components/AddToCalendar'
 import { Icon } from '../components/Icon'
 import { Blind } from '../components/steps/Blind'
 import { Intensive } from '../components/steps/Intensive'
@@ -68,7 +69,7 @@ function Runner({ lesson, media, analyzer }: { lesson: Lesson & { id: number }; 
     return logStep
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (finished) return <RoundDone progress={finished} />
+  if (finished) return <RoundDone progress={finished} lesson={{ ...lesson, progress: finished }} />
   if (!round) return <Navigate to={`/lesson/${lesson.id}`} replace />
 
   const onPosition = (p: number) => {
@@ -156,7 +157,7 @@ function Runner({ lesson, media, analyzer }: { lesson: Lesson & { id: number }; 
   )
 }
 
-function RoundDone({ progress }: { progress: LessonProgress }) {
+function RoundDone({ progress, lesson }: { progress: LessonProgress; lesson: Lesson & { id: number } }) {
   const { t, settings } = useSettings()
   const due = dueAt(progress)
   return (
@@ -166,9 +167,12 @@ function RoundDone({ progress }: { progress: LessonProgress }) {
       </div>
       <h2>{t.roundDone}</h2>
       <p>{isGraduated(progress) ? t.mastered : due ? t.nextReview(relativeTime(settings.lang, due)) : ''}</p>
-      <Link className="btn primary" to="/">
-        {t.backToToday}
-      </Link>
+      <div className="row center">
+        <AddToCalendar lesson={lesson} />
+        <Link className="btn primary" to="/">
+          {t.backToToday}
+        </Link>
+      </div>
     </div>
   )
 }

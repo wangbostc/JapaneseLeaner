@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { setAiKey, useAiKey } from '../app/aiKey'
+import { backgroundRemindersOn, enableReminders, reminderSupport, type ReminderSupport } from '../app/reminders'
 import { sanitizeSettings } from '../app/sanitizeSettings'
 import { Link } from 'react-router-dom'
 import { useSettings } from '../app/useSettings'
@@ -13,6 +14,20 @@ export function SettingsPage() {
   const [pending, setPending] = useState<Backup | null>(null)
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
+  const [caps, setCaps] = useState<ReminderSupport | null>(null)
+  const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>(() =>
+    'Notification' in window ? Notification.permission : 'unsupported',
+  )
+  const [background, setBackground] = useState(false)
+  useEffect(() => {
+    reminderSupport().then(setCaps)
+    backgroundRemindersOn().then(setBackground)
+  }, [])
+  const turnOnReminders = async () => {
+    const r = await enableReminders()
+    setPermission(r.permission)
+    setBackground(r.background)
+  }
   const aiKey = useAiKey()
   const [keyDraft, setKeyDraft] = useState('')
   const [keySaved, setKeySaved] = useState(false)
@@ -105,6 +120,36 @@ export function SettingsPage() {
           </select>
         )}
       </label>
+
+      <h2 className="section-label">{t.remindersTitle}</h2>
+      <p className="muted small">{t.remindersHint}</p>
+      {permission !== 'granted' && permission !== 'unsupported' && (
+        <button className="btn" onClick={turnOnReminders} data-testid="enable-reminders">
+          {t.enableReminders}
+        </button>
+      )}
+      {permission === 'granted' && <p className="ok small">{t.remindersOn}</p>}
+      {permission === 'denied' && <p className="error small">{t.remindersDenied}</p>}
+      {caps && (
+        <ul className="support" data-testid="reminder-support">
+          <li>
+            <span>{t.reminderCalendar}</span>
+            <span className="ok">{t.supported}</span>
+          </li>
+          <li>
+            <span>{t.reminderBadge}</span>
+            <span className={caps.badge ? 'ok' : 'error'}>{caps.badge ? t.supported : t.unsupported}</span>
+          </li>
+          <li>
+            <span>
+              {t.reminderBackground}
+              <br />
+              <small className="muted">{t.reminderBackgroundNote}</small>
+            </span>
+            <span className={background ? 'ok' : 'error'}>{background ? t.supported : t.unsupported}</span>
+          </li>
+        </ul>
+      )}
 
       <h2 className="section-label">{t.aiTitle}</h2>
       <p className="muted small">{t.aiHint}</p>
