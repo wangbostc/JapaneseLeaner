@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect } from 'react'
 import { HashRouter, NavLink, Route, Routes, useLocation } from 'react-router-dom'
-import { updateBadge } from './app/reminders'
+import { registerBackgroundCheck, updateBadge } from './app/reminders'
 import { useSettings } from './app/useSettings'
 import { db } from './lib/db'
 import { ErrorBoundary } from './components/ErrorBoundary'
@@ -24,7 +24,11 @@ function Shell() {
   const studying = pathname.endsWith('/study')
   const lessons = useLiveQuery(() => db.lessons.toArray(), [])
   useEffect(() => {
-    if (lessons) updateBadge(lessons)
+    if (!lessons) return
+    updateBadge(lessons)
+    // A review can come due while the app sits open.
+    const timer = setInterval(() => updateBadge(lessons), 60_000)
+    return () => clearInterval(timer)
   }, [lessons, pathname])
   const tabs: [string, IconName, string][] = [
     ['/', 'home', t.navToday],
@@ -73,6 +77,8 @@ export function App() {
     // Ask the browser not to evict our IndexedDB under storage pressure;
     // everything the learner has done lives only there.
     navigator.storage?.persist?.().catch(() => {})
+    // Picks up an install that happened after notifications were allowed.
+    registerBackgroundCheck()
   }, [])
   return (
     <HashRouter>

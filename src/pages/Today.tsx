@@ -18,9 +18,10 @@ export function Today() {
   const nextDue = lessons ? summarizeDue(lessons, now).nextDue : null
   useEffect(() => {
     if (nextDue === null) return
+    // setTimeout caps at ~24.8 days; `now` in the deps re-arms it if the cap was hit.
     const timer = setTimeout(() => setNow(Date.now()), Math.min(nextDue - Date.now() + 500, 2 ** 31 - 1))
     return () => clearTimeout(timer)
-  }, [nextDue])
+  }, [nextDue, now])
   const cardsDue = useLiveQuery(() => db.cards.where('card.due').belowOrEqual(new Date()).count(), [])
   const stats = useLiveQuery(() => store.stats(), [])
   if (!agenda) return null

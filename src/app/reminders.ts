@@ -1,9 +1,8 @@
 import type { Lesson } from '../lib/db'
 import { buildIcs } from '../lib/ics'
-import { summarizeDue } from '../lib/reminders'
+import { db } from '../lib/db'
+import { REMINDER_TAG, reminderNotification, summarizeDue } from '../lib/reminders'
 import { dueAt, nextRound } from '../lib/schedule'
-
-export const REMINDER_TAG = 'kikitori-due-reviews'
 
 type PeriodicSyncManager = { register(tag: string, opts: { minInterval: number }): Promise<void>; getTags(): Promise<string[]> }
 type RegistrationWithSync = ServiceWorkerRegistration & { periodicSync?: PeriodicSyncManager }
@@ -29,20 +28,42 @@ export async function reminderSupport(): Promise<ReminderSupport> {
 
 export type EnableResult = { permission: NotificationPermission; background: boolean }
 
-/** Asks for notification permission and, where supported, background checks. Call from a button press. */
+/**
+ * Registers the background check if the browser allows it (Chromium, installed app,
+ * notifications granted). Needs no user gesture, so it's also retried on each launch:
+ * that covers installing the app after granting permission.
+ */
+export async function registerBackgroundCheck(): Promise<boolean> {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return false
+  const reg = (await navigator.serviceWorker?.ready) as RegistrationWithSync | undefined
+  if (!reg?.periodicSync) return false
+  try {
+    // The browser treats this as a minimum and decides the real interval itself.
+    await reg.periodicSync.register(REMINDER_TAG, { minInterval: 60 * 60 * 1000 })
+    return (await reg.periodicSync.getTags()).includes(REMINDER_TAG)
+  } catch {
+    return false // not installed, or the browser declined
+  }
+}
+
+/**
+ * Shows a reminder right away if reviews are already due. Runs on the page, not in the
+ * service worker: right after the permission prompt, the worker may not see the grant yet.
+ */
+export async function checkDueNow(): Promise<void> {
+  const reg = await navigator.serviceWorker?.ready
+  if (!reg) return
+  const { reviewsDue } = summarizeDue(await db.lessons.toArray(), Date.now())
+  if (!reviewsDue) return
+  const { title, options } = reminderNotification(reviewsDue)
+  await reg.showNotification(title, options).catch((e) => console.warn('[kikitori] reminder', e))
+}
+
+/** Asks for notification permission, then sets up the background check. Call from a button press. */
 export async function enableReminders(): Promise<EnableResult> {
   const permission = 'Notification' in window ? await Notification.requestPermission() : 'denied'
-  let background = false
-  const reg = (await navigator.serviceWorker?.ready) as RegistrationWithSync | undefined
-  if (permission === 'granted' && reg?.periodicSync) {
-    try {
-      // The browser treats this as a minimum and decides the real interval itself.
-      await reg.periodicSync.register(REMINDER_TAG, { minInterval: 60 * 60 * 1000 })
-      background = (await reg.periodicSync.getTags()).includes(REMINDER_TAG)
-    } catch {
-      background = false // not installed, or the browser declined
-    }
-  }
+  const background = permission === 'granted' ? await registerBackgroundCheck() : false
+  if (permission === 'granted') await checkDueNow()
   return { permission, background }
 }
 
@@ -55,11 +76,11 @@ export async function backgroundRemindersOn(): Promise<boolean> {
   }
 }
 
-/** Shows how many lessons are due on the installed app's icon. */
+/** Shows how many reviews are due on the installed app's icon (new lessons don't count, as in notifications). */
 export function updateBadge(lessons: Pick<Lesson, 'progress'>[], now = Date.now()) {
   const nav = navigator as NavigatorWithBadge
-  const { due } = summarizeDue(lessons, now)
-  const op = due ? nav.setAppBadge?.(due) : nav.clearAppBadge?.()
+  const { reviewsDue } = summarizeDue(lessons, now)
+  const op = reviewsDue ? nav.setAppBadge?.(reviewsDue) : nav.clearAppBadge?.()
   op?.catch(() => {})
 }
 

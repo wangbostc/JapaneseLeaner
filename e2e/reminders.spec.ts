@@ -7,6 +7,23 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('kikitori.settings', JSON.stringify({ lang: 'en' })))
 })
 
+// Notifications share a tag across tests in the same browser; close them so tests stay independent.
+test.afterEach(async ({ page }) => {
+  await page
+    .evaluate(async () => {
+      const reg = await navigator.serviceWorker?.getRegistration()
+      for (const n of (await reg?.getNotifications()) ?? []) n.close()
+    })
+    .catch(() => {})
+})
+
+/**
+ * Notification tests run on one project only: with the mobile and desktop projects running
+ * them in parallel, notifications intermittently go missing (never with --workers=1), and
+ * mobile emulation doesn't change how service-worker notifications behave.
+ */
+const desktopOnly = () => test.skip(test.info().project.name !== 'desktop', 'notification tests run on the desktop project')
+
 /** Rewrites the first sample lesson's progress straight in IndexedDB. */
 async function setProgress(page: Page, title: string, roundsDone: number, lastCompletedAt: number) {
   await page.evaluate(
@@ -46,6 +63,7 @@ test('the next review can be saved as a calendar event with an alarm', async ({ 
 })
 
 test('the service worker notifies about due reviews', async ({ page, context }) => {
+  desktopOnly()
   await context.grantPermissions(['notifications'])
   await page.goto('./')
   await page.waitForFunction(() => navigator.serviceWorker?.controller, null, { timeout: 20_000 })
@@ -73,11 +91,28 @@ test('the service worker notifies about due reviews', async ({ page, context }) 
 })
 
 test('Settings turns reminders on and shows what this browser supports', async ({ page, context }) => {
+  desktopOnly()
   await context.grantPermissions(['notifications'])
   await page.goto('./#/settings')
   await expect(page.getByTestId('reminder-support')).toContainText('Calendar events')
   // Permission was pre-granted, so the page already reports reminders on.
   await expect(page.getByText('Reminders are on.')).toBeVisible()
+})
+
+test('turning reminders on checks right away and notifies if a review is already due', async ({ page, context }) => {
+  desktopOnly()
+  await page.goto('./')
+  await page.waitForFunction(() => navigator.serviceWorker?.controller, null, { timeout: 20_000 })
+  await expect(page.locator('.lesson-row')).toHaveCount(3)
+  await setProgress(page, '私の朝', 1, Date.now() - 7 * 3_600_000)
+  await page.goto('./#/settings')
+  await expect(page.getByTestId('enable-reminders')).toBeVisible() // permission is still 'default'
+  await context.grantPermissions(['notifications']) // stands in for the user accepting the prompt
+  await page.getByTestId('enable-reminders').click()
+  await expect(page.getByText('Reminders are on.')).toBeVisible()
+  await expect
+    .poll(() => page.evaluate(async () => (await (await navigator.serviceWorker.ready).getNotifications()).length))
+    .toBe(1)
 })
 
 test('Today moves a review to "Due now" when it comes due, without a reload', async ({ page }) => {

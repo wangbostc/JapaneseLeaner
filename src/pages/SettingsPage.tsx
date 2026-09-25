@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { setAiKey, useAiKey } from '../app/aiKey'
-import { backgroundRemindersOn, enableReminders, reminderSupport, type ReminderSupport } from '../app/reminders'
+import { backgroundRemindersOn, enableReminders, registerBackgroundCheck, reminderSupport, type ReminderSupport } from '../app/reminders'
 import { sanitizeSettings } from '../app/sanitizeSettings'
 import { Link } from 'react-router-dom'
 import { useSettings } from '../app/useSettings'
@@ -123,7 +123,7 @@ export function SettingsPage() {
 
       <h2 className="section-label">{t.remindersTitle}</h2>
       <p className="muted small">{t.remindersHint}</p>
-      {permission !== 'granted' && permission !== 'unsupported' && (
+      {permission === 'default' && (
         <button className="btn" onClick={turnOnReminders} data-testid="enable-reminders">
           {t.enableReminders}
         </button>
@@ -146,7 +146,15 @@ export function SettingsPage() {
               <br />
               <small className="muted">{t.reminderBackgroundNote}</small>
             </span>
-            <span className={background ? 'ok' : 'error'}>{background ? t.supported : t.unsupported}</span>
+            {background ? (
+              <span className="ok">{t.reminderBackgroundOn}</span>
+            ) : caps.periodicSync && permission === 'granted' ? (
+              <button className="btn" onClick={async () => setBackground(await registerBackgroundCheck())} data-testid="enable-background">
+                {t.reminderBackgroundEnable}
+              </button>
+            ) : (
+              <span className="error">{t.unsupported}</span>
+            )}
           </li>
         </ul>
       )}

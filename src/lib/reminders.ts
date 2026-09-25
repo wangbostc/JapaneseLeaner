@@ -27,3 +27,17 @@ export function summarizeDue(lessons: Pick<Lesson, 'progress'>[], now: number): 
   }
   return { due, reviewsDue, nextDue }
 }
+
+export const REMINDER_TAG = 'kikitori-due-reviews'
+
+/** The reminder notification, shared by the page and the service worker. */
+export function reminderNotification(reviewsDue: number): { title: string; options: NotificationOptions } {
+  return {
+    title: 'Kikitori',
+    options: {
+      body: reviewsDue === 1 ? '1 review is due. 復習の時間です。' : `${reviewsDue} reviews are due. 復習の時間です。`,
+      tag: REMINDER_TAG, // replaces the previous reminder instead of stacking
+      icon: 'favicon.svg',
+    },
+  }
+}
