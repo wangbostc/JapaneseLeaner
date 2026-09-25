@@ -128,39 +128,41 @@ export function SettingsPage() {
         {voices && voices.length === 0 && !neuralVoices?.length ? (
           <small className="error">{t.noVoice}</small>
         ) : (
-          <span className="row">
-            <select
-              data-testid="voice-select"
-              // With natural voices on and nothing chosen, Nanami speaks; show that rather than the first device voice.
-              value={settings.voiceURI ?? (neuralChoice(undefined) ? NEURAL_PREFIX + neuralChoice(undefined) : (voices?.[0]?.voiceURI ?? ''))}
-              onChange={(e) => update({ voiceURI: e.target.value || undefined })}
-            >
-              {!!neuralVoices?.length && (
-                <optgroup label={t.voiceNatural}>
-                  {neuralVoices.map((v) => (
-                    <option key={v.id} value={NEURAL_PREFIX + v.id}>
-                      {v.name} · {v.gender === 'female' ? t.voiceFemale : t.voiceMale}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
-              {!!voices?.length && (
-                <optgroup label={t.voiceDevice}>
-                  {voices.map((v) => (
-                    <option key={v.voiceURI} value={v.voiceURI}>
-                      {v.name}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
-            </select>
-            <button type="button" className="btn ghost" onClick={() => void speak(t.voiceSample, settings.rate, settings.voiceURI)}>
-              {t.voicePreview}
-            </button>
-          </span>
+          <select
+            data-testid="voice-select"
+            // With natural voices on and nothing chosen, Nanami speaks; show that rather than the first device voice.
+            value={settings.voiceURI ?? (neuralChoice(undefined) ? NEURAL_PREFIX + neuralChoice(undefined) : (voices?.[0]?.voiceURI ?? ''))}
+            onChange={(e) => update({ voiceURI: e.target.value || undefined })}
+          >
+            {!!neuralVoices?.length && (
+              <optgroup label={t.voiceNatural}>
+                {neuralVoices.map((v) => (
+                  <option key={v.id} value={NEURAL_PREFIX + v.id}>
+                    {v.name} · {v.gender === 'female' ? t.voiceFemale : t.voiceMale}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {!!voices?.length && (
+              <optgroup label={t.voiceDevice}>
+                {voices.map((v) => (
+                  <option key={v.voiceURI} value={v.voiceURI}>
+                    {v.name}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+          </select>
         )}
         {!neuralVoices?.length && sync.kind !== 'unavailable' && <small className="muted">{t.voiceNaturalHint}</small>}
       </label>
+      {(!!voices?.length || !!neuralVoices?.length) && (
+        <div className="row">
+          <button type="button" className="btn ghost" onClick={() => void speak(t.voiceSample, settings.rate, settings.voiceURI)}>
+            {t.voicePreview}
+          </button>
+        </div>
+      )}
 
       {sync.kind !== 'unavailable' && (
         <section className="form" data-testid="sync-section" aria-labelledby="sync-title">

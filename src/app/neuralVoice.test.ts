@@ -8,6 +8,10 @@ function memoryCache() {
     match: async (url: string) => entries.get(url)?.clone(),
     put: async (url: string, res: Response) => void entries.set(url, res),
   } as unknown as Cache
+  Object.assign(cache, {
+    keys: async () => [...entries.keys()].map((url) => new Request(url)),
+    delete: async (req: Request) => entries.delete(req.url),
+  })
   return { entries, open: async () => cache }
 }
 
@@ -61,5 +65,26 @@ describe('neuralSynth', () => {
     release()
     expect(await (await other).text()).toBe('mp3')
     expect(server.calls).toHaveLength(1)
+  })
+
+  it('keeps the device cache under its cap, dropping the oldest sentences first', async () => {
+    const cache = memoryCache()
+    const synth = neuralSynth(fakeServer().api, cache.open, 2)
+    for (const text of ['一。', '二。', '三。']) await synth(text, 'ja-JP-NanamiNeural')
+    expect(cache.entries.size).toBe(2)
+    const server = fakeServer()
+    const again = neuralSynth(server.api, cache.open, 2)
+    await again('三。', 'ja-JP-NanamiNeural') // newest: still cached
+    expect(server.calls).toHaveLength(0)
+    await again('一。', 'ja-JP-NanamiNeural') // oldest: dropped, so fetched again
+    expect(server.calls).toHaveLength(1)
+  })
+
+  it('gives the server request a deadline, so a hung server hands over to the device voice', async () => {
+    let signal: AbortSignal | undefined
+    const synth = neuralSynth(async (_p, init) => ((signal = init?.signal ?? undefined), new Response(new Blob(['x']))), async () => null)
+    await synth('はい。', 'ja-JP-NanamiNeural')
+    expect(signal).toBeInstanceOf(AbortSignal)
+    expect(signal!.aborted).toBe(false)
   })
 })

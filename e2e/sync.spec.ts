@@ -183,6 +183,48 @@ test('a connected device speaks with the server’s natural voices, keeping each
   await expect(page.getByRole('heading', { name: 'Intensive listening' })).toBeVisible()
   await expect.poll(() => texts).toContain('私は毎朝六時に起きます。')
   expect(requests.at(-1)).toBe('ja-JP-KeitaNeural')
+  const studyUrl = page.url()
+
+  // Opened straight onto a lesson, never visiting Settings: the app shell turns natural voices on.
+  await page.evaluate(() => localStorage.removeItem('kikitori.neuralVoices'))
+  texts.length = 0
+  await page.goto('about:blank')
+  await page.goto(studyUrl)
+  await expect(page.getByRole('heading', { name: 'Intensive listening' })).toBeVisible()
+  await expect.poll(() => texts).toContain('私は毎朝六時に起きます。')
+})
+
+test('opened offline, a connected device still plays the natural-voice audio it has cached', async ({ browser }) => {
+  const page = await newDevice(browser, 'Offline')
+  // Record which voice speaks: a natural clip (an audio element) or the device's own voice.
+  await page.addInitScript(() => {
+    const w = window as unknown as { __clips: string[]; __said: string[] }
+    w.__clips = []
+    w.__said = []
+    const play = HTMLMediaElement.prototype.play
+    HTMLMediaElement.prototype.play = function () {
+      w.__clips.push(this.src)
+      return play.call(this)
+    }
+    const speak = speechSynthesis.speak.bind(speechSynthesis)
+    speechSynthesis.speak = (u) => (w.__said.push(u.text), speak(u))
+  })
+  await page.goto('./#/library')
+  await page.getByRole('link', { name: /私の朝/ }).click()
+  await page.getByRole('link', { name: 'Start' }).click()
+  await expect(page.getByRole('heading', { name: 'Intensive listening' })).toBeVisible()
+  await expect.poll(() => page.evaluate(async () => (await (await caches.open('tts-v1')).keys()).length)).toBeGreaterThan(0)
+  const studyUrl = page.url()
+
+  await page.context().setOffline(true)
+  await page.goto('about:blank')
+  await page.goto(studyUrl)
+  await expect(page.getByRole('heading', { name: 'Intensive listening' })).toBeVisible()
+  const clips = () => page.evaluate(() => (window as unknown as { __clips: string[] }).__clips)
+  await expect.poll(clips).toHaveLength(1)
+  expect((await clips())[0]).toMatch(/^blob:/)
+  expect(await page.evaluate(() => (window as unknown as { __said: string[] }).__said)).toEqual([])
+  await page.context().setOffline(false)
 })
 
 test('the static build (no server) hides sync entirely', async ({ page }) => {
