@@ -148,6 +148,43 @@ test('translates a long lesson through the server in batches', async ({ browser 
   await expect(phone.locator('.transcript .translation')).toHaveCount(320)
 })
 
+test('a connected device speaks with the server’s natural voices, keeping each sentence on the device', async ({ browser }) => {
+  const page = await newDevice(browser, 'Voice')
+  const requests: string[] = []
+  page.on('request', (r) => r.method() === 'POST' && r.url().endsWith('/api/tts') && requests.push(JSON.parse(r.postData() ?? '{}').voice))
+  const select = page.getByTestId('voice-select')
+  // Natural voices are the default once the server has them.
+  await expect(select).toHaveValue('neural:ja-JP-NanamiNeural')
+  await expect(select.locator('optgroup[label="Natural voices (server)"] option')).toHaveCount(8)
+
+  const tryIt = page.getByRole('button', { name: '▶ Try' })
+  const spoken = page.waitForResponse((r) => r.url().endsWith('/api/tts') && r.status() === 200)
+  await tryIt.click()
+  expect((await spoken).headers()['content-type']).toBe('audio/wav')
+  await expect.poll(() => requests).toEqual(['ja-JP-NanamiNeural'])
+
+  // Again: played from the device's cache, no second request.
+  await tryIt.click()
+  await page.waitForTimeout(500)
+  expect(requests).toEqual(['ja-JP-NanamiNeural'])
+
+  await select.selectOption('neural:ja-JP-KeitaNeural')
+  await tryIt.click()
+  await expect.poll(() => requests).toEqual(['ja-JP-NanamiNeural', 'ja-JP-KeitaNeural'])
+  const cached = await page.evaluate(async () => (await (await caches.open('tts-v1')).keys()).length)
+  expect(cached).toBe(2)
+
+  // Lessons use it too: the first step reads the first sentence aloud in the chosen voice.
+  const texts: string[] = []
+  page.on('request', (r) => r.method() === 'POST' && r.url().endsWith('/api/tts') && texts.push(JSON.parse(r.postData() ?? '{}').text))
+  await page.goto('./#/library')
+  await page.getByRole('link', { name: /私の朝/ }).click()
+  await page.getByRole('link', { name: 'Start' }).click()
+  await expect(page.getByRole('heading', { name: 'Intensive listening' })).toBeVisible()
+  await expect.poll(() => texts).toContain('私は毎朝六時に起きます。')
+  expect(requests.at(-1)).toBe('ja-JP-KeitaNeural')
+})
+
 test('the static build (no server) hides sync entirely', async ({ page }) => {
   await page.goto('http://localhost:' + (process.env.E2E_PORT ?? '4173') + '/#/settings')
   await expect(page.getByRole('heading', { name: 'Reminders' })).toBeVisible()

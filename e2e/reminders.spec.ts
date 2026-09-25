@@ -51,14 +51,16 @@ async function setProgress(page: Page, title: string, roundsDone: number, lastCo
 test('the next review can be saved as a calendar event with an alarm', async ({ page }) => {
   await page.goto('./')
   await expect(page.locator('.lesson-row')).toHaveCount(3)
-  const lastDone = Date.UTC(2026, 8, 25, 0, 0)
+  // Relative to now: the button only shows while the review is still ahead.
+  const lastDone = Math.floor(Date.now() / 60_000) * 60_000 - 3_600_000
+  const dtstart = new Date(lastDone + 6 * 3_600_000).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
   await setProgress(page, '私の朝', 1, lastDone)
   await page.goto('./#/library')
   await page.getByRole('link', { name: /私の朝/ }).click()
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('add-to-calendar').click()])
   const ics = Buffer.concat(await (await download.createReadStream()).toArray()).toString()
   expect(download.suggestedFilename()).toMatch(/^kikitori-review-\d+\.ics$/)
-  expect(ics).toContain('\r\nDTSTART:20260925T060000Z\r\n') // review 1: 6 hours after completion
+  expect(ics).toContain(`\r\nDTSTART:${dtstart}\r\n`) // review 1: 6 hours after completion
   expect(ics).toContain('SUMMARY:Kikitori review 1/7: 私の朝')
   expect(ics).toContain('BEGIN:VALARM\r\nACTION:DISPLAY')
 })

@@ -12,6 +12,11 @@ export interface Env {
   ANTHROPIC_API_KEY?: string
   /** Only for tests: send Anthropic API calls to a fake server. */
   ANTHROPIC_BASE_URL?: string
+  /** Azure Speech key and region for natural voices (free F0 tier); speech stays on the device's own voice without them. */
+  AZURE_SPEECH_KEY?: string
+  AZURE_SPEECH_REGION?: string
+  /** Only for tests: send speech requests to a fake server. */
+  AZURE_SPEECH_ENDPOINT?: string
   /** Contact for push services (mailto: or https:); defaults to the project URL. */
   VAPID_SUBJECT?: string
 }

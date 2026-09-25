@@ -38,6 +38,21 @@ const fakeAnthropic = createServer((req, res) => {
 }).listen(0)
 const anthropicUrl = `http://127.0.0.1:${fakeAnthropic.address().port}`
 
+// A fake Azure Speech: answers every request with a short silent WAV, so natural voices run end to end.
+const wav = (() => {
+  const samples = 1600 // 0.2 s at 8 kHz, 8-bit mono
+  const b = Buffer.alloc(44 + samples, 128)
+  b.write('RIFF', 0); b.writeUInt32LE(36 + samples, 4); b.write('WAVE', 8); b.write('fmt ', 12)
+  b.writeUInt32LE(16, 16); b.writeUInt16LE(1, 20); b.writeUInt16LE(1, 22); b.writeUInt32LE(8000, 24); b.writeUInt32LE(8000, 28)
+  b.writeUInt16LE(1, 32); b.writeUInt16LE(8, 34); b.write('data', 36); b.writeUInt32LE(samples, 40)
+  return b
+})()
+const fakeAzure = createServer((req, res) => {
+  req.resume()
+  req.on('end', () => (res.writeHead(200, { 'content-type': 'audio/wav' }), res.end(wav)))
+}).listen(0)
+const azureUrl = `http://127.0.0.1:${fakeAzure.address().port}/cognitiveservices/v1`
+
 // A throwaway VAPID pair so push subscriptions can be tested.
 const pair = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify'])
 const vapidPublic = Buffer.from(await crypto.subtle.exportKey('raw', pair.publicKey)).toString('base64url')
@@ -48,9 +63,10 @@ const dev = spawn(
     'exec', 'wrangler', 'dev', '--port', String(port), '--persist-to', '.wrangler/e2e',
     '--var', 'SETUP_CODE:e2e-sync-setup-code', '--var', `VAPID_PUBLIC_KEY:${vapidPublic}`, '--var', `VAPID_PRIVATE_KEY:${vapidPrivate}`,
     '--var', 'ANTHROPIC_API_KEY:e2e-fake-key', '--var', `ANTHROPIC_BASE_URL:${anthropicUrl}`,
+    '--var', 'AZURE_SPEECH_KEY:e2e-fake-key', '--var', 'AZURE_SPEECH_REGION:e2e', '--var', `AZURE_SPEECH_ENDPOINT:${azureUrl}`,
   ],
   { stdio: 'inherit' },
 )
 process.on('SIGTERM', () => dev.kill('SIGTERM'))
 process.on('SIGINT', () => dev.kill('SIGINT'))
-dev.on('exit', (code) => (fakeAnthropic.close(), process.exit(code ?? 0)))
+dev.on('exit', (code) => (fakeAnthropic.close(), fakeAzure.close(), process.exit(code ?? 0)))

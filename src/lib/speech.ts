@@ -7,6 +7,8 @@
  * where there is no microphone and no voice.
  */
 
+import { DEFAULT_NEURAL_VOICE, neuralVoiceOf, type NeuralVoiceId } from './voices'
+
 interface FakeSpeech {
   /** What the "recogniser" hears for each attempt. */
   transcript: () => string
@@ -113,11 +115,26 @@ export const ttsSupported = () => typeof window !== 'undefined' && 'speechSynthe
 
 let voicesReady: Promise<SpeechSynthesisVoice[]> | null = null
 
-/** Japanese voices; the list fills in asynchronously on most browsers. */
+// Device voices differ a lot in quality. Network/neural voices (Edge's "Natural", Chrome's
+// "Google 日本語") and the downloadable Siri/Enhanced/Premium voices sound far better than the
+// small built-in ones (macOS "Kyoko"/"Otoya" compact, Windows "Haruka Desktop").
+const voiceScore = (v: SpeechSynthesisVoice) => {
+  const n = v.name
+  if (/natural|neural/i.test(n)) return 4
+  if (/premium|enhanced|siri/i.test(n) || /Premium|Enhanced/.test(v.voiceURI)) return 3
+  if (/google/i.test(n)) return 2
+  if (/compact|desktop|espeak/i.test(n)) return 0
+  return 1
+}
+
+/** Japanese voices, best first (the sort is stable, so the browser's order breaks ties). */
+export const rankVoices = (voices: SpeechSynthesisVoice[]) => [...voices].sort((a, b) => voiceScore(b) - voiceScore(a))
+
+/** Japanese voices, best first; the list fills in asynchronously on most browsers. */
 export function japaneseVoices(): Promise<SpeechSynthesisVoice[]> {
   if (!ttsSupported()) return Promise.resolve([])
   voicesReady ??= new Promise((resolve) => {
-    const pick = () => speechSynthesis.getVoices().filter((v) => v.lang.replace('_', '-').startsWith('ja'))
+    const pick = () => rankVoices(speechSynthesis.getVoices().filter((v) => v.lang.replace('_', '-').startsWith('ja')))
     if (speechSynthesis.getVoices().length) return resolve(pick())
     const timer = setTimeout(() => resolve(pick()), 1500)
     speechSynthesis.addEventListener('voiceschanged', () => (clearTimeout(timer), resolve(pick())), { once: true })
@@ -128,7 +145,82 @@ export function japaneseVoices(): Promise<SpeechSynthesisVoice[]> {
 /** Rough spoken duration, used as a safety net when TTS never fires `end`. */
 export const estimateSpeechMs = (text: string, rate: number) => (text.length * 160) / rate + 600
 
+// --- Natural voices (from the server) --------------------------------------
+
+/** Fetches one sentence's audio in a natural voice (src/app/neuralVoice.ts, when the server offers them). */
+export type NeuralSynth = (text: string, voice: NeuralVoiceId, signal?: AbortSignal) => Promise<Blob>
+
+let neural: NeuralSynth | null = null
+
+/** Turns natural voices on (connected to a server that has them) or off. */
+export function setNeuralSynth(synth: NeuralSynth | null) {
+  neural = synth
+}
+
+/**
+ * The natural voice to speak with, or null for the device's own voice. With natural voices on,
+ * they're the default; a device voice chosen explicitly in Settings still wins.
+ */
+export function neuralChoice(voiceURI: string | undefined): NeuralVoiceId | null {
+  if (!neural) return null
+  if (voiceURI === undefined) return DEFAULT_NEURAL_VOICE
+  return neuralVoiceOf(voiceURI)
+}
+
+/** Starts fetching a sentence ahead of time, so playing it next has no gap. */
+export function prefetchSpeech(text: string, voiceURI: string | undefined) {
+  const voice = neuralChoice(voiceURI)
+  if (voice && neural) void neural(text, voice).catch(() => undefined)
+}
+
+let playing: HTMLAudioElement | null = null
+
+function playBlob(blob: Blob, rate: number, signal?: AbortSignal): Promise<void> {
+  playing?.pause()
+  const url = URL.createObjectURL(blob)
+  const el = new Audio(url)
+  playing = el
+  el.preservesPitch = true
+  el.playbackRate = rate
+  return new Promise<void>((resolve) => {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const finish = () => {
+      clearTimeout(timer)
+      el.pause()
+      el.onended = el.onerror = el.onpause = null
+      URL.revokeObjectURL(url)
+      if (playing === el) playing = null
+      resolve()
+    }
+    // Safety net: some browsers never fire `ended` for a clip interrupted by the OS.
+    el.onloadedmetadata = () => {
+      if (Number.isFinite(el.duration)) timer = setTimeout(finish, (el.duration * 1000) / rate + 2000)
+    }
+    el.onended = finish
+    el.onerror = finish
+    // Paused by another clip starting, or by the OS: this one is over.
+    el.onpause = () => !el.ended && finish()
+    signal?.addEventListener('abort', finish, { once: true })
+    el.play().catch(finish)
+  })
+}
+
 export async function speak(text: string, rate = 1, voiceURI?: string, signal?: AbortSignal): Promise<void> {
+  const voice = neuralChoice(voiceURI)
+  if (voice && neural) {
+    try {
+      const blob = await neural(text, voice, signal)
+      if (signal?.aborted) return
+      return await playBlob(blob, rate, signal)
+    } catch {
+      if (signal?.aborted) return
+      // Offline with nothing cached, or the server's quota is used up: the device voice takes over.
+    }
+  }
+  return speakOnDevice(text, rate, voice ? undefined : voiceURI, signal)
+}
+
+async function speakOnDevice(text: string, rate: number, voiceURI: string | undefined, signal?: AbortSignal): Promise<void> {
   // No voice: wait roughly as long as speaking would take, so pacing still works.
   const fallback = () =>
     new Promise<void>((resolve) => {

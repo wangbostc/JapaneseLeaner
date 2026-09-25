@@ -1,6 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect } from 'react'
 import { HashRouter, NavLink, Route, Routes, useLocation } from 'react-router-dom'
+import { useNeuralVoices } from './app/neuralVoice'
 import { registerBackgroundCheck, updateBadge } from './app/reminders'
 import { startAutoSync } from './app/sync'
 import { useSettings } from './app/useSettings'
@@ -24,6 +25,8 @@ function Shell() {
   const { t } = useSettings()
   const { pathname } = useLocation()
   const studying = pathname.endsWith('/study') || pathname.includes('/practice/')
+  // Turns natural voices on for every page once this device is connected to a server that has them.
+  useNeuralVoices()
   const lessons = useLiveQuery(() => db.lessons.toArray(), [])
   useEffect(() => {
     if (!lessons) return

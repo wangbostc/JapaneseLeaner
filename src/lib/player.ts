@@ -1,5 +1,5 @@
 import type { Sentence } from './db'
-import { speak } from './speech'
+import { prefetchSpeech, speak } from './speech'
 
 /** Plays a lesson's sentences from its audio file, or with TTS when it has none. */
 export interface Player {
@@ -24,6 +24,7 @@ export function createPlayer(media: Blob | null, voiceURI?: string): Player {
         const signal = fresh()
         for (let i = 0; i < sentences.length && !signal.aborted; i++) {
           onSentence?.(i)
+          if (i + 1 < sentences.length) prefetchSpeech(sentences[i + 1].text, voiceURI)
           await speak(sentences[i].text, rate, voiceURI, signal)
         }
       },
