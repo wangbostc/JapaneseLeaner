@@ -18,7 +18,14 @@ export interface Resume {
   queue?: number[]
 }
 
-export interface Lesson {
+/** Sync identity: stable across devices, unlike the local auto-increment `id`. */
+export interface Synced {
+  uid: string
+  /** Last local change (epoch ms); sync resolves conflicts with it. */
+  updatedAt: number
+}
+
+export interface Lesson extends Partial<Synced> {
   id?: number
   title: string
   level?: string
@@ -33,13 +40,13 @@ export interface Lesson {
   builtIn?: boolean
 }
 
-export interface Media {
+export interface Media extends Partial<Synced> {
   id?: number
   blob: Blob
   name: string
 }
 
-export interface Flashcard {
+export interface Flashcard extends Partial<Synced> {
   id?: number
   lessonId: number
   kind: 'word' | 'sentence'
@@ -52,9 +59,11 @@ export interface Flashcard {
   createdAt: number
 }
 
-export interface PracticeLog {
+export interface PracticeLog extends Partial<Synced> {
   id?: number
   lessonId: number
+  /** The lesson's uid, kept so the log still names its lesson after the lesson is deleted. */
+  lessonUid?: string | null
   step: Step | 'flashcards'
   /** Listening counts as input; shadowing and retelling as output. */
   mode: 'input' | 'output'
@@ -67,12 +76,26 @@ export interface KnownWord {
   firstSeen: number
 }
 
+/** A deleted record, kept so the deletion can reach other devices. */
+export interface Deletion {
+  id?: number
+  uid: string
+  table: 'lessons' | 'media' | 'cards'
+  at: number
+}
+
+/** Built-in sample lessons get the same uid on every device, so syncing doesn't duplicate them. */
+export const sampleUid = (title: string) => `sample:${title}`
+
+const newUid = () => crypto.randomUUID()
+
 export class KikitoriDB extends Dexie {
   lessons!: EntityTable<Lesson, 'id'>
   media!: EntityTable<Media, 'id'>
   cards!: EntityTable<Flashcard, 'id'>
   logs!: EntityTable<PracticeLog, 'id'>
   words!: EntityTable<KnownWord, 'lemma'>
+  deletions!: EntityTable<Deletion, 'id'>
 
   constructor(name = 'kikitori') {
     super(name)
@@ -83,6 +106,57 @@ export class KikitoriDB extends Dexie {
       logs: '++id, lessonId, at',
       words: 'lemma',
     })
+    // v2: sync identity (uid) and change time (updatedAt) on every synced record, plus tombstones.
+    this.version(2)
+      .stores({
+        lessons: '++id, createdAt, &uid, updatedAt',
+        media: '++id, &uid, updatedAt',
+        cards: '++id, lessonId, card.due, [lessonId+front], &uid, updatedAt',
+        logs: '++id, lessonId, at, &uid, updatedAt',
+        words: 'lemma',
+        deletions: '++id, &uid, table',
+      })
+      .upgrade(async (tx) => {
+        const now = Date.now()
+        const lessonUids = new Map<number, string>()
+        await tx
+          .table('lessons')
+          .toCollection()
+          .modify((l: Lesson) => {
+            l.uid = l.builtIn ? sampleUid(l.title) : newUid()
+            l.updatedAt = l.createdAt ?? now
+            lessonUids.set(l.id!, l.uid)
+          })
+        for (const table of ['media', 'cards']) {
+          await tx
+            .table(table)
+            .toCollection()
+            .modify((r: Partial<Synced> & { createdAt?: number }) => {
+              r.uid = newUid()
+              r.updatedAt = r.createdAt ?? now
+            })
+        }
+        // Logs of lessons already deleted in v1 keep lessonUid null: their lesson is gone everywhere.
+        await tx
+          .table('logs')
+          .toCollection()
+          .modify((r: PracticeLog) => {
+            r.uid = newUid()
+            r.updatedAt = r.at ?? now
+            r.lessonUid = lessonUids.get(r.lessonId) ?? null
+          })
+      })
+
+    // Every write path gets a uid and a fresh updatedAt without having to remember to.
+    for (const table of [this.lessons, this.media, this.cards, this.logs] as Dexie.Table<Partial<Synced>>[]) {
+      table.hook('creating', (_key, obj) => {
+        // Built-in samples keep their shared uid however they arrive (seeding, a v1 restore, ...).
+        const sample = table === (this.lessons as unknown) && (obj as Lesson).builtIn
+        obj.uid ??= sample ? sampleUid((obj as Lesson).title) : newUid()
+        obj.updatedAt ??= Date.now()
+      })
+      table.hook('updating', (mods) => ('updatedAt' in mods ? undefined : { updatedAt: Date.now() }))
+    }
   }
 }
 
