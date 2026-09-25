@@ -63,7 +63,9 @@ export function createStore(database: KikitoriDB = db) {
           ...(media ? [{ uid: media.uid!, table: 'media' as const, at: nextStamp(media.updatedAt, now) }] : []),
           ...cards.map((c) => ({ uid: c.uid!, table: 'cards' as const, at: nextStamp(c.updatedAt, now) })),
         ]
-        await database.deletions.bulkPut(tombstones)
+        // Replace any earlier tombstone for the same uid (a record deleted, brought back by a later edit elsewhere, deleted again).
+        await database.deletions.where('uid').anyOf(tombstones.map((t) => t.uid)).delete()
+        await database.deletions.bulkAdd(tombstones)
         if (lesson.mediaId) await database.media.delete(lesson.mediaId)
         await database.cards.where('lessonId').equals(id).delete()
         await database.lessons.delete(id)
@@ -135,7 +137,8 @@ export function createStore(database: KikitoriDB = db) {
       await database.transaction('rw', [database.cards, database.deletions], async () => {
         const card = await database.cards.get(id)
         if (!card) return
-        await database.deletions.put({ uid: card.uid!, table: 'cards', at: nextStamp(card.updatedAt, now) })
+        await database.deletions.where('uid').equals(card.uid!).delete()
+        await database.deletions.add({ uid: card.uid!, table: 'cards', at: nextStamp(card.updatedAt, now) })
         await database.cards.delete(id)
       })
     },

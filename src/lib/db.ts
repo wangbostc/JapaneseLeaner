@@ -23,6 +23,8 @@ export interface Synced {
   uid: string
   /** Last local change (epoch ms); sync resolves conflicts with it. */
   updatedAt: number
+  /** The updatedAt last exchanged with the server (device-local): unchanged since then means nothing to push. */
+  syncedVersion?: number
 }
 
 export interface Lesson extends Partial<Synced> {
@@ -106,7 +108,7 @@ const isSyncApply = (trans: Transaction) => (trans as unknown as Record<symbol, 
 export const nextStamp = (previous: number | undefined, now = Date.now()) => Math.max(now, (previous ?? 0) + 1)
 
 /** Fields that only mean something on this device and never travel. */
-const LOCAL_ONLY = new Set(['mediaId', 'lessonId'])
+const LOCAL_ONLY = new Set(['mediaId', 'lessonId', 'syncedVersion'])
 
 export class KikitoriDB extends Dexie {
   lessons!: EntityTable<Lesson, 'id'>

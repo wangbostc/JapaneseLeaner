@@ -64,14 +64,19 @@ const fromWireCard = (c: WireCard): Flashcard['card'] =>
 
 /** Everything changed locally since the last push, in wire form. */
 async function gatherChanges(db: KikitoriDB, state: SyncState): Promise<SyncBatch> {
+  // (Each record's updatedAt as gathered is recorded by the caller from the batch.)
   const since = state.pushedAt
   const lessons = await db.lessons.toArray()
   const lessonUid = new Map(lessons.map((l) => [l.id!, l.uid!]))
   const mediaUidById = new Map<number, string>()
   await db.media.each((m) => void mediaUidById.set(m.id!, m.uid!))
   const batch = emptyBatch()
-  batch.lessons = lessons.filter((l) => l.updatedAt! > since).map((l) => toWireLesson(l, mediaUidById))
+  // syncedVersion: a record already exchanged at this version (e.g. pulled with another device's
+  // clock ahead of ours, so still "newer" than our cursor) has nothing to push.
+  const unsynced = (r: { updatedAt?: number; syncedVersion?: number }) => r.updatedAt! > since && r.updatedAt !== r.syncedVersion
+  batch.lessons = lessons.filter(unsynced).map((l) => toWireLesson(l, mediaUidById))
   batch.cards = (await db.cards.where('updatedAt').above(since).toArray())
+    .filter(unsynced)
     .filter((c) => lessonUid.has(c.lessonId))
     .map((c) => toWireCard(c, lessonUid.get(c.lessonId)!))
   batch.logs = (await db.logs.where('updatedAt').above(since).toArray()).map(
@@ -102,23 +107,28 @@ function* chunks(batch: SyncBatch): Generator<SyncBatch> {
 
 /**
  * Writes the server's changes locally with the server's updatedAt (so they aren't pushed back
- * as new edits), mapping uids to this device's ids. A record edited here after `startedAt`
- * is left alone: it's newer, and goes up on the next sync.
+ * as new edits), mapping uids to this device's ids. A record edited here since it was gathered
+ * for this push is left alone: it goes up on the next sync. (Comparing against the wall clock
+ * instead would misfire when another device's clock is ahead.)
  */
-async function applyChanges(db: KikitoriDB, changes: SyncBatch, startedAt: number): Promise<WireMedia[]> {
+async function applyChanges(db: KikitoriDB, changes: SyncBatch, editedSince: (row: { uid?: string; updatedAt?: number; syncedVersion?: number }) => boolean): Promise<WireMedia[]> {
   const needBytes: WireMedia[] = []
-  await db.transaction('rw', [db.lessons, db.media, db.cards, db.logs, db.words], async (tx) => {
+  await db.transaction('rw', [db.lessons, db.media, db.cards, db.logs, db.words, db.deletions], async (tx) => {
     markSyncApply(tx)
+    // A record the server sends back is alive: drop any local tombstone for it, so it can be deleted again.
+    const alive = [...changes.lessons, ...changes.cards].map((r) => r.uid)
+    if (alive.length) await db.deletions.where('uid').anyOf(alive).delete()
     for (const m of changes.media) if (!(await db.media.where('uid').equals(m.uid).first())) needBytes.push(m)
 
     for (const w of changes.lessons) {
       const local = await db.lessons.where('uid').equals(w.uid).first()
-      if (local && local.updatedAt! > startedAt) continue
+      if (local && editedSince(local)) continue
       const media = w.mediaUid ? await db.media.where('uid').equals(w.mediaUid).first() : undefined
       const row: Lesson = {
         ...(local ?? {}),
         uid: w.uid,
         updatedAt: w.updatedAt,
+        syncedVersion: w.updatedAt,
         title: w.title,
         level: w.level,
         sentences: w.sentences,
@@ -139,8 +149,8 @@ async function applyChanges(db: KikitoriDB, changes: SyncBatch, startedAt: numbe
       const id = lessonId.get(w.lessonUid)
       if (id === undefined) continue // its lesson is gone here
       const local = await db.cards.where('uid').equals(w.uid).first()
-      if (local && local.updatedAt! > startedAt) continue
-      const row: Flashcard = { uid: w.uid, updatedAt: w.updatedAt, lessonId: id, kind: w.kind, front: w.front, reading: w.reading, context: w.context, card: fromWireCard(w), createdAt: w.createdAt }
+      if (local && editedSince(local)) continue
+      const row: Flashcard = { uid: w.uid, updatedAt: w.updatedAt, syncedVersion: w.updatedAt, lessonId: id, kind: w.kind, front: w.front, reading: w.reading, context: w.context, card: fromWireCard(w), createdAt: w.createdAt }
       if (local) await db.cards.put({ ...row, id: local.id })
       else await db.cards.add(row)
     }
@@ -166,6 +176,25 @@ async function applyChanges(db: KikitoriDB, changes: SyncBatch, startedAt: numbe
     }
   })
   return needBytes
+}
+
+/** Records that the server now has these versions (unless the record changed again meanwhile). */
+async function markPushed(db: KikitoriDB, part: SyncBatch) {
+  await db.transaction('rw', [db.lessons, db.cards], async (tx) => {
+    markSyncApply(tx)
+    for (const [table, list] of [
+      [db.lessons, part.lessons],
+      [db.cards, part.cards],
+    ] as const) {
+      for (const r of list) {
+        await (table as typeof db.lessons)
+          .where('uid')
+          .equals(r.uid)
+          .filter((row) => row.updatedAt === r.updatedAt)
+          .modify({ syncedVersion: r.updatedAt })
+      }
+    }
+  })
 }
 
 /** Downloads audio bytes and links them to lessons waiting for them; returns what's still missing. */
@@ -218,6 +247,16 @@ export interface SyncHooks {
 export async function syncOnce(db: KikitoriDB, api: Api, state: SyncState, now = () => Date.now(), hooks: SyncHooks = {}): Promise<SyncResult> {
   const startedAt = now()
   const local = await gatherChanges(db, state)
+  const gathered = new Map<string, number>([...local.lessons, ...local.cards].map((r) => [r.uid, r.updatedAt]))
+  // Has this record changed locally since we last exchanged it? For records in this push, compare
+  // with the version gathered; otherwise with the version last synced (the wall-clock cursor would
+  // misread records stamped by a device whose clock is ahead).
+  const editedSince = (row: { uid?: string; updatedAt?: number; syncedVersion?: number }) => {
+    const pushed = gathered.get(row.uid!)
+    if (pushed !== undefined) return row.updatedAt! > pushed
+    if (row.syncedVersion !== undefined) return row.updatedAt !== row.syncedVersion
+    return row.updatedAt! > state.pushedAt
+  }
   const pushed = Object.values(local).reduce((n, list) => n + list.length, 0)
   let since = state.since
   let pulled = 0
@@ -230,7 +269,8 @@ export async function syncOnce(db: KikitoriDB, api: Api, state: SyncState, now =
     pulled += Object.entries(reply).reduce((n, [k, v]) => (k === 'seq' ? n : n + (v as unknown[]).length), 0)
     hooks.applying?.(true)
     try {
-      needBytes.push(...(await applyChanges(db, reply, startedAt)))
+      await markPushed(db, part)
+      needBytes.push(...(await applyChanges(db, reply, editedSince)))
     } finally {
       hooks.applying?.(false)
     }
