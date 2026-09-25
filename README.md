@@ -148,7 +148,20 @@ pnpm worker:smoke   # CI check: app shell, service worker, R2-served files, auth
 5. For push reminders, generate VAPID keys with `node scripts/vapid-keys.mjs`, then set them: `pnpm exec wrangler secret put VAPID_PUBLIC_KEY` and `pnpm exec wrangler secret put VAPID_PRIVATE_KEY`.
 6. For AI explanations and translations, store an Anthropic key on the server: `pnpm exec wrangler secret put ANTHROPIC_API_KEY`. Connected devices then use it, and no key is kept in any browser. (`ANTHROPIC_BASE_URL` is a test-only hook; never set it in production, because the key would be sent wherever it points.)
 7. For natural voices (free), create an Azure **Speech** resource on the **Free F0** tier: portal.azure.com, then Create a resource, then Speech. F0 includes 500,000 characters of neural speech a month; a single learner uses a small fraction of that. From its **Keys and Endpoint** page, run `pnpm exec wrangler secret put AZURE_SPEECH_KEY` (key 1) and `pnpm exec wrangler secret put AZURE_SPEECH_REGION` (the location, such as `japaneast`). Connected devices then default to Nanami, and Settings → Japanese voice lists the eight standard ja-JP neural voices. Each sentence is synthesised once per voice, kept in R2 and on the device, so replays are free and work offline. Without these, or once the month's quota is used up, speech falls back to the device's best Japanese voice. (`AZURE_SPEECH_ENDPOINT` is a test-only hook.)
-8. For automatic deploys, set the `CLOUDFLARE_API_TOKEN` (Workers, D1 and R2 edit) and `CLOUDFLARE_ACCOUNT_ID` repository secrets. Until they exist, `.github/workflows/deploy-worker.yml` skips.
+8. Optionally, for free open-source natural voices without Azure, use **VOICEVOX** on your computer (see below).
+9. For automatic deploys, set the `CLOUDFLARE_API_TOKEN` (Workers, D1 and R2 edit) and `CLOUDFLARE_ACCOUNT_ID` repository secrets. Until they exist, `.github/workflows/deploy-worker.yml` skips.
+
+### VOICEVOX voices (free, open source)
+
+[VOICEVOX](https://voicevox.hiroshiba.jp/) is a free, open-source Japanese speech engine with dozens of natural voices. It runs on your own computer, not in the Worker. The computer makes the audio and uploads it, so your phone plays the same voice.
+
+1. Install the VOICEVOX app on your Mac or PC and keep it open. It serves `http://127.0.0.1:50021`. The engine alone also works: `docker run -p 127.0.0.1:50021:50021 voicevox/voicevox_engine:cpu-latest`.
+2. If Kikitori isn't on `localhost` (for example on its workers.dev address), open `http://127.0.0.1:50021/setting` and add Kikitori's address to the allowed origins. The app shows the exact address when it can't reach VOICEVOX.
+3. On that computer, go to **Settings → Use VOICEVOX on this computer**. Its voices appear under **Japanese voice**; the default is No.7「アナウンス」, a clear announcer voice.
+4. On a lesson page, press **Prepare VOICEVOX audio for your other devices**. Every sentence is made on the computer and uploaded, and sentences you just play there are uploaded too.
+5. On your phone, the prepared voice appears under **VOICEVOX (prepared on your computer)**. Sentences that haven't been prepared use the phone's own voice.
+
+VOICEVOX is free for personal and commercial use, provided each voice is credited. Kikitori shows "VOICEVOX:<character>" wherever that voice is speaking. Each character also has its own terms; see [voicevox.hiroshiba.jp/term](https://voicevox.hiroshiba.jp/term/). The app only contacts VOICEVOX after you turn it on, because a page probing `localhost` can make the browser ask for local-network permission.
 
 ### Moving from the GitHub Pages site
 

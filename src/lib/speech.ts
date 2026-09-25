@@ -7,7 +7,7 @@
  * where there is no microphone and no voice.
  */
 
-import { DEFAULT_NEURAL_VOICE, neuralVoiceOf, type NeuralVoiceId } from './voices'
+import { DEFAULT_NEURAL_VOICE, naturalVoiceOf, type NaturalVoiceId } from './voices'
 
 interface FakeSpeech {
   /** What the "recogniser" hears for each attempt. */
@@ -153,24 +153,29 @@ export const estimateSpeechMs = (text: string, rate: number) => (text.length * 1
 
 // --- Natural voices (from the server) --------------------------------------
 
-/** Fetches one sentence's audio in a natural voice (src/app/neuralVoice.ts, when the server offers them). */
-export type NeuralSynth = (text: string, voice: NeuralVoiceId, signal?: AbortSignal) => Promise<Blob>
+/**
+ * Fetches one sentence's audio in a natural voice (src/app/neuralVoice.ts): an Azure voice from
+ * the server, or a VOICEVOX voice from this computer's engine or from clips uploaded by it.
+ */
+export type NeuralSynth = (text: string, voice: NaturalVoiceId, signal?: AbortSignal) => Promise<Blob>
 
 let neural: NeuralSynth | null = null
+let defaultVoice: NaturalVoiceId = DEFAULT_NEURAL_VOICE
 
-/** Turns natural voices on (connected to a server that has them) or off. */
-export function setNeuralSynth(synth: NeuralSynth | null) {
+/** Turns natural voices on (with the voice to use when Settings names none) or off. */
+export function setNeuralSynth(synth: NeuralSynth | null, fallbackVoice: NaturalVoiceId = DEFAULT_NEURAL_VOICE) {
   neural = synth
+  defaultVoice = fallbackVoice
 }
 
 /**
  * The natural voice to speak with, or null for the device's own voice. With natural voices on,
  * they're the default; a device voice chosen explicitly in Settings still wins.
  */
-export function neuralChoice(voiceURI: string | undefined): NeuralVoiceId | null {
+export function neuralChoice(voiceURI: string | undefined): NaturalVoiceId | null {
   if (!neural) return null
-  if (voiceURI === undefined) return DEFAULT_NEURAL_VOICE
-  return neuralVoiceOf(voiceURI)
+  if (voiceURI === undefined) return defaultVoice
+  return naturalVoiceOf(voiceURI)
 }
 
 /** Starts fetching a sentence ahead of time, so playing it next has no gap. */

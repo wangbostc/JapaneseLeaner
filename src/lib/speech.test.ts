@@ -105,6 +105,13 @@ describe('neuralChoice', () => {
     expect(neuralChoice('com.apple.voice.enhanced.ja-JP.Kyoko')).toBeNull()
     expect(neuralChoice('neural:en-US-JennyNeural')).toBeNull()
   })
+
+  it('takes VOICEVOX voices, and the default the app gives when Azure is off', () => {
+    setNeuralSynth(async () => new Blob(), 'voicevox:30')
+    expect(neuralChoice(undefined)).toBe('voicevox:30')
+    expect(neuralChoice('voicevox:3')).toBe('voicevox:3')
+    expect(neuralChoice('voicevox:x')).toBeNull()
+  })
 })
 
 describe('speak', () => {

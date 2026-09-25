@@ -53,6 +53,25 @@ const fakeAzure = createServer((req, res) => {
 }).listen(0)
 const azureUrl = `http://127.0.0.1:${fakeAzure.address().port}/cognitiveservices/v1`
 
+// A fake VOICEVOX engine (the one a learner runs on their computer), reachable from the browser.
+const voicevoxPort = Number(process.env.E2E_VOICEVOX_PORT ?? 50121)
+const fakeVoicevox = createServer((req, res) => {
+  const cors = { 'access-control-allow-origin': req.headers.origin ?? '*', 'access-control-allow-headers': 'content-type', 'access-control-allow-methods': 'GET, POST' }
+  req.resume()
+  req.on('end', () => {
+    const path = (req.url ?? '').split('?')[0]
+    if (req.method === 'OPTIONS') return res.writeHead(204, cors).end()
+    if (path === '/speakers')
+      return res.writeHead(200, { ...cors, 'content-type': 'application/json' }).end(JSON.stringify([
+        { name: 'No.7', styles: [{ name: 'ノーマル', id: 29, type: 'talk' }, { name: 'アナウンス', id: 30, type: 'talk' }] },
+        { name: 'ずんだもん', styles: [{ name: 'ノーマル', id: 3, type: 'talk' }] },
+      ]))
+    if (path === '/audio_query') return res.writeHead(200, { ...cors, 'content-type': 'application/json' }).end('{"speedScale":1}')
+    if (path === '/synthesis') return res.writeHead(200, { ...cors, 'content-type': 'audio/wav' }).end(wav)
+    res.writeHead(404, cors).end()
+  })
+}).listen(voicevoxPort, '127.0.0.1')
+
 // A throwaway VAPID pair so push subscriptions can be tested.
 const pair = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify'])
 const vapidPublic = Buffer.from(await crypto.subtle.exportKey('raw', pair.publicKey)).toString('base64url')
@@ -69,4 +88,4 @@ const dev = spawn(
 )
 process.on('SIGTERM', () => dev.kill('SIGTERM'))
 process.on('SIGINT', () => dev.kill('SIGINT'))
-dev.on('exit', (code) => (fakeAnthropic.close(), fakeAzure.close(), process.exit(code ?? 0)))
+dev.on('exit', (code) => (fakeAnthropic.close(), fakeAzure.close(), fakeVoicevox.close(), process.exit(code ?? 0)))

@@ -87,4 +87,57 @@ describe('neuralSynth', () => {
     expect(signal).toBeInstanceOf(AbortSignal)
     expect(signal!.aborted).toBe(false)
   })
+
+  it('makes a VOICEVOX sentence on this computer and uploads it for the other devices', async () => {
+    const engine = { url: 'http://127.0.0.1:50021', voices: [{ id: 'voicevox:30' as const, name: 'No.7（アナウンス）', speaker: 'No.7' }] }
+    const calls: string[] = []
+    const realFetch = globalThis.fetch
+    globalThis.fetch = (async (url: string, init?: RequestInit) => {
+      calls.push(`${init?.method ?? 'GET'} ${String(url).split('?')[0]}`)
+      if (String(url).includes('/audio_query')) return Response.json({ accent_phrases: [] })
+      return new Response(new Blob(['wav'], { type: 'audio/wav' }))
+    }) as typeof fetch
+    try {
+      const uploads: { path: string; type: string | null }[] = []
+      const api = async (path: string, init?: RequestInit) => {
+        uploads.push({ path, type: new Headers(init?.headers).get('Content-Type') })
+        return Response.json({ stored: true }, { status: 201 })
+      }
+      const cache = memoryCache()
+      const synth = neuralSynth(api, cache.open, 100, () => engine)
+      expect(await (await synth('私は学生です。', 'voicevox:30')).text()).toBe('wav')
+      expect(calls).toEqual(['POST http://127.0.0.1:50021/audio_query', 'POST http://127.0.0.1:50021/synthesis'])
+      await new Promise((r) => setTimeout(r, 0)) // the upload is best effort, in the background
+      expect(uploads).toHaveLength(1)
+      const q = new URLSearchParams(uploads[0].path.split('?')[1])
+      expect(uploads[0].path.startsWith('/api/tts/clip?')).toBe(true)
+      expect(Object.fromEntries(q)).toEqual({ voice: 'voicevox:30', text: '私は学生です。', name: 'No.7（アナウンス）', speaker: 'No.7' })
+      expect(uploads[0].type).toBe('audio/wav')
+      // Played again: from the device cache, no engine call and no second upload.
+      await synth('私は学生です。', 'voicevox:30')
+      expect(calls).toHaveLength(2)
+      expect(uploads).toHaveLength(1)
+    } finally {
+      globalThis.fetch = realFetch
+    }
+  })
+
+  it('asks the server for a VOICEVOX clip when the engine has stopped, or on a device without one', async () => {
+    const realFetch = globalThis.fetch
+    globalThis.fetch = (async () => {
+      throw new TypeError('Failed to fetch')
+    }) as typeof fetch
+    try {
+      const server = fakeServer()
+      const engine = { url: 'http://127.0.0.1:50021', voices: [] }
+      expect(await (await neuralSynth(server.api, async () => null, 100, () => engine)('はい。', 'voicevox:30')).text()).toBe('mp3')
+      expect(await (await neuralSynth(server.api, async () => null, 100, () => null)('いいえ。', 'voicevox:30')).text()).toBe('mp3')
+      expect(server.calls).toEqual([
+        { path: '/api/tts', body: { text: 'はい。', voice: 'voicevox:30' } },
+        { path: '/api/tts', body: { text: 'いいえ。', voice: 'voicevox:30' } },
+      ])
+    } finally {
+      globalThis.fetch = realFetch
+    }
+  })
 })

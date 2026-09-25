@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { handleApi } from './index'
-import { speech, ssml } from './tts'
+import { putClip, speech, ssml, ttsInfo } from './tts'
 import { testEnv } from './testEnv'
 
 let dispose: (() => Promise<void>) | null = null
@@ -117,8 +117,61 @@ describe('/api/tts', () => {
     const on = (await get(e)) as { enabled: boolean; voices: { id: string }[] }
     expect(on.enabled).toBe(true)
     expect(on.voices.map((v) => v.id)).toContain('ja-JP-NanamiNeural')
-    expect(await get({ ...e, AZURE_SPEECH_KEY: undefined })).toEqual({ enabled: false, voices: [] })
+    expect(await get({ ...e, AZURE_SPEECH_KEY: undefined })).toEqual({ enabled: false, voices: [], prepared: [] })
     const anon = await handleApi(new Request('https://k.test/api/tts', { method: 'POST', body: '{}' }), e)
     expect(anon.status).toBe(401)
   })
 })
+
+describe('VOICEVOX clips', () => {
+  const put = (e: Awaited<ReturnType<typeof env>>, query: Record<string, string>, body: BodyInit | null = new Uint8Array([9, 8, 7]), type = 'audio/wav') =>
+    putClip(e, new Request(`https://k.test/api/tts/clip?${new URLSearchParams(query)}`, { method: 'PUT', body, headers: type ? { 'Content-Type': type } : {} }))
+  const status = async (res: Response) => [res.status, res.ok ? null : ((await res.json()) as { error: string }).error]
+
+  it('serves a clip made on the learner’s computer to their other devices, without Azure', async () => {
+    const e = await env({ AZURE_SPEECH_KEY: undefined })
+    const azure = fakeAzure()
+    expect(await status(await speech(e, { text: '私は学生です。', voice: 'voicevox:30' }, azure.fetcher))).toEqual([404, 'notPrepared'])
+    expect((await put(e, { voice: 'voicevox:30', text: '私は学生です。' })).status).toBe(201)
+    const res = await speech(e, { text: ' 私は学生です。 ', voice: 'voicevox:30' }, azure.fetcher)
+    expect(res.headers.get('Content-Type')).toBe('audio/wav')
+    expect([...new Uint8Array(await res.arrayBuffer())]).toEqual([9, 8, 7])
+    // Another voice's clip is another clip; Azure is never asked for VOICEVOX voices.
+    expect(await status(await speech(e, { text: '私は学生です。', voice: 'voicevox:3' }, azure.fetcher))).toEqual([404, 'notPrepared'])
+    expect(azure.calls).toHaveLength(0)
+  })
+
+  it('lists the voices clips were made with, most recent first', async () => {
+    const e = await env()
+    const info = async () => (await ttsInfo(e)).prepared
+    expect(await info()).toEqual([])
+    await put(e, { voice: 'voicevox:30', text: '一。', name: 'No.7（アナウンス）', speaker: 'No.7' })
+    await put(e, { voice: 'voicevox:3', text: '二。', name: 'ずんだもん（ノーマル）', speaker: 'ずんだもん' })
+    await put(e, { voice: 'voicevox:30', text: '三。', name: 'No.7（アナウンス）', speaker: 'No.7' })
+    await put(e, { voice: 'voicevox:3', text: '四。' }) // no name: stored, list unchanged
+    expect(await info()).toEqual([
+      { id: 'voicevox:30', name: 'No.7（アナウンス）', speaker: 'No.7' },
+      { id: 'voicevox:3', name: 'ずんだもん（ノーマル）', speaker: 'ずんだもん' },
+    ])
+  })
+
+  it('refuses bad uploads', async () => {
+    const e = await env()
+    expect(await status(await put(e, { voice: 'ja-JP-NanamiNeural', text: 'はい' }))).toEqual([400, 'invalid'])
+    expect(await status(await put(e, { voice: 'voicevox:abc', text: 'はい' }))).toEqual([400, 'invalid'])
+    expect(await status(await put(e, { voice: 'voicevox:3', text: '  ' }))).toEqual([400, 'invalid'])
+    expect(await status(await put(e, { voice: 'voicevox:3', text: 'あ'.repeat(1001) }))).toEqual([400, 'tooLong'])
+    expect(await status(await put(e, { voice: 'voicevox:3', text: 'はい' }, '<html>', 'text/html'))).toEqual([415, 'invalid'])
+    expect(await status(await put(e, { voice: 'voicevox:3', text: 'はい' }, new Uint8Array(0)))).toEqual([400, 'invalid'])
+    expect(await status(await put(e, { voice: 'voicevox:3', text: 'はい', name: 'x' }))).toEqual([400, 'invalid'])
+    expect(await status(await put(e, { voice: 'voicevox:3', text: 'はい' }, new Uint8Array(10 * 1024 * 1024 + 1)))).toEqual([413, 'tooLong'])
+    expect(await status(await speech(e, { text: 'はい', voice: 'voicevox:3' }))).toEqual([404, 'notPrepared'])
+  })
+
+  it('only devices may upload', async () => {
+    const e = await env({ SETUP_CODE: 'tts-test-setup-code' })
+    const res = await handleApi(new Request('https://k.test/api/tts/clip?voice=voicevox:3&text=x', { method: 'PUT', body: 'x', headers: { 'Content-Type': 'audio/wav' } }), e)
+    expect(res.status).toBe(401)
+  })
+})
+

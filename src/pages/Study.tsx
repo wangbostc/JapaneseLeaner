@@ -5,6 +5,7 @@ import { relativeTime } from '../app/i18n'
 import { useSettings } from '../app/useSettings'
 import { useAnalyzer } from '../app/useAnalyzer'
 import { AddToCalendar } from '../components/AddToCalendar'
+import { VoiceCredit } from '../components/VoiceCredit'
 import { Icon } from '../components/Icon'
 import { Blind } from '../components/steps/Blind'
 import { Intensive } from '../components/steps/Intensive'
@@ -178,6 +179,7 @@ function Runner({ lesson, media, analyzer, free }: RunnerProps) {
           </div>
         ))}
       {step === 'retell' && <Retell key={step} {...props} />}
+      {!lesson.mediaId && <VoiceCredit />}
     </div>
   )
 }
