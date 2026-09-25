@@ -19,7 +19,10 @@ export function createStore(database: KikitoriDB = db) {
   return {
     db: database,
 
-    async createLesson(input: { title: string; sentences: Sentence[]; level?: string; media?: { blob: Blob; name: string }; builtIn?: boolean }, now = Date.now()) {
+    async createLesson(
+      input: { title: string; sentences: Sentence[]; level?: string; media?: { blob: Blob; name: string }; builtIn?: boolean; uid?: string },
+      now = Date.now(),
+    ) {
       const mediaId = input.media ? ((await database.media.add(input.media)) as number) : undefined
       return (await database.lessons.add({
         title: input.title,
@@ -31,13 +34,25 @@ export function createStore(database: KikitoriDB = db) {
         hard: [],
         createdAt: now,
         builtIn: input.builtIn,
+        uid: input.uid,
+        updatedAt: now,
       })) as number
     },
 
-    async deleteLesson(id: number) {
-      await database.transaction('rw', [database.lessons, database.media, database.cards, database.logs], async () => {
+    /** Deletes a lesson with its audio and cards, leaving tombstones so other devices delete them too. */
+    async deleteLesson(id: number, now = Date.now()) {
+      await database.transaction('rw', [database.lessons, database.media, database.cards, database.logs, database.deletions], async () => {
         const lesson = await database.lessons.get(id)
-        if (lesson?.mediaId) await database.media.delete(lesson.mediaId)
+        if (!lesson) return
+        const cards = await database.cards.where('lessonId').equals(id).toArray()
+        const media = lesson.mediaId ? await database.media.get(lesson.mediaId) : undefined
+        const tombstones = [
+          { uid: lesson.uid!, table: 'lessons' as const, at: now },
+          ...(media ? [{ uid: media.uid!, table: 'media' as const, at: now }] : []),
+          ...cards.map((c) => ({ uid: c.uid!, table: 'cards' as const, at: now })),
+        ]
+        await database.deletions.bulkPut(tombstones)
+        if (lesson.mediaId) await database.media.delete(lesson.mediaId)
         await database.cards.where('lessonId').equals(id).delete()
         await database.lessons.delete(id)
       })
@@ -104,7 +119,14 @@ export function createStore(database: KikitoriDB = db) {
       return (await database.cards.add({ ...input, card: newCard(new Date(now)), createdAt: now })) as number
     },
 
-    removeCard: (id: number) => database.cards.delete(id),
+    async removeCard(id: number, now = Date.now()) {
+      await database.transaction('rw', [database.cards, database.deletions], async () => {
+        const card = await database.cards.get(id)
+        if (!card) return
+        await database.deletions.put({ uid: card.uid!, table: 'cards', at: now })
+        await database.cards.delete(id)
+      })
+    },
 
     dueCards: (now = Date.now()) => database.cards.where('card.due').belowOrEqual(new Date(now)).toArray(),
 

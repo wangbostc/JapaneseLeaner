@@ -1,4 +1,5 @@
 import { sampleLessons } from '../content/samples'
+import { sampleUid } from './db'
 import type { Store } from './store'
 
 const SEEDED_KEY = 'kikitori.seeded'
@@ -13,5 +14,5 @@ export async function seedOnce(store: Store) {
   }
   if (await store.db.lessons.count()) return
   let t = Date.now()
-  for (const lesson of sampleLessons()) await store.createLesson(lesson, t++)
+  for (const lesson of sampleLessons()) await store.createLesson({ ...lesson, uid: sampleUid(lesson.title) }, t++)
 }

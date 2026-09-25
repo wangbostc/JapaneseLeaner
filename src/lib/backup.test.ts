@@ -16,6 +16,43 @@ afterEach(async () => {
 })
 
 describe('backup', () => {
+  it('keeps sync identity through a round trip, and marks restored data as newest', async () => {
+    const src = createStore(fresh('uid-src'))
+    const id = await src.createLesson({ title: 't', sentences: [], media: { blob: new Blob(['x'], { type: 'audio/wav' }), name: 'a.wav' } }, T0)
+    const cardId = await src.addCard({ lessonId: id, kind: 'word', front: '雨', reading: 'あめ', context: '雨' }, T0)
+    await src.removeCard(cardId, T0 + 1)
+    const [lesson] = await src.db.lessons.toArray()
+    const [media] = await src.db.media.toArray()
+
+    const dst = fresh('uid-dst')
+    const restoredAt = T0 + 1000
+    await restoreBackup(dst, parseBackup(await (await exportBackup(src.db, undefined, T0)).text()), restoredAt)
+    const [l] = await dst.lessons.toArray()
+    expect(l.uid).toBe(lesson.uid)
+    expect(l.updatedAt).toBe(restoredAt)
+    expect((await dst.media.toArray())[0].uid).toBe(media.uid)
+    expect((await dst.deletions.toArray()).map((d) => d.table)).toEqual(['cards'])
+  })
+
+  it('restores a v1 backup, assigning uids', async () => {
+    const v1 = JSON.stringify({
+      format: 'kikitori-backup',
+      version: 1,
+      exportedAt: T0,
+      lessons: [{ id: 1, title: 'old', sentences: [{ text: 'はい。' }], hard: [], progress: { roundsDone: 2, lastCompletedAt: T0 }, resume: null, createdAt: T0 }],
+      media: [],
+      cards: [{ id: 1, lessonId: 1, kind: 'word', front: 'はい', reading: 'はい', context: 'はい。', card: { due: new Date(T0).toISOString() } }],
+      logs: [],
+      words: [],
+    })
+    const dst = fresh('v1')
+    await restoreBackup(dst, parseBackup(v1), T0 + 5)
+    const [l] = await dst.lessons.toArray()
+    expect(l.uid).toMatch(/^[0-9a-f-]{36}$/)
+    expect(l).toMatchObject({ title: 'old', progress: { roundsDone: 2 }, updatedAt: T0 + 5 })
+    expect((await dst.cards.toArray())[0].uid).toMatch(/^[0-9a-f-]{36}$/)
+  })
+
   it('round-trips lessons, audio, cards, logs and words through JSON', async () => {
     const src = createStore(fresh('src'))
     const audio = new Blob([new Uint8Array([0, 1, 2, 250, 255])], { type: 'audio/wav' })
