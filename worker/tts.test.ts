@@ -124,8 +124,16 @@ describe('/api/tts', () => {
 })
 
 describe('VOICEVOX clips', () => {
-  const put = (e: Awaited<ReturnType<typeof env>>, query: Record<string, string>, body: BodyInit | null = new Uint8Array([9, 8, 7]), type = 'audio/wav') =>
-    putClip(e, new Request(`https://k.test/api/tts/clip?${new URLSearchParams(query)}`, { method: 'PUT', body, headers: type ? { 'Content-Type': type } : {} }))
+  // A browser sends Content-Length for a Blob body; a Request built here doesn't, so set it as the browser would.
+  const put = (e: Awaited<ReturnType<typeof env>>, query: Record<string, string>, body: Uint8Array | string = new Uint8Array([9, 8, 7]), type = 'audio/wav', length: string | null = String(typeof body === 'string' ? new TextEncoder().encode(body).length : body.length)) =>
+    putClip(
+      e,
+      new Request(`https://k.test/api/tts/clip?${new URLSearchParams(query)}`, {
+        method: 'PUT',
+        body,
+        headers: { ...(type ? { 'Content-Type': type } : {}), ...(length !== null ? { 'Content-Length': length } : {}) },
+      }),
+    )
   const status = async (res: Response) => [res.status, res.ok ? null : ((await res.json()) as { error: string }).error]
 
   it('serves a clip made on the learner’s computer to their other devices, without Azure', async () => {
@@ -165,6 +173,7 @@ describe('VOICEVOX clips', () => {
     expect(await status(await put(e, { voice: 'voicevox:3', text: 'はい' }, new Uint8Array(0)))).toEqual([400, 'invalid'])
     expect(await status(await put(e, { voice: 'voicevox:3', text: 'はい', name: 'x' }))).toEqual([400, 'invalid'])
     expect(await status(await put(e, { voice: 'voicevox:3', text: 'はい' }, new Uint8Array(10 * 1024 * 1024 + 1)))).toEqual([413, 'tooLong'])
+    expect(await status(await put(e, { voice: 'voicevox:3', text: 'はい' }, new Uint8Array([1]), 'audio/wav', null))).toEqual([411, 'invalid'])
     expect(await status(await speech(e, { text: 'はい', voice: 'voicevox:3' }))).toEqual([404, 'notPrepared'])
   })
 

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { VoiceCredit } from './VoiceCredit'
 import { useSettings } from '../app/useSettings'
 import { speak } from '../lib/speech'
 import { store } from '../lib/store'
@@ -56,6 +57,7 @@ export function WordSheet({ token, lessonId, context, analyzerReading, onClose }
             <Icon name={saved ? 'check' : 'star'} /> {saved ? t.saved : t.saveWord}
           </button>
         </div>
+        <VoiceCredit />
       </div>
     </div>
   )

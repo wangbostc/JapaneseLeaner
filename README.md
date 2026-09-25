@@ -156,12 +156,12 @@ pnpm worker:smoke   # CI check: app shell, service worker, R2-served files, auth
 [VOICEVOX](https://voicevox.hiroshiba.jp/) is a free, open-source Japanese speech engine with dozens of natural voices. It runs on your own computer, not in the Worker. The computer makes the audio and uploads it, so your phone plays the same voice.
 
 1. Install the VOICEVOX app on your Mac or PC and keep it open. It serves `http://127.0.0.1:50021`. The engine alone also works: `docker run -p 127.0.0.1:50021:50021 voicevox/voicevox_engine:cpu-latest`.
-2. If Kikitori isn't on `localhost` (for example on its workers.dev address), open `http://127.0.0.1:50021/setting` and add Kikitori's address to the allowed origins. The app shows the exact address when it can't reach VOICEVOX.
+2. If Kikitori isn't on `localhost` (for example on its workers.dev address), open `http://127.0.0.1:50021/setting` and add Kikitori's address to the allowed origins. The app shows the exact address when it can't reach VOICEVOX. With Docker, pass it on the command line instead (`… cpu-latest --allow_origin https://your-kikitori.workers.dev`), because a /setting change is lost when the container is recreated.
 3. On that computer, go to **Settings → Use VOICEVOX on this computer**. Its voices appear under **Japanese voice**; the default is No.7「アナウンス」, a clear announcer voice.
 4. On a lesson page, press **Prepare VOICEVOX audio for your other devices**. Every sentence is made on the computer and uploaded, and sentences you just play there are uploaded too.
-5. On your phone, the prepared voice appears under **VOICEVOX (prepared on your computer)**. Sentences that haven't been prepared use the phone's own voice.
+5. On your phone, the prepared voice appears under **VOICEVOX (prepared on your computer)**. With no Azure, it's the default once anything has been prepared. Sentences that haven't been prepared use the phone's own voice; after one miss, the phone doesn't ask again for 10 minutes.
 
-VOICEVOX is free for personal and commercial use, provided each voice is credited. Kikitori shows "VOICEVOX:<character>" wherever that voice is speaking. Each character also has its own terms; see [voicevox.hiroshiba.jp/term](https://voicevox.hiroshiba.jp/term/). The app only contacts VOICEVOX after you turn it on, because a page probing `localhost` can make the browser ask for local-network permission.
+VOICEVOX is free for personal and commercial use, provided each voice is credited. Kikitori shows "VOICEVOX:<character>" wherever a VOICEVOX voice can speak: lessons, cards, the word sheet and Settings. Each character also has its own terms; see [voicevox.hiroshiba.jp/term](https://voicevox.hiroshiba.jp/term/). The app only contacts VOICEVOX after you turn it on, because a page probing `localhost` can make the browser ask for local-network permission.
 
 ### Moving from the GitHub Pages site
 

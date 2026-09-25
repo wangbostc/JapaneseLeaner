@@ -111,7 +111,10 @@ export async function putClip(env: Env, request: Request): Promise<Response> {
   if ((name !== null || speaker !== null) && !(name && speaker && name.length <= 80 && speaker.length <= 80)) return fail(400, 'invalid')
   const type = request.headers.get('Content-Type') ?? ''
   if (!/^audio\/[\w.+-]+$/.test(type)) return fail(415, 'invalid')
-  if (Number(request.headers.get('Content-Length') ?? 0) > MAX_CLIP_BYTES) return fail(413, 'tooLong')
+  // A clip is a Blob, which always has a length; refusing unknown lengths means nothing is buffered past the cap.
+  const length = request.headers.get('Content-Length')
+  if (length === null) return fail(411, 'invalid')
+  if (Number(length) > MAX_CLIP_BYTES) return fail(413, 'tooLong')
   const bytes = await request.arrayBuffer()
   if (!bytes.byteLength) return fail(400, 'invalid')
   if (bytes.byteLength > MAX_CLIP_BYTES) return fail(413, 'tooLong')

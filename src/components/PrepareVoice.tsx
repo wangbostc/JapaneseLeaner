@@ -42,7 +42,7 @@ export function PrepareVoice({ lesson }: { lesson: Lesson }) {
         {state.kind === 'done' && <span className="muted small">{t.preparedVoice}</span>}
         {state.kind === 'error' && (
           <span className="error small" role="alert">
-            {t.prepareVoiceFailed} {state.message}
+            {t.prepareVoiceFailed} {t.prepareErrors[state.message] ?? state.message}
           </span>
         )}
       </div>

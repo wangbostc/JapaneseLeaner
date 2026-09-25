@@ -18,8 +18,8 @@ import { engineUrl, probeEngine, synthesize } from './voicevox'
 
 const CACHE = 'tts-v1'
 const VOICES_KEY = 'kikitori.neuralVoices'
-/** 20–100 KB a sentence (MP3 from Azure, WAV from VOICEVOX): this stays within typical storage quotas. */
-export const MAX_CACHED = 2000
+/** 20–100 KB a sentence (MP3 from Azure, WAV from VOICEVOX): a few thousand stay within typical storage quotas. */
+export const MAX_CACHED = 3000
 /** A server that doesn't answer shouldn't stall a lesson; the device voice takes over. */
 const FETCH_TIMEOUT_MS = 10_000
 
@@ -39,16 +39,34 @@ export interface NaturalVoices {
   engineUp: boolean
 }
 
-const remembered = (): Known => {
+/** Reads the remembered voice lists. Before VOICEVOX, only the Azure list was kept, as a bare array. */
+export function parseRemembered(raw: string | null): Known {
   try {
-    const v = JSON.parse(localStorage.getItem(VOICES_KEY) ?? 'null')
-    // Before VOICEVOX, only the Azure list was kept.
+    const v = JSON.parse(raw ?? 'null')
     if (Array.isArray(v)) return { azure: v.length ? v : null, prepared: [] }
     if (v && typeof v === 'object') return { azure: Array.isArray(v.azure) && v.azure.length ? v.azure : null, prepared: Array.isArray(v.prepared) ? v.prepared : [] }
   } catch {
     /* fall through */
   }
   return { azure: null, prepared: [] }
+}
+const remembered = (): Known => {
+  try {
+    return parseRemembered(localStorage.getItem(VOICES_KEY))
+  } catch {
+    return { azure: null, prepared: [] }
+  }
+}
+
+/**
+ * The voice that speaks when Settings names none: Azure's Nanami if the server has Azure; else,
+ * on a computer running VOICEVOX, No.7「アナウンス」(or its first voice); else the voice most
+ * recently prepared on the learner's computer. None: the device's own voice.
+ */
+export function defaultVoice(azure: readonly NeuralVoice[] | null, engineVoices: readonly VoicevoxVoice[] | null, prepared: readonly VoicevoxVoice[]): NaturalVoiceId | undefined {
+  if (azure?.length) return DEFAULT_NEURAL_VOICE
+  if (engineVoices?.length) return (engineVoices.find((v) => v.id === DEFAULT_VOICEVOX_VOICE) ?? engineVoices[0]).id
+  return prepared[0]?.id
 }
 const remember = (k: Known | null) => {
   try {
@@ -73,11 +91,7 @@ function apply() {
   const prepared = api ? known.prepared : []
   const voicevox = engine?.length ? engine : prepared.length ? prepared : null
   snapshot = { azure, voicevox, engineUp: !!engine?.length }
-  const fallback: NaturalVoiceId | undefined = azure
-    ? DEFAULT_NEURAL_VOICE
-    : engine?.length
-      ? (engine.find((v) => v.id === DEFAULT_VOICEVOX_VOICE) ?? engine[0]).id
-      : prepared[0]?.id
+  const fallback = defaultVoice(azure, engine, prepared)
   setNeuralSynth(fallback ? neuralSynth(api) : null, fallback)
   listeners.forEach((l) => l())
 }
@@ -108,7 +122,10 @@ export function refreshNeuralVoices(): Promise<void> {
 /** Asks this computer's VOICEVOX engine (if turned on) which voices it has. */
 export async function refreshEngine(): Promise<boolean> {
   const url = engineUrl()
-  engine = url ? await probeEngine(url) : null
+  const found = url ? await probeEngine(url) : null
+  // Turned off (or pointed elsewhere) while we were asking: that answer no longer applies.
+  if (engineUrl() !== url) return !!engine
+  engine = found
   apply()
   return !!engine
 }
@@ -138,11 +155,14 @@ export function useNaturalVoices(): NaturalVoices {
   return value
 }
 
-async function cacheUrl(voice: NaturalVoiceId, text: string) {
+/**
+ * Only a cache key, never fetched: a fixed made-up origin keeps it the same wherever the app runs.
+ * Azure keys keep their original form, so clips cached before VOICEVOX still play.
+ */
+export async function cacheUrl(voice: NaturalVoiceId, text: string) {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${voice}\n${text}`))
   const hex = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('')
-  // Only a cache key, never fetched: a fixed made-up origin keeps it the same wherever the app runs.
-  return `https://tts.kikitori.invalid/${voice.replace(':', '-')}/${hex}`
+  return isVoicevoxId(voice) ? `https://tts.kikitori.invalid/${voice.replace(':', '-')}/${hex}.wav` : `https://tts.kikitori.invalid/${voice}/${hex}.mp3`
 }
 
 const openCache = () => (typeof caches === 'undefined' ? Promise.resolve(null) : caches.open(CACHE).catch(() => null))
@@ -153,7 +173,7 @@ async function trim(store: Cache, max: number) {
   await Promise.all(keys.slice(0, Math.max(0, keys.length - max)).map((k) => store.delete(k)))
 }
 
-interface Engine {
+export interface Engine {
   url: string
   voices: readonly VoicevoxVoice[]
 }
@@ -170,20 +190,35 @@ async function upload(api: Api, voices: readonly VoicevoxVoice[], voice: Voicevo
   if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? `HTTP ${res.status}`)
 }
 
-async function fromServer(api: Api | null, text: string, voice: NaturalVoiceId): Promise<Blob> {
+async function fromServer(api: Api | null, text: string, voice: NaturalVoiceId, now = Date.now()): Promise<Blob> {
   if (!api) throw new Error('notConnected')
+  const key = `${voice}\n${text}`
+  if ((notPrepared.get(key) ?? 0) > now) throw new Error('notPrepared')
   const res = await api('/api/tts', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text, voice }),
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   })
-  if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? `HTTP ${res.status}`)
+  if (!res.ok) {
+    const code = ((await res.json().catch(() => ({}))) as { error?: string }).error ?? `HTTP ${res.status}`
+    if (code === 'notPrepared') notPrepared.set(key, now + NOT_PREPARED_RECHECK_MS)
+    throw new Error(code)
+  }
+  notPrepared.delete(key)
   return res.blob()
 }
 
 /** Same text and voice at once (a prefetch, then the play) share one request. */
 const inflight = new Map<string, Promise<Blob>>()
+
+/**
+ * VOICEVOX sentences the server said aren't prepared, so a phone doesn't ask again for every
+ * replay; the device voice speaks them meanwhile. Rechecked after a while, in case the computer
+ * has prepared them since.
+ */
+const notPrepared = new Map<string, number>()
+export const NOT_PREPARED_RECHECK_MS = 10 * 60_000
 
 export function neuralSynth(
   api: Api | null,
@@ -235,9 +270,12 @@ export function neuralSynth(
  * Makes every sentence in a VOICEVOX voice on this computer and uploads it, so the learner's other
  * devices can play the whole lesson. Re-uploads clips cached here earlier (maybe while offline).
  */
-export async function prepareClips(texts: string[], voice: VoicevoxVoiceId, onProgress: (done: number) => void, cache = openCache): Promise<void> {
-  const api = storedDeviceApi()
-  const eng = currentEngine()
+export async function prepareClips(
+  texts: string[],
+  voice: VoicevoxVoiceId,
+  onProgress: (done: number) => void,
+  { api = storedDeviceApi(), eng = currentEngine(), cache = openCache, refresh = refreshNeuralVoices }: { api?: Api | null; eng?: Engine | null; cache?: () => Promise<Cache | null>; refresh?: () => Promise<void> } = {},
+): Promise<void> {
   if (!api || !eng) throw new Error(api ? 'engineOff' : 'notConnected')
   const store = await cache()
   const unique = [...new Set(texts.map((t) => t.trim()).filter(Boolean))]
@@ -246,12 +284,13 @@ export async function prepareClips(texts: string[], voice: VoicevoxVoiceId, onPr
     const hit = url ? await store!.match(url) : undefined
     const blob = hit ? await hit.blob() : await synthesize(eng.url, voice, text)
     await upload(api, eng.voices, voice, text, blob)
+    notPrepared.delete(`${voice}\n${text}`)
     if (url && !hit) await store!.put(url, new Response(blob, { headers: { 'Content-Type': blob.type || 'audio/wav' } })).catch(() => undefined)
     onProgress(i + 1)
   }
   if (store) await trim(store, MAX_CACHED).catch(() => undefined)
   // The server now lists this voice for the other devices.
-  await refreshNeuralVoices()
+  await refresh()
 }
 
 // Last, once everything above is defined: a device opened offline starts with what it knew last time,
@@ -260,4 +299,11 @@ if (typeof window !== 'undefined') {
   known = remembered()
   apply()
   if (engineUrl()) void refreshEngine()
+  // VOICEVOX may be opened after Kikitori: look again when the learner comes back to the app.
+  let lastLook = Date.now()
+  window.addEventListener('focus', () => {
+    if (!engineUrl() || Date.now() - lastLook < 30_000) return
+    lastLook = Date.now()
+    void refreshEngine()
+  })
 }

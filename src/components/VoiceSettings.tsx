@@ -41,6 +41,9 @@ export function VoiceSettings({ voices }: { voices: SpeechSynthesisVoice[] | nul
   const fallback = neuralChoice(undefined)
   // With natural voices on and nothing chosen, the default natural voice speaks; show that, not the first device voice.
   const value = settings.voiceURI ?? (fallback ? valueOf(fallback) : (voices?.[0]?.voiceURI ?? ''))
+  // A VOICEVOX voice chosen earlier but not available now (engine closed, nothing prepared): say so
+  // rather than showing whichever option comes first while the device voice speaks.
+  const stale = !!settings.voiceURI && isVoicevoxId(settings.voiceURI) && !natural.voicevox?.some((v) => v.id === settings.voiceURI)
 
   return (
     <>
@@ -68,6 +71,11 @@ export function VoiceSettings({ voices }: { voices: SpeechSynthesisVoice[] | nul
                 ))}
               </optgroup>
             )}
+            {stale && (
+              <option value={settings.voiceURI} disabled>
+                {t.voiceUnavailable(settings.voiceURI!)}
+              </option>
+            )}
             {!!voices?.length && (
               <optgroup label={t.voiceDevice}>
                 {voices.map((v) => (
@@ -94,7 +102,7 @@ export function VoiceSettings({ voices }: { voices: SpeechSynthesisVoice[] | nul
         {t.voicevoxUse}
       </label>
       {useEngine && engine && (
-        <small className={engine === 'down' ? 'error' : 'muted'} data-testid="voicevox-status">
+        <small className={engine === 'down' ? 'error' : 'muted'} data-testid="voicevox-status" aria-live="polite">
           {engine === 'checking'
             ? t.voicevoxChecking
             : engine === 'up'

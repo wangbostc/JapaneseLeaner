@@ -252,6 +252,10 @@ test('VOICEVOX on the computer prepares a lesson, and the phone plays it in that
 
   // The phone has no engine: it lists the prepared voice and plays the lesson from the server.
   const phone = await newDevice(browser, 'Phone')
+  // A device that didn't turn VOICEVOX on never contacts an engine (that could prompt for local-network access).
+  const engineRequests: string[] = []
+  phone.on('request', (r) => /:(50021|50121)\//.test(r.url()) && engineRequests.push(r.url()))
+  await phone.reload() // start-up again, now watched
   const phoneSelect = phone.getByTestId('voice-select')
   await expect(phoneSelect.locator('optgroup[label="VOICEVOX (prepared on your computer)"] option')).toHaveText(['No.7（アナウンス）'])
   await phoneSelect.selectOption('voicevox:30')
@@ -265,6 +269,7 @@ test('VOICEVOX on the computer prepares a lesson, and the phone plays it in that
   expect(res.status()).toBe(200)
   expect(res.headers()['content-type']).toBe('audio/wav')
   await expect(phone.getByTestId('voice-credit')).toHaveText('VOICEVOX:No.7')
+  expect(engineRequests).toEqual([])
 })
 
 test('the static build (no server) hides sync entirely', async ({ page }) => {
