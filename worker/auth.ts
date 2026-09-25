@@ -41,14 +41,22 @@ export async function registerDevice(env: Env, ip: string, setupCode: unknown, n
   if (typeof setupCode !== 'string' || typeof name !== 'string' || !name.trim() || name.length > 80) {
     return { ok: false, status: 400, error: 'setupCode and name are required' }
   }
-  const failures = await env.DB.prepare('SELECT COUNT(*) AS n FROM setup_attempts WHERE ip = ? AND at > ?')
-    .bind(ip, now - HOUR)
+  // Record the attempt before checking anything: a burst of parallel guesses can't all pass a
+  // count taken before any of them was written.
+  const attempt = await env.DB.batch([
+    env.DB.prepare('DELETE FROM setup_attempts WHERE at <= ?').bind(now - HOUR), // keep the table small
+    env.DB.prepare('INSERT INTO setup_attempts (ip, at) VALUES (?, ?) RETURNING rowid').bind(ip, now),
+  ])
+  const rowid = (attempt[1].results[0] as { rowid: number }).rowid
+  // Only attempts recorded up to and including this one count, so of a simultaneous burst the
+  // first MAX_FAILED_ATTEMPTS proceed and the rest are refused, whatever order they're checked in.
+  const recent = await env.DB.prepare('SELECT COUNT(*) AS n FROM setup_attempts WHERE ip = ? AND at > ? AND rowid <= ?')
+    .bind(ip, now - HOUR, rowid)
     .first<{ n: number }>()
-  if ((failures?.n ?? 0) >= MAX_FAILED_ATTEMPTS) return { ok: false, status: 429, error: 'too many attempts; try again later' }
-  if (!(await safeEqual(setupCode, env.SETUP_CODE))) {
-    await env.DB.prepare('INSERT INTO setup_attempts (ip, at) VALUES (?, ?)').bind(ip, now).run()
-    return { ok: false, status: 403, error: 'wrong setup code' }
-  }
+  if ((recent?.n ?? 0) > MAX_FAILED_ATTEMPTS) return { ok: false, status: 429, error: 'too many attempts; try again later' }
+  if (!(await safeEqual(setupCode, env.SETUP_CODE))) return { ok: false, status: 403, error: 'wrong setup code' }
+  // A successful attempt doesn't count against the limit.
+  await env.DB.prepare('DELETE FROM setup_attempts WHERE rowid = ?').bind(rowid).run()
   const device = { id: crypto.randomUUID(), name: name.trim() }
   const token = randomToken()
   await env.DB.prepare('INSERT INTO devices (id, name, token_hash, created_at, last_seen_at) VALUES (?, ?, ?, ?, ?)')

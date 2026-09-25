@@ -11,6 +11,9 @@ const run = (args) =>
     p.on('exit', (code) => (code === 0 ? resolve() : reject(new Error(`wrangler ${args[0]} exited ${code}`))))
   })
 
+// Refuse to run against something already listening: the checks would test that server instead.
+if (await fetch(`${base}/api/health`).then(() => true, () => false)) throw new Error(`port ${port} is already in use`)
+
 await run(['d1', 'migrations', 'apply', 'kikitori', '--local'])
 await new Promise((resolve, reject) =>
   spawn('node', ['scripts/large-assets.mjs', 'upload', '--local'], { stdio: 'inherit' }).on('exit', (c) => (c === 0 ? resolve() : reject(new Error('upload failed')))),
@@ -26,7 +29,9 @@ try {
   const html = await (await fetch(`${base}/`)).text()
   if (!html.includes('<div id="root">')) throw new Error('app shell not served')
   const sw = await fetch(`${base}/sw.js`)
-  if (!sw.ok) throw new Error('service worker not served')
+  if (!sw.ok || !sw.headers.get('content-type')?.includes('javascript')) throw new Error('service worker not served')
+  const missing = await fetch(`${base}/assets/does-not-exist.wasm`)
+  if (missing.status !== 404) throw new Error(`missing wasm should 404, got ${missing.status}`)
   // The oversized ONNX runtime comes from R2 through the Worker, at its normal URL.
   const { readFileSync } = await import('node:fs')
   const large = readFileSync('dist/.assetsignore', 'utf8').split('\n').filter(Boolean)

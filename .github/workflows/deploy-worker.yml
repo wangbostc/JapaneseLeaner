@@ -35,6 +35,13 @@ jobs:
           node-version: 22
           cache: pnpm
       - if: steps.gate.outputs.ready == 'true'
+        name: Check the D1 database id is set
+        run: |
+          if grep -q '"database_id": "00000000-0000-0000-0000-000000000000"' wrangler.jsonc; then
+            echo "::error::Set database_id in wrangler.jsonc (README → Backend, step 2) before deploying."
+            exit 1
+          fi
+      - if: steps.gate.outputs.ready == 'true'
         run: pnpm install --frozen-lockfile
       - if: steps.gate.outputs.ready == 'true'
         run: pnpm build

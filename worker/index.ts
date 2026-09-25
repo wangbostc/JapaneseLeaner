@@ -79,6 +79,9 @@ export default {
     if (pathname.startsWith('/assets/') && pathname.endsWith('.wasm')) {
       const large = await serveLargeAsset(env, pathname)
       if (large) return large
+      // Never let the SPA fallback answer for a wasm file: the service worker would cache the HTML.
+      const asset = await env.ASSETS.fetch(request)
+      return asset.headers.get('content-type')?.includes('wasm') ? asset : new Response('Not found', { status: 404 })
     }
     return env.ASSETS.fetch(request)
   },

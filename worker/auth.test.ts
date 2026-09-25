@@ -71,6 +71,19 @@ describe('device auth', () => {
     expect((await call('POST', '/api/devices', { body: { setupCode: SETUP, name: 'x' }, ip: '198.51.100.2' })).status).toBe(201)
   })
 
+  it('holds the limit against a burst of parallel guesses, and forgets attempts after an hour', async () => {
+    const { env, call } = await setup()
+    const statuses = await Promise.all(
+      Array.from({ length: 15 }, () => call('POST', '/api/devices', { body: { setupCode: 'wrong-guess-123', name: 'x' } }).then((r) => r.status)),
+    )
+    expect(statuses.filter((s) => s === 403)).toHaveLength(MAX_FAILED_ATTEMPTS)
+    expect(statuses.filter((s) => s === 429)).toHaveLength(15 - MAX_FAILED_ATTEMPTS)
+    // Stale rows are pruned on the next attempt.
+    await env.DB.prepare('UPDATE setup_attempts SET at = at - 2 * 3600000').run()
+    expect((await call('POST', '/api/devices', { body: { setupCode: SETUP, name: 'x' } })).status).toBe(201)
+    expect((await env.DB.prepare('SELECT COUNT(*) AS n FROM setup_attempts').first<{ n: number }>())!.n).toBe(0)
+  })
+
   it('stays closed when no (or a too-short) setup code is configured', async () => {
     const { call } = await setup({ SETUP_CODE: 'short' })
     expect((await call('POST', '/api/devices', { body: { setupCode: 'short', name: 'x' } })).status).toBe(503)

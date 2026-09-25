@@ -18,6 +18,11 @@ const large = walk(dist)
   .filter((f) => statSync(f).size > LIMIT)
   .map((f) => relative(dist, f))
 
+// The Worker serves only /assets/*.wasm from R2 (run_worker_first); anything else this large
+// would silently vanish behind the SPA fallback, so refuse to build it.
+const unservable = large.filter((f) => !/^assets\/[^/]+\.wasm$/.test(f))
+if (unservable.length) throw new Error(`files over 25 MiB that the Worker can't serve from R2: ${unservable.join(', ')}`)
+
 const [cmd, where] = process.argv.slice(2)
 if (cmd === 'list') {
   writeFileSync(join(dist, '.assetsignore'), large.join('\n') + (large.length ? '\n' : ''))
