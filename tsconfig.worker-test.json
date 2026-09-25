@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.worker.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.worker-test.tsbuildinfo",
+    "types": ["@cloudflare/workers-types", "node"]
+  },
+  "include": ["worker"],
+  "exclude": []
+}

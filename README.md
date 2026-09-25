@@ -124,6 +124,28 @@ JMdict is revised regularly. EDRDG asks apps to keep their copy current, and to 
    file is from a different release and rebuilds it.
 4. Run `pnpm test && pnpm e2e`, then open a PR.
 
+## Backend (Cloudflare Workers)
+
+The app and its API run as one Cloudflare Worker (`worker/`, `wrangler.jsonc`):
+- **Static assets:** the built React app from `dist/`.
+- **API:** `/api/*`.
+- **D1 (SQLite):** synced data.
+- **R2:** large files. That includes the 25.6 MiB ONNX runtime, which is over the static-asset cap; `scripts/large-assets.mjs` handles it.
+
+Each device unlocks once with a setup code you choose. The server stores only a hash of each device's token.
+
+```bash
+pnpm dev:worker     # build, apply D1 migrations locally, run the Worker (no Cloudflare account needed)
+pnpm worker:smoke   # CI check: app shell, service worker, R2-served files, authenticated API
+```
+
+**First deploy (one time):**
+1. Create a free Cloudflare account, then run `pnpm exec wrangler login`.
+2. Create the database and put its id in `wrangler.jsonc` (`database_id`): `pnpm exec wrangler d1 create kikitori`.
+3. Create the bucket: `pnpm exec wrangler r2 bucket create kikitori-files`.
+4. Set a setup code: `pnpm exec wrangler secret put SETUP_CODE`. Use a long random one, such as `openssl rand -base64 24`. The guess limit is per IP, so the code's strength is the real protection.
+5. For automatic deploys, set the `CLOUDFLARE_API_TOKEN` (Workers, D1 and R2 edit) and `CLOUDFLARE_ACCOUNT_ID` repository secrets. Until they exist, `.github/workflows/deploy-worker.yml` skips.
+
 ## Development
 
 ```bash
