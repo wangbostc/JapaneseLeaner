@@ -1,4 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks'
+import { VoiceCredit } from '../components/VoiceCredit'
 import { useEffect, useMemo, useState } from 'react'
 import { useSettings } from '../app/useSettings'
 import { Icon } from '../components/Icon'
@@ -89,6 +90,7 @@ export function Cards() {
           <Icon name="play" /> {t.play}
         </button>
       </div>
+        <VoiceCredit />
       {flipped ? (
         <div className="grades">
           {(

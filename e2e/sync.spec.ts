@@ -227,6 +227,51 @@ test('opened offline, a connected device still plays the natural-voice audio it 
   await page.context().setOffline(false)
 })
 
+test('VOICEVOX on the computer prepares a lesson, and the phone plays it in that voice', async ({ browser }) => {
+  const engine = `http://127.0.0.1:${process.env.E2E_VOICEVOX_PORT ?? 50121}`
+  const mac = await newDevice(browser, 'Mac')
+  // VOICEVOX turned on for this device, pointed at the e2e engine (the default is 127.0.0.1:50021).
+  await mac.evaluate((url) => localStorage.setItem('kikitori.voicevox', url), engine)
+  await mac.reload()
+  await expect(mac.getByTestId('voicevox-toggle')).toBeChecked()
+  await expect(mac.getByTestId('voicevox-status')).toContainText('VOICEVOX is running: 3 voices')
+  const select = mac.getByTestId('voice-select')
+  await expect(select.locator('optgroup[label="VOICEVOX (this computer)"] option')).toHaveCount(3)
+  // This e2e server also has Azure, whose Nanami is the default; choose No.7 explicitly.
+  await select.selectOption('voicevox:30')
+  await expect(mac.getByTestId('voice-credit')).toHaveText('VOICEVOX:No.7')
+  await mac.goto('./#/library')
+  const uploads: string[] = []
+  mac.on('request', (r) => r.method() === 'PUT' && r.url().includes('/api/tts/clip') && uploads.push(new URL(r.url()).searchParams.get('text')!))
+  await mac.getByRole('link', { name: /私の朝/ }).click()
+  const prepare = mac.getByTestId('prepare-voice')
+  await prepare.getByRole('button', { name: 'Prepare VOICEVOX audio for your other devices' }).click()
+  await expect(prepare).toContainText('Ready on your other devices.')
+  expect(new Set(uploads).size).toBe(6)
+  await expect(prepare.getByTestId('voice-credit')).toHaveText('VOICEVOX:No.7')
+
+  // The phone has no engine: it lists the prepared voice and plays the lesson from the server.
+  const phone = await newDevice(browser, 'Phone')
+  // A device that didn't turn VOICEVOX on never contacts an engine (that could prompt for local-network access).
+  const engineRequests: string[] = []
+  phone.on('request', (r) => /:(50021|50121)\//.test(r.url()) && engineRequests.push(r.url()))
+  await phone.reload() // start-up again, now watched
+  const phoneSelect = phone.getByTestId('voice-select')
+  await expect(phoneSelect.locator('optgroup[label="VOICEVOX (prepared on your computer)"] option')).toHaveText(['No.7（アナウンス）'])
+  await phoneSelect.selectOption('voicevox:30')
+  await expect(phone.getByTestId('voicevox-toggle')).not.toBeChecked()
+  const played = phone.waitForResponse((r) => r.url().endsWith('/api/tts') && r.request().postDataJSON()?.text === '私は毎朝六時に起きます。')
+  await phone.goto('./#/library')
+  await phone.getByRole('link', { name: /私の朝/ }).click()
+  await expect(phone.getByTestId('prepare-voice')).toHaveCount(0) // no engine here
+  await phone.getByRole('link', { name: 'Start' }).click()
+  const res = await played
+  expect(res.status()).toBe(200)
+  expect(res.headers()['content-type']).toBe('audio/wav')
+  await expect(phone.getByTestId('voice-credit')).toHaveText('VOICEVOX:No.7')
+  expect(engineRequests).toEqual([])
+})
+
 test('the static build (no server) hides sync entirely', async ({ page }) => {
   await page.goto('http://localhost:' + (process.env.E2E_PORT ?? '4173') + '/#/settings')
   await expect(page.getByRole('heading', { name: 'Reminders' })).toBeVisible()

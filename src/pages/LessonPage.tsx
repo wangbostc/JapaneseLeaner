@@ -7,6 +7,7 @@ import { translateViaServer, useServerAi } from '../app/serverAi'
 import { useSettings } from '../app/useSettings'
 import { useAnalyzer } from '../app/useAnalyzer'
 import { AddToCalendar } from '../components/AddToCalendar'
+import { PrepareVoice } from '../components/PrepareVoice'
 import { Icon } from '../components/Icon'
 import { JapaneseText } from '../components/JapaneseText'
 import { RoundDots } from '../components/LessonRow'
@@ -88,6 +89,8 @@ export function LessonPage() {
           <p>{isGraduated(lesson.progress) && t.mastered}</p>
         </div>
       )}
+
+      <PrepareVoice lesson={lesson} />
 
       {(serverAi || aiKey) && missingTranslation && (
         <div className="row">

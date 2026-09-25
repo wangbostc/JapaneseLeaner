@@ -2,7 +2,7 @@ import { authenticate, registerDevice, type Device } from './auth'
 import type { Env } from './env'
 import { aiEnabled, explain, translate } from './ai'
 import { sendDueReminders, subscribe } from './push'
-import { speech, ttsInfo } from './tts'
+import { putClip, speech, ttsInfo } from './tts'
 import { BadRequest, getMedia, parseSyncRequest, putMedia, sync } from './sync'
 
 const json = (body: unknown, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } })
@@ -36,7 +36,8 @@ const routes: [string, RegExp, Handler][] = [
   ['GET', /^\/api\/ai$/, async (_req, env) => json({ enabled: aiEnabled(env) })],
   ['POST', /^\/api\/ai\/explain$/, async (req, env) => explain(env, await readJson(req), undefined, req.signal)],
   ['POST', /^\/api\/ai\/translate$/, async (req, env) => translate(env, await readJson(req))],
-  ['GET', /^\/api\/tts$/, async (_req, env) => json(ttsInfo(env))],
+  ['GET', /^\/api\/tts$/, async (_req, env) => json(await ttsInfo(env))],
+  ['PUT', /^\/api\/tts\/clip$/, (req, env) => putClip(env, req)],
   ['POST', /^\/api\/tts$/, async (req, env) => speech(env, await readJson(req))],
   ['GET', /^\/api\/push\/key$/, async (_req, env) => (env.VAPID_PUBLIC_KEY ? json({ key: env.VAPID_PUBLIC_KEY }) : error(503, 'push is not configured'))],
   ['POST', /^\/api\/push\/subscriptions$/, async (req, env, device) => subscribe(env, device.id, await readJson(req))],

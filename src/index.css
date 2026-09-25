@@ -385,3 +385,5 @@ ruby rt { font-size: 0.5em; color: var(--muted); letter-spacing: 0; }
 
 .moved { background: var(--shu-soft); border: 1px solid var(--shu); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 16px; }
 .moved p { margin: 6px 0 10px; font-size: 0.92rem; }
+
+.voice-credit { display: block; margin-top: 0.75rem; font-size: 0.75rem; }

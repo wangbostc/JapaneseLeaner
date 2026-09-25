@@ -10,9 +10,9 @@ import { useSettings } from '../app/useSettings'
 import { parseBackup, restoreBackup, type Backup } from '../lib/backup'
 import { downloadBackup } from '../app/backupFile'
 import { db } from '../lib/db'
-import { japaneseVoices, neuralChoice, recognitionSupported, recordingSupported, speak, ttsSupported } from '../lib/speech'
-import { NEURAL_PREFIX } from '../lib/voices'
-import { useNeuralVoices } from '../app/neuralVoice'
+import { japaneseVoices, recognitionSupported, recordingSupported, ttsSupported } from '../lib/speech'
+import { useNaturalVoices } from '../app/neuralVoice'
+import { VoiceSettings } from '../components/VoiceSettings'
 
 export function SettingsPage() {
   const { t, settings, update } = useSettings()
@@ -50,7 +50,7 @@ export function SettingsPage() {
   }
   const aiKey = useAiKey()
   const serverAi = useServerAi()
-  const neuralVoices = useNeuralVoices()
+  const natural = useNaturalVoices()
   const [keyDraft, setKeyDraft] = useState('')
   const [keySaved, setKeySaved] = useState(false)
 
@@ -93,7 +93,7 @@ export function SettingsPage() {
   const support: [string, boolean][] = [
     [t.speechRec, recognitionSupported()],
     [t.micRec, recordingSupported()],
-    [t.tts, (ttsSupported() && !!voices?.length) || !!neuralVoices?.length],
+    [t.tts, (ttsSupported() && !!voices?.length) || !!natural.azure?.length || !!natural.voicevox?.length],
     [t.offlineLabel, 'serviceWorker' in navigator],
   ]
 
@@ -123,46 +123,7 @@ export function SettingsPage() {
         {t.settingsRate}: {settings.rate.toFixed(2)}×
         <input type="range" min={0.6} max={1.4} step={0.05} value={settings.rate} onChange={(e) => update({ rate: Number(e.target.value) })} />
       </label>
-      <label>
-        {t.settingsVoice}
-        {voices && voices.length === 0 && !neuralVoices?.length ? (
-          <small className="error">{t.noVoice}</small>
-        ) : (
-          <select
-            data-testid="voice-select"
-            // With natural voices on and nothing chosen, Nanami speaks; show that rather than the first device voice.
-            value={settings.voiceURI ?? (neuralChoice(undefined) ? NEURAL_PREFIX + neuralChoice(undefined) : (voices?.[0]?.voiceURI ?? ''))}
-            onChange={(e) => update({ voiceURI: e.target.value || undefined })}
-          >
-            {!!neuralVoices?.length && (
-              <optgroup label={t.voiceNatural}>
-                {neuralVoices.map((v) => (
-                  <option key={v.id} value={NEURAL_PREFIX + v.id}>
-                    {v.name} · {v.gender === 'female' ? t.voiceFemale : t.voiceMale}
-                  </option>
-                ))}
-              </optgroup>
-            )}
-            {!!voices?.length && (
-              <optgroup label={t.voiceDevice}>
-                {voices.map((v) => (
-                  <option key={v.voiceURI} value={v.voiceURI}>
-                    {v.name}
-                  </option>
-                ))}
-              </optgroup>
-            )}
-          </select>
-        )}
-        {!neuralVoices?.length && sync.kind !== 'unavailable' && <small className="muted">{t.voiceNaturalHint}</small>}
-      </label>
-      {(!!voices?.length || !!neuralVoices?.length) && (
-        <div className="row">
-          <button type="button" className="btn ghost" onClick={() => void speak(t.voiceSample, settings.rate, settings.voiceURI)}>
-            {t.voicePreview}
-          </button>
-        </div>
-      )}
+      <VoiceSettings voices={voices} />
 
       {sync.kind !== 'unavailable' && (
         <section className="form" data-testid="sync-section" aria-labelledby="sync-title">

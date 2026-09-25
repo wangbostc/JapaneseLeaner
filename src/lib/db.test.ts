@@ -3,7 +3,9 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { KikitoriDB, sampleUid } from './db'
 import { createStore } from './store'
 
-const T0 = Date.UTC(2026, 8, 25, 9)
+// Later than the real clock: stamps never go backwards, so a T0 in the past would be overtaken by
+// the time records are really written (this was 2026-09-25 and started failing that morning).
+const T0 = Date.UTC(2099, 8, 25, 9)
 const names: string[] = []
 const fresh = () => {
   const name = `db-test-${names.length}-${Math.random()}`
