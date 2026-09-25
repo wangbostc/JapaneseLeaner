@@ -62,6 +62,15 @@ export function deviceApi(): Api | null {
   return d && status.kind !== 'unavailable' ? authed(d.token) : null
 }
 
+/**
+ * This device's API caller whenever it holds a token, even while the server can't be reached
+ * (opened offline). For work that has a local fallback, such as cached natural-voice audio.
+ */
+export function storedDeviceApi(): Api | null {
+  const d = device()
+  return d ? authed(d.token) : null
+}
+
 const authed = (token: string): Api => (path, init = {}) =>
   fetch(path.replace(/^\//, ''), { ...init, headers: { ...(init.headers as Record<string, string>), Authorization: `Bearer ${token}` } })
 
@@ -160,7 +169,12 @@ let started = false
 export async function startAutoSync() {
   if (started) return
   started = true
-  if (!(await detectServer())) return
+  if (!(await detectServer())) {
+    // Opened offline on a connected device: start once the network is back. (The static build
+    // has no device, so it never retries.)
+    if (device()) window.addEventListener('online', () => ((started = false), void startAutoSync()), { once: true })
+    return
+  }
   let timer: ReturnType<typeof setTimeout> | null = null
   const soon = () => {
     if (applying || !device()) return

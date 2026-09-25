@@ -148,6 +148,85 @@ test('translates a long lesson through the server in batches', async ({ browser 
   await expect(phone.locator('.transcript .translation')).toHaveCount(320)
 })
 
+test('a connected device speaks with the server’s natural voices, keeping each sentence on the device', async ({ browser }) => {
+  const page = await newDevice(browser, 'Voice')
+  const requests: string[] = []
+  page.on('request', (r) => r.method() === 'POST' && r.url().endsWith('/api/tts') && requests.push(JSON.parse(r.postData() ?? '{}').voice))
+  const select = page.getByTestId('voice-select')
+  // Natural voices are the default once the server has them.
+  await expect(select).toHaveValue('neural:ja-JP-NanamiNeural')
+  await expect(select.locator('optgroup[label="Natural voices (server)"] option')).toHaveCount(8)
+
+  const tryIt = page.getByRole('button', { name: '▶ Try' })
+  const spoken = page.waitForResponse((r) => r.url().endsWith('/api/tts') && r.status() === 200)
+  await tryIt.click()
+  expect((await spoken).headers()['content-type']).toBe('audio/wav')
+  await expect.poll(() => requests).toEqual(['ja-JP-NanamiNeural'])
+
+  // Again: played from the device's cache, no second request.
+  await tryIt.click()
+  await page.waitForTimeout(500)
+  expect(requests).toEqual(['ja-JP-NanamiNeural'])
+
+  await select.selectOption('neural:ja-JP-KeitaNeural')
+  await tryIt.click()
+  await expect.poll(() => requests).toEqual(['ja-JP-NanamiNeural', 'ja-JP-KeitaNeural'])
+  const cached = await page.evaluate(async () => (await (await caches.open('tts-v1')).keys()).length)
+  expect(cached).toBe(2)
+
+  // Lessons use it too: the first step reads the first sentence aloud in the chosen voice.
+  const texts: string[] = []
+  page.on('request', (r) => r.method() === 'POST' && r.url().endsWith('/api/tts') && texts.push(JSON.parse(r.postData() ?? '{}').text))
+  await page.goto('./#/library')
+  await page.getByRole('link', { name: /私の朝/ }).click()
+  await page.getByRole('link', { name: 'Start' }).click()
+  await expect(page.getByRole('heading', { name: 'Intensive listening' })).toBeVisible()
+  await expect.poll(() => texts).toContain('私は毎朝六時に起きます。')
+  expect(requests.at(-1)).toBe('ja-JP-KeitaNeural')
+  const studyUrl = page.url()
+
+  // Opened straight onto a lesson, never visiting Settings: the app shell turns natural voices on.
+  await page.evaluate(() => localStorage.removeItem('kikitori.neuralVoices'))
+  texts.length = 0
+  await page.goto('about:blank')
+  await page.goto(studyUrl)
+  await expect(page.getByRole('heading', { name: 'Intensive listening' })).toBeVisible()
+  await expect.poll(() => texts).toContain('私は毎朝六時に起きます。')
+})
+
+test('opened offline, a connected device still plays the natural-voice audio it has cached', async ({ browser }) => {
+  const page = await newDevice(browser, 'Offline')
+  // Record which voice speaks: a natural clip (an audio element) or the device's own voice.
+  await page.addInitScript(() => {
+    const w = window as unknown as { __clips: string[]; __said: string[] }
+    w.__clips = []
+    w.__said = []
+    const play = HTMLMediaElement.prototype.play
+    HTMLMediaElement.prototype.play = function () {
+      w.__clips.push(this.src)
+      return play.call(this)
+    }
+    const speak = speechSynthesis.speak.bind(speechSynthesis)
+    speechSynthesis.speak = (u) => (w.__said.push(u.text), speak(u))
+  })
+  await page.goto('./#/library')
+  await page.getByRole('link', { name: /私の朝/ }).click()
+  await page.getByRole('link', { name: 'Start' }).click()
+  await expect(page.getByRole('heading', { name: 'Intensive listening' })).toBeVisible()
+  await expect.poll(() => page.evaluate(async () => (await (await caches.open('tts-v1')).keys()).length)).toBeGreaterThan(0)
+  const studyUrl = page.url()
+
+  await page.context().setOffline(true)
+  await page.goto('about:blank')
+  await page.goto(studyUrl)
+  await expect(page.getByRole('heading', { name: 'Intensive listening' })).toBeVisible()
+  const clips = () => page.evaluate(() => (window as unknown as { __clips: string[] }).__clips)
+  await expect.poll(clips).toHaveLength(1)
+  expect((await clips())[0]).toMatch(/^blob:/)
+  expect(await page.evaluate(() => (window as unknown as { __said: string[] }).__said)).toEqual([])
+  await page.context().setOffline(false)
+})
+
 test('the static build (no server) hides sync entirely', async ({ page }) => {
   await page.goto('http://localhost:' + (process.env.E2E_PORT ?? '4173') + '/#/settings')
   await expect(page.getByRole('heading', { name: 'Reminders' })).toBeVisible()
