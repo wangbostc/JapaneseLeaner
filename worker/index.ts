@@ -1,5 +1,6 @@
 import { authenticate, registerDevice, type Device } from './auth'
 import type { Env } from './env'
+import { aiEnabled, explain, translate } from './ai'
 import { sendDueReminders, subscribe } from './push'
 import { BadRequest, getMedia, parseSyncRequest, putMedia, sync } from './sync'
 
@@ -31,6 +32,9 @@ const routes: [string, RegExp, Handler][] = [
       }
     },
   ],
+  ['GET', /^\/api\/ai$/, async (_req, env) => json({ enabled: aiEnabled(env) })],
+  ['POST', /^\/api\/ai\/explain$/, async (req, env) => explain(env, await readJson(req))],
+  ['POST', /^\/api\/ai\/translate$/, async (req, env) => translate(env, await readJson(req))],
   ['GET', /^\/api\/push\/key$/, async (_req, env) => (env.VAPID_PUBLIC_KEY ? json({ key: env.VAPID_PUBLIC_KEY }) : error(503, 'push is not configured'))],
   ['POST', /^\/api\/push\/subscriptions$/, async (req, env, device) => subscribe(env, device.id, await readJson(req))],
   [

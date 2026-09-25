@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { setAiKey, useAiKey } from '../app/aiKey'
 import { relativeTime } from '../app/i18n'
+import { useServerAi } from '../app/serverAi'
 import { connect, disconnect, resetSyncCursor, syncNow, useSyncStatus } from '../app/sync'
 import { backgroundRemindersOn, enablePushReminders, enableReminders, pushSubscribed, pushSupported, registerBackgroundCheck, reminderSupport, type ReminderSupport } from '../app/reminders'
 import { sanitizeSettings } from '../app/sanitizeSettings'
@@ -45,6 +46,7 @@ export function SettingsPage() {
     else setConnectError(r.message)
   }
   const aiKey = useAiKey()
+  const serverAi = useServerAi()
   const [keyDraft, setKeyDraft] = useState('')
   const [keySaved, setKeySaved] = useState(false)
 
@@ -250,8 +252,12 @@ export function SettingsPage() {
       )}
 
       <h2 className="section-label">{t.aiTitle}</h2>
-      <p className="muted small">{t.aiHint}</p>
-      {aiKey ? (
+      {serverAi ? (
+        <p className="ok small" data-testid="server-ai">{t.aiFromServer}</p>
+      ) : (
+        <p className="muted small">{t.aiHint}</p>
+      )}
+      {serverAi ? null : aiKey ? (
         <div className="row">
           <code className="key-mask">{`${aiKey.slice(0, 7)}…${aiKey.slice(-4)}`}</code>
           <button className="btn" onClick={() => (setAiKey(''), setKeySaved(false))}>
@@ -275,8 +281,8 @@ export function SettingsPage() {
           </button>
         </label>
       )}
-      {keySaved && aiKey && <p className="ok small">{t.aiSaved}</p>}
-      <p className="muted small">{t.aiKeyWarning}</p>
+      {!serverAi && keySaved && aiKey && <p className="ok small">{t.aiSaved}</p>}
+      {!serverAi && <p className="muted small">{t.aiKeyWarning}</p>}
 
       <h2 className="section-label">{t.dataTitle}</h2>
       <p className="muted small">{t.dataHint}</p>

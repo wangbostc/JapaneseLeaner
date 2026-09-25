@@ -1,11 +1,13 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod'
 import { z } from 'zod'
-import type { UiLang } from './db'
+// Defined here (not imported from db) so the Worker can use this module too.
+type UiLang = 'en' | 'zh'
 
 /**
- * Optional AI help, called straight from the browser with the learner's own
- * Anthropic API key. Nothing in the study loop depends on it.
+ * Optional AI help. With the server, the Worker makes these calls with its own key; without it
+ * (the static build), the browser calls with the learner's own key. Nothing in the study loop
+ * depends on it.
  */
 
 export const AI_MODEL = 'claude-opus-5'
