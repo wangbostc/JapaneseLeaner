@@ -34,8 +34,12 @@ registerRoute(({ url }) => url.pathname.endsWith('/pitch/accents.json'), cacheFi
 // --- Reminders -----------------------------------------------------------
 
 
-/** Checks the schedule and, if reviews are due, shows one notification and sets the app badge. */
-async function checkDue(): Promise<number> {
+/**
+ * Checks the schedule and, if reviews are due, shows one notification and sets the app badge.
+ * `fromPush`: the server saw a due review; browsers require a visible notification for every push,
+ * so show a general reminder even if this device hasn't synced that lesson yet.
+ */
+async function checkDue(fromPush = false): Promise<number> {
   const db = new KikitoriDB()
   try {
     const lessons = await db.lessons.toArray()
@@ -45,8 +49,8 @@ async function checkDue(): Promise<number> {
     else await nav.clearAppBadge?.().catch(() => {})
     // Just try: the worker's view of Notification.permission can lag a grant made after it
     // started, and showNotification fails harmlessly without permission.
-    if (reviewsDue) {
-      const { title, options } = reminderNotification(reviewsDue)
+    if (reviewsDue || fromPush) {
+      const { title, options } = reminderNotification(Math.max(reviewsDue, 1))
       await self.registration.showNotification(title, options).catch(() => {})
     }
     return reviewsDue
@@ -54,6 +58,11 @@ async function checkDue(): Promise<number> {
     db.close()
   }
 }
+
+// Web Push from the server (no payload): a review is due somewhere in the synced library.
+self.addEventListener('push', (event) => {
+  ;(event as ExtendableEvent).waitUntil(checkDue(true))
+})
 
 // Chromium, installed app only; the browser decides how often (often every 12 h or more).
 self.addEventListener('periodicsync', (event) => {

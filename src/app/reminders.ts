@@ -3,6 +3,7 @@ import { buildIcs } from '../lib/ics'
 import { db } from '../lib/db'
 import { REMINDER_TAG, reminderNotification, summarizeDue } from '../lib/reminders'
 import { dueAt, nextRound } from '../lib/schedule'
+import { deviceApi } from './sync'
 
 type PeriodicSyncManager = { register(tag: string, opts: { minInterval: number }): Promise<void>; getTags(): Promise<string[]> }
 type RegistrationWithSync = ServiceWorkerRegistration & { periodicSync?: PeriodicSyncManager }
@@ -63,7 +64,11 @@ export async function checkDueNow(): Promise<void> {
 export async function enableReminders(): Promise<EnableResult> {
   const permission = 'Notification' in window ? await Notification.requestPermission() : 'denied'
   const background = permission === 'granted' ? await registerBackgroundCheck() : false
-  if (permission === 'granted') await checkDueNow()
+  if (permission === 'granted') {
+    await checkDueNow()
+    // With sync connected, also take reminders from the server (works with the app closed, incl. iPhone).
+    await enablePushReminders().catch(() => false)
+  }
   return { permission, background }
 }
 
@@ -117,4 +122,32 @@ export async function saveIcs(ics: string, fileName: string) {
   a.download = fileName
   a.click()
   setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+const fromB64url = (s: string) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (s.length % 4)) % 4)), (c) => c.charCodeAt(0))
+
+export const pushSupported = () => 'PushManager' in window && 'serviceWorker' in navigator
+
+/** True if this browser has a push subscription (server reminders on). */
+export async function pushSubscribed(): Promise<boolean> {
+  if (!pushSupported()) return false
+  const reg = await navigator.serviceWorker.getRegistration()
+  return Boolean(await reg?.pushManager.getSubscription())
+}
+
+/**
+ * Subscribes this browser to the server's review reminders (Web Push). Needs notification
+ * permission and a device connected for sync; on iPhone, only an app added to the home screen
+ * (iOS 16.4+) can receive them.
+ */
+export async function enablePushReminders(): Promise<boolean> {
+  const api = deviceApi()
+  if (!api || !pushSupported() || Notification.permission !== 'granted') return false
+  const keyRes = await api('/api/push/key')
+  if (!keyRes.ok) return false
+  const { key } = (await keyRes.json()) as { key: string }
+  const reg = await navigator.serviceWorker.ready
+  const sub = (await reg.pushManager.getSubscription()) ?? (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: fromB64url(key) }))
+  const res = await api('/api/push/subscriptions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sub.toJSON()) })
+  return res.ok
 }

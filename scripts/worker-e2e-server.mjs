@@ -9,9 +9,16 @@ while (!(await fetch(`http://localhost:${previewPort}/`).then((r) => r.ok, () =>
 
 const sh = (cmd, args) => new Promise((ok, fail) => spawn(cmd, args, { stdio: 'inherit' }).on('exit', (c) => (c === 0 ? ok() : fail(new Error(`${cmd} ${args[0]} failed`)))))
 await sh('pnpm', ['exec', 'wrangler', 'd1', 'migrations', 'apply', 'kikitori', '--local', '--persist-to', '.wrangler/e2e'])
+// A throwaway VAPID pair so push subscriptions can be tested.
+const pair = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify'])
+const vapidPublic = Buffer.from(await crypto.subtle.exportKey('raw', pair.publicKey)).toString('base64url')
+const vapidPrivate = JSON.stringify(await crypto.subtle.exportKey('jwk', pair.privateKey))
 const dev = spawn(
   'pnpm',
-  ['exec', 'wrangler', 'dev', '--port', String(port), '--persist-to', '.wrangler/e2e', '--var', 'SETUP_CODE:e2e-sync-setup-code'],
+  [
+    'exec', 'wrangler', 'dev', '--port', String(port), '--persist-to', '.wrangler/e2e',
+    '--var', 'SETUP_CODE:e2e-sync-setup-code', '--var', `VAPID_PUBLIC_KEY:${vapidPublic}`, '--var', `VAPID_PRIVATE_KEY:${vapidPrivate}`,
+  ],
   { stdio: 'inherit' },
 )
 process.on('SIGTERM', () => dev.kill('SIGTERM'))

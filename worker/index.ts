@@ -1,5 +1,6 @@
 import { authenticate, registerDevice, type Device } from './auth'
 import type { Env } from './env'
+import { sendDueReminders, subscribe } from './push'
 import { BadRequest, getMedia, parseSyncRequest, putMedia, sync } from './sync'
 
 const json = (body: unknown, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } })
@@ -28,6 +29,17 @@ const routes: [string, RegExp, Handler][] = [
         if (e instanceof BadRequest) return error(400, e.message)
         throw e
       }
+    },
+  ],
+  ['GET', /^\/api\/push\/key$/, async (_req, env) => (env.VAPID_PUBLIC_KEY ? json({ key: env.VAPID_PUBLIC_KEY }) : error(503, 'push is not configured'))],
+  ['POST', /^\/api\/push\/subscriptions$/, async (req, env, device) => subscribe(env, device.id, await readJson(req))],
+  [
+    'DELETE',
+    /^\/api\/push\/subscriptions$/,
+    async (req, env) => {
+      const body = await readJson(req)
+      if (typeof body?.endpoint === 'string') await env.DB.prepare('DELETE FROM push_subscriptions WHERE endpoint = ?').bind(body.endpoint).run()
+      return json({ unsubscribed: true })
     },
   ],
   ['PUT', /^\/api\/media\/([\w:-]+)$/, (req, env, _device, [uid]) => putMedia(env, uid, req)],
@@ -86,6 +98,10 @@ async function serveLargeAsset(env: Env, pathname: string): Promise<Response | n
 }
 
 export default {
+  // Cron Trigger (wrangler.jsonc): push reminders for reviews that have come due.
+  async scheduled(_controller, env, ctx) {
+    ctx.waitUntil(sendDueReminders(env))
+  },
   async fetch(request, env) {
     const { pathname } = new URL(request.url)
     if (pathname.startsWith('/api/')) return handleApi(request, env)

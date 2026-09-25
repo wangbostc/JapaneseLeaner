@@ -56,6 +56,12 @@ export const useSyncStatus = () =>
     () => status,
   )
 
+/** An authenticated API caller for this device, or null if it isn't connected. */
+export function deviceApi(): Api | null {
+  const d = device()
+  return d && status.kind !== 'unavailable' ? authed(d.token) : null
+}
+
 const authed = (token: string): Api => (path, init = {}) =>
   fetch(path.replace(/^\//, ''), { ...init, headers: { ...(init.headers as Record<string, string>), Authorization: `Bearer ${token}` } })
 

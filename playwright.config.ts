@@ -28,7 +28,13 @@ export default defineConfig({
     {
       name: 'worker',
       testMatch: /sync\.spec/,
-      use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${workerPort}/` },
+      use: {
+        ...devices['Desktop Chrome'],
+        baseURL: `http://localhost:${workerPort}/`,
+        // Full Chromium for notifications/push (the headless shell reports them denied).
+        channel: 'chromium',
+        launchOptions: { args: ['--disable-features=NativeNotifications,SystemNotifications'] },
+      },
     },
   ],
 })

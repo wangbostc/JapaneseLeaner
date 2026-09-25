@@ -23,5 +23,7 @@
     }
   ],
   "r2_buckets": [{ "binding": "FILES", "bucket_name": "kikitori-files" }],
+  // Review reminders: check for newly due reviews and send Web Push.
+  "triggers": { "crons": ["*/15 * * * *"] },
   "observability": { "enabled": true }
 }

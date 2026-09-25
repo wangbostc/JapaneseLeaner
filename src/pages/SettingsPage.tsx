@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { setAiKey, useAiKey } from '../app/aiKey'
 import { relativeTime } from '../app/i18n'
 import { connect, disconnect, resetSyncCursor, syncNow, useSyncStatus } from '../app/sync'
-import { backgroundRemindersOn, enableReminders, registerBackgroundCheck, reminderSupport, type ReminderSupport } from '../app/reminders'
+import { backgroundRemindersOn, enablePushReminders, enableReminders, pushSubscribed, pushSupported, registerBackgroundCheck, reminderSupport, type ReminderSupport } from '../app/reminders'
 import { sanitizeSettings } from '../app/sanitizeSettings'
 import { Link } from 'react-router-dom'
 import { useSettings } from '../app/useSettings'
@@ -21,14 +21,17 @@ export function SettingsPage() {
     'Notification' in window ? Notification.permission : 'unsupported',
   )
   const [background, setBackground] = useState(false)
+  const [pushOn, setPushOn] = useState(false)
   useEffect(() => {
     reminderSupport().then(setCaps)
     backgroundRemindersOn().then(setBackground)
+    pushSubscribed().then(setPushOn)
   }, [])
   const turnOnReminders = async () => {
     const r = await enableReminders()
     setPermission(r.permission)
     setBackground(r.background)
+    setPushOn(await pushSubscribed())
   }
   const sync = useSyncStatus()
   const [setupCode, setSetupCode] = useState('')
@@ -190,6 +193,24 @@ export function SettingsPage() {
             <span>{t.reminderCalendar}</span>
             <span className="ok">{t.supported}</span>
           </li>
+          {sync.kind !== 'unavailable' && (
+            <li data-testid="push-row">
+              <span>
+                {t.reminderPush}
+                <br />
+                <small className="muted">{t.reminderPushNote}</small>
+              </span>
+              {pushOn ? (
+                <span className="ok">{t.reminderBackgroundOn}</span>
+              ) : pushSupported() && permission === 'granted' && sync.kind !== 'disconnected' ? (
+                <button className="btn" onClick={async () => setPushOn(await enablePushReminders())}>
+                  {t.reminderBackgroundEnable}
+                </button>
+              ) : (
+                <span className="error">{t.unsupported}</span>
+              )}
+            </li>
+          )}
           <li>
             <span>{t.reminderBadge}</span>
             <span className={caps.badge ? 'ok' : 'error'}>{caps.badge ? t.supported : t.unsupported}</span>

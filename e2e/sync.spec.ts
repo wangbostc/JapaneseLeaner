@@ -77,6 +77,33 @@ test('restoring an older backup on a connected device brings back what other dev
   await expect(phone.getByRole('link', { name: /あとから/ })).toBeVisible({ timeout: 20_000 })
 })
 
+test('a connected device subscribes to server push reminders', async ({ browser }) => {
+  // Headless Chromium can't grant the push permission (and has no push service), so only
+  // pushManager.subscribe is faked; the key fetch, the POST to the Worker and the UI are real.
+  const phone = await newDevice(browser, 'PushPhone')
+  await phone.addInitScript(() => {
+    const fake = { endpoint: 'https://push.example/e2e-subscription', toJSON: () => ({ endpoint: 'https://push.example/e2e-subscription', keys: { p256dh: 'x', auth: 'y' } }) }
+    let subscribed: unknown = null
+    PushManager.prototype.subscribe = async function (opts?: PushSubscriptionOptionsInit) {
+      ;(window as unknown as { __appKey: number }).__appKey = new Uint8Array(opts!.applicationServerKey as ArrayBuffer).length
+      subscribed = fake
+      return fake as unknown as PushSubscription
+    }
+    PushManager.prototype.getSubscription = async () => subscribed as PushSubscription | null
+  })
+  const posted = phone.waitForResponse((r) => r.url().endsWith('/api/push/subscriptions') && r.request().method() === 'POST')
+  await phone.goto('./#/settings')
+  await phone.reload() // a new document, so the init script's fake is installed
+  await expect(phone.getByTestId('enable-reminders')).toBeVisible() // permission still 'default'
+  await phone.context().grantPermissions(['notifications']) // stands in for accepting the prompt
+  await phone.getByTestId('enable-reminders').click()
+  const res = await posted
+  expect(res.status()).toBe(201)
+  expect(res.request().postDataJSON()).toMatchObject({ endpoint: 'https://push.example/e2e-subscription' })
+  expect(await phone.evaluate(() => (window as unknown as { __appKey: number }).__appKey)).toBe(65) // the server's P-256 public key
+  await expect(phone.getByTestId('push-row').locator('.ok')).toHaveText('on')
+})
+
 test('the static build (no server) hides sync entirely', async ({ page }) => {
   await page.goto('http://localhost:' + (process.env.E2E_PORT ?? '4173') + '/#/settings')
   await expect(page.getByRole('heading', { name: 'Reminders' })).toBeVisible()
