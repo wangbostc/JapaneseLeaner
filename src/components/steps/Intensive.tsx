@@ -43,7 +43,16 @@ function IntensiveSentence({ lesson, analyzer, player, onPosition, onDone, i }: 
       <div className={`sentence-card ${revealed ? '' : 'concealed'}`}>
         {revealed ? (
           <>
-            <JapaneseText className="jp-large" text={s.text} analyzer={analyzer} furigana={settings.furigana} onWord={setWord} />
+            <JapaneseText
+              className="jp-large"
+              text={s.text}
+              analyzer={analyzer}
+              furigana={settings.furigana}
+              onWord={setWord}
+              chunked={settings.chunks}
+              onPlayGroup={lesson.mediaId ? undefined : (text) => player.play({ start: null, end: null, text }, settings.rate)}
+              playLabel={t.playChunk}
+            />
             {settings.translation && s.translations?.[settings.lang] && <p className="translation">{s.translations[settings.lang]}</p>}
             <ExplainPanel sentence={s.text} context={lesson.sentences.map((x) => x.text)} />
           </>

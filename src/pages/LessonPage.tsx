@@ -96,7 +96,7 @@ export function LessonPage() {
       <ol className="transcript">
         {lesson.sentences.map((s, i) => (
           <li key={i} className={lesson.hard.includes(i) ? 'is-hard' : ''}>
-            <JapaneseText text={s.text} analyzer={analyzer.status === 'ready' ? analyzer.analyzer : null} furigana={settings.furigana} />
+            <JapaneseText text={s.text} analyzer={analyzer.status === 'ready' ? analyzer.analyzer : null} furigana={settings.furigana} chunked={settings.chunks} />
             {settings.translation && s.translations?.[settings.lang] && <div className="translation">{s.translations[settings.lang]}</div>}
           </li>
         ))}
