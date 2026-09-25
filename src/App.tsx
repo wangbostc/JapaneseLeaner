@@ -7,6 +7,7 @@ import { useSettings } from './app/useSettings'
 import { db } from './lib/db'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { Icon, type IconName } from './components/Icon'
+import { MovedBanner } from './components/MovedBanner'
 import { seedOnce } from './lib/seed'
 import { store } from './lib/store'
 import { About } from './pages/About'
@@ -54,6 +55,7 @@ function Shell() {
         </nav>
       )}
       <main>
+        <MovedBanner />
         <ErrorBoundary key={pathname} t={t}>
         <Routes>
           <Route path="/" element={<Today />} />

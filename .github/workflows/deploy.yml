@@ -26,6 +26,10 @@ jobs:
       # install runs the postinstall that copies the kuromoji dictionary into public/dict
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
+        env:
+          # Set the repository variable KIKITORI_URL to the Worker address after moving; the old
+          # site then tells visitors to export a backup and open the new one.
+          VITE_MOVED_TO: ${{ vars.KIKITORI_URL }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

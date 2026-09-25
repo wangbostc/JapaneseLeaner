@@ -148,6 +148,15 @@ pnpm worker:smoke   # CI check: app shell, service worker, R2-served files, auth
 6. For AI explanations and translations, store an Anthropic key on the server: `pnpm exec wrangler secret put ANTHROPIC_API_KEY`. Connected devices then use it, and no key is kept in any browser. (`ANTHROPIC_BASE_URL` is a test-only hook; never set it in production, because the key would be sent wherever it points.)
 7. For automatic deploys, set the `CLOUDFLARE_API_TOKEN` (Workers, D1 and R2 edit) and `CLOUDFLARE_ACCOUNT_ID` repository secrets. Until they exist, `.github/workflows/deploy-worker.yml` skips.
 
+### Moving from the GitHub Pages site
+
+Browser storage belongs to one web address, so lessons and progress on the old site stay there until you move them:
+
+1. Deploy the Worker (above), connect a device, and check the new address works.
+2. Set the repository variable `KIKITORI_URL` to the new address (Settings → Secrets and variables → Actions → Variables). The next Pages deploy then shows a **"Kikitori has moved"** banner with an **Export backup** button and a link to the new address.
+3. On each device: export a backup on the old site, open the new address, restore the backup in Settings, and connect sync. If you added the old site to your Home Screen, add the new one and remove the old.
+4. Once everything has moved, you can switch off GitHub Pages.
+
 ## Development
 
 ```bash
