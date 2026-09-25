@@ -28,9 +28,31 @@ const readLesson = (page: Page, title: string) =>
 
 test('free practice leaves the schedule and resume point alone, but still marks weak sentences hard', async ({ page }) => {
   await page.goto('./')
+  await expect(page.locator('.lesson-row')).toHaveCount(3)
+  // A scheduled session in progress: first study, shadowing step, sentence 3.
+  const scheduledResume = { round: 0, stepIndex: 1, sentenceIndex: 3 }
+  await page.evaluate(
+    (resume) =>
+      new Promise<void>((done) => {
+        const open = indexedDB.open('kikitori')
+        open.onsuccess = () => {
+          const tx = open.result.transaction('lessons', 'readwrite')
+          const store = tx.objectStore('lessons')
+          const all = store.getAll()
+          all.onsuccess = () => {
+            const l = all.result.find((x: { title: string }) => x.title === '私の朝')
+            l.resume = resume
+            store.put(l)
+          }
+          tx.oncomplete = () => (open.result.close(), done())
+        }
+      }),
+    scheduledResume,
+  )
   await page.getByRole('link', { name: /私の朝/ }).click()
   const before = await readLesson(page, '私の朝')
   expect(before.progress).toEqual({ roundsDone: 0, lastCompletedAt: null })
+  expect(before.resume).toEqual(scheduledResume)
 
   await page.getByRole('link', { name: 'Shadowing' }).click()
   await expect(page.getByText('私の朝 · Free practice')).toBeVisible()
@@ -45,13 +67,13 @@ test('free practice leaves the schedule and resume point alone, but still marks 
 
   const after = await readLesson(page, '私の朝')
   expect(after.progress).toEqual({ roundsDone: 0, lastCompletedAt: null }) // no round completed
-  expect(after.resume).toBeNull() // no resume point written
+  expect(after.resume).toEqual(scheduledResume) // the scheduled session's place is untouched
   expect(after.hard).toEqual([0]) // the weak sentence is now hard
 
   // The lesson is still due as a first study, and the hard drill is now offered.
   await page.getByRole('link', { name: 'Back' }).click()
   await expect(page.getByRole('link', { name: 'Hard sentences' })).toBeVisible()
-  await expect(page.getByRole('link', { name: /Start/ })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Continue' })).toBeVisible() // still resumes where it was
 })
 
 test('mastered lessons can still be practised', async ({ page }) => {
