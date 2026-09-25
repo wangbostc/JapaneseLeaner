@@ -13,16 +13,18 @@ import { Shadow } from '../components/steps/Shadow'
 import type { StepProps } from '../components/steps/types'
 import { db, type Lesson } from '../lib/db'
 import { createPlayer } from '../lib/player'
-import { dueAt, isGraduated, ROUNDS, type LessonProgress, type Step } from '../lib/schedule'
+import { dueAt, isGraduated, ROUNDS, type LessonProgress, type Round, type Step } from '../lib/schedule'
 import { contentLemmas } from '../lib/scoring'
 import { store } from '../lib/store'
 
 const INPUT_STEPS: Step[] = ['intensive', 'blind']
+/** Steps that can be practised on their own, outside the schedule. */
+const FREE_STEPS: Step[] = ['intensive', 'shadowing', 'blind', 'hardSentences', 'retell']
 /** Longer than this without moving on is treated as the learner walking away. */
 const MAX_LOGGED_MS = 20 * 60_000
 
 export function Study() {
-  const { id } = useParams()
+  const { id, step: freeStep } = useParams()
   const lesson = useLiveQuery(() => db.lessons.get(Number(id)), [id])
   const media = useLiveQuery(async () => (lesson?.mediaId ? ((await db.media.get(lesson.mediaId)) ?? null) : null), [lesson?.mediaId])
   const analyzer = useAnalyzer()
@@ -32,16 +34,31 @@ export function Study() {
   if (!lesson) return <p className="empty">404</p>
   if (analyzer.status === 'loading') return <p className="empty">{t.loadingDict}</p>
   if (analyzer.status === 'error') return <p className="empty error">{t.dictFailed}</p>
-  return <Runner lesson={lesson as Lesson & { id: number }} media={media?.blob ?? null} analyzer={analyzer.analyzer} />
+  const free = freeStep && FREE_STEPS.includes(freeStep as Step) ? (freeStep as Step) : null
+  if (freeStep && !free) return <Navigate to={`/lesson/${lesson.id}`} replace />
+  // Keyed so switching between practice steps starts a fresh runner.
+  return <Runner key={free ?? 'round'} lesson={lesson as Lesson & { id: number }} media={media?.blob ?? null} analyzer={analyzer.analyzer} free={free} />
 }
 
-function Runner({ lesson, media, analyzer }: { lesson: Lesson & { id: number }; media: Blob | null; analyzer: StepProps['analyzer'] }) {
+interface RunnerProps {
+  lesson: Lesson & { id: number }
+  media: Blob | null
+  analyzer: StepProps['analyzer']
+  /**
+   * Free practice: run this one step outside the schedule. It never completes a round or
+   * moves the resume point; time still counts in stats, and weak sentences still become hard.
+   */
+  free: Step | null
+}
+
+function Runner({ lesson, media, analyzer, free }: RunnerProps) {
   const { t, settings } = useSettings()
-  const round = ROUNDS[lesson.progress.roundsDone]
-  const resume = lesson.resume?.round === lesson.progress.roundsDone ? lesson.resume : null
+  const round: Round | undefined = free ? { index: -1, intervalMs: 0, steps: [free] } : ROUNDS[lesson.progress.roundsDone]
+  const resume = !free && lesson.resume?.round === lesson.progress.roundsDone ? lesson.resume : null
   const [stepIndex, setStepIndex] = useState(resume?.stepIndex ?? 0)
   const [position, setPosition] = useState(resume?.sentenceIndex ?? 0)
   const [finished, setFinished] = useState<LessonProgress | null>(null)
+  const [practiced, setPracticed] = useState(false)
   const player = useMemo(() => createPlayer(media, settings.voiceURI), [media, settings.voiceURI])
   useEffect(() => () => player.dispose(), [player])
 
@@ -69,11 +86,13 @@ function Runner({ lesson, media, analyzer }: { lesson: Lesson & { id: number }; 
     return logStep
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  if (practiced) return <PracticeDone lessonId={lesson.id} />
   if (finished) return <RoundDone progress={finished} lesson={{ ...lesson, progress: finished }} />
   if (!round) return <Navigate to={`/lesson/${lesson.id}`} replace />
 
   const onPosition = (p: number) => {
     setPosition(p)
+    if (free) return
     store.saveResume(lesson.id, { round: round.index, stepIndex, sentenceIndex: p, queue: step === 'hardSentences' ? hardAtStart : undefined })
   }
 
@@ -91,6 +110,12 @@ function Runner({ lesson, media, analyzer }: { lesson: Lesson & { id: number }; 
     logStep()
     if (step === 'intensive') {
       await store.addKnownWords(contentLemmas(lesson.sentences.flatMap((s) => analyzer.tokenize(s.text))))
+    }
+    if (free) {
+      roundOver.current = true
+      player.stop()
+      setPracticed(true)
+      return
     }
     if (stepIndex + 1 >= round.steps.length) {
       roundOver.current = true
@@ -123,7 +148,7 @@ function Runner({ lesson, media, analyzer }: { lesson: Lesson & { id: number }; 
         </Link>
         <div>
           <div className="muted small" lang="ja">
-            {lesson.title} · {t.roundOf(round.index)}
+            {lesson.title} · {free ? t.freePractice : t.roundOf(round.index)}
           </div>
           <h2>{t.steps[step!]}</h2>
         </div>
@@ -173,6 +198,22 @@ function RoundDone({ progress, lesson }: { progress: LessonProgress; lesson: Les
           {t.backToToday}
         </Link>
       </div>
+    </div>
+  )
+}
+
+function PracticeDone({ lessonId }: { lessonId: number }) {
+  const { t } = useSettings()
+  return (
+    <div className="round-done">
+      <div className="seal practice" aria-hidden="true">
+        <Icon name="check" size={48} />
+      </div>
+      <h2>{t.practiceDone}</h2>
+      <p className="muted">{t.practiceDoneHint}</p>
+      <Link className="btn primary" to={`/lesson/${lessonId}`}>
+        {t.back}
+      </Link>
     </div>
   )
 }
