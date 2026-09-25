@@ -28,6 +28,7 @@ const SOURCES: { name: string; use: string; licence: string; href: string }[] = 
   },
   { name: 'Whisper (OpenAI)', use: 'whisper', licence: 'MIT', href: 'https://github.com/openai/whisper' },
   { name: 'Transformers.js', use: 'transformers', licence: 'Apache 2.0', href: 'https://github.com/huggingface/transformers.js' },
+  { name: 'UniDic 3.1.0', use: 'unidic', licence: 'BSD 3-Clause', href: 'https://clrd.ninjal.ac.jp/unidic/en/' },
   { name: 'ts-fsrs', use: 'fsrs', licence: 'MIT', href: 'https://github.com/open-spaced-repetition/ts-fsrs' },
   {
     name: 'Echo Loop',
@@ -65,6 +66,11 @@ export function About() {
       <p className="muted small">
         <a href={`${import.meta.env.BASE_URL}licenses/kuromoji-ipadic-NOTICE.txt`} target="_blank" rel="noreferrer">
           {t.ipadicNotice}
+        </a>
+      </p>
+      <p className="muted small">
+        <a href={`${import.meta.env.BASE_URL}pitch/UNIDIC-LICENSE.txt`} target="_blank" rel="noreferrer">
+          {t.unidicLicence}
         </a>
       </p>
     </div>

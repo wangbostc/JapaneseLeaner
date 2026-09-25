@@ -374,3 +374,11 @@ ruby rt { font-size: 0.5em; color: var(--muted); letter-spacing: 0; }
 .seal.practice { background: var(--accent); }
 .free-practice { margin-top: 8px; }
 .free-practice .section-label { margin-top: 0; }
+/* Pitch accent: overline on high morae, a step down after the accented mora. */
+.pitch { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.pitch-word { display: inline-flex; font-size: 1.15rem; padding-top: 4px; }
+.pitch .mora { padding: 0 1px; border-top: 2px solid transparent; }
+.pitch .mora.hi { border-top-color: var(--shu); }
+.pitch .mora.drop { border-right: 2px solid var(--shu); }
+.pitch .mora.particle { color: var(--muted); opacity: 0.7; margin-left: 2px; }
+.pitch .mora.particle.hi { border-top-style: dashed; }

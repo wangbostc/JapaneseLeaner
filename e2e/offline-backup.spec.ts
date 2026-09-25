@@ -18,6 +18,7 @@ test('works offline after the first visit', async ({ page, context }) => {
   await page.getByRole('button', { name: 'Show text' }).first().click()
   await page.locator('.sentence-card .word').first().click()
   await expect(page.getByTestId('meanings')).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByTestId('pitch')).toBeVisible()
 
   await context.setOffline(true)
   await page.goto('./')
@@ -28,6 +29,7 @@ test('works offline after the first visit', async ({ page, context }) => {
   await page.getByRole('button', { name: 'Show text' }).first().click()
   await page.locator('.sentence-card .word', { hasText: '友達' }).click()
   await expect(page.getByTestId('meanings')).toContainText('friend')
+  await expect(page.getByTestId('pitch')).toContainText('平板') // 友達: flat, from the cached accent table
   await context.setOffline(false)
 })
 
