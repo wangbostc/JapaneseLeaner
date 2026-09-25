@@ -44,7 +44,8 @@ describe('sendDueReminders', () => {
     dispose = t.dispose
     const lesson = (uid: string, roundsDone: number, lastCompletedAt: number | null) =>
       t.env.DB.prepare("INSERT INTO records (uid, kind, data, updated_at, seq) VALUES (?, 'lessons', ?, 0, 1)").bind(uid, JSON.stringify({ uid, progress: { roundsDone, lastCompletedAt } })).run()
-    const sub = (endpoint: string) => t.env.DB.prepare("INSERT INTO push_subscriptions (endpoint, device_id, created_at) VALUES (?, 'd', 0)").bind(endpoint).run()
+    await t.env.DB.prepare("INSERT INTO devices (id, name, token_hash, created_at, last_seen_at) VALUES ('d', 'phone', 'h', 0, 0)").run()
+    const sub = (endpoint: string, device = 'd') => t.env.DB.prepare('INSERT INTO push_subscriptions (endpoint, device_id, created_at) VALUES (?, ?, 0)').bind(endpoint, device).run()
     return { env: t.env, lesson, sub }
   }
 
@@ -75,6 +76,24 @@ describe('sendDueReminders', () => {
     // The next round of the same lesson is a new reminder.
     await env.DB.prepare("UPDATE records SET data = ? WHERE uid = 'due'").bind(JSON.stringify({ progress: { roundsDone: 2, lastCompletedAt: T0 - 25 * H } })).run()
     expect((await sendDueReminders(env, T0, fetcher)).due).toBe(1)
+  })
+
+  it('retries next run when every push failed, and skips subscriptions of unknown devices', async () => {
+    const { env, lesson, sub } = await setup()
+    await lesson('due', 1, T0 - 7 * H)
+    await sub('https://push.example/busy')
+    await sub('https://push.example/orphan', 'revoked-device')
+    const hits: string[] = []
+    let status = 429
+    const fetcher = (async (url: string) => {
+      hits.push(url)
+      return new Response(null, { status })
+    }) as typeof fetch
+    expect(await sendDueReminders(env, T0, fetcher)).toEqual({ due: 1, sent: 0, removed: 0 })
+    expect(hits).toEqual(['https://push.example/busy']) // never the orphan
+    status = 201
+    expect(await sendDueReminders(env, T0 + 15 * 60_000, fetcher)).toEqual({ due: 1, sent: 1, removed: 0 }) // tried again
+    expect((await sendDueReminders(env, T0 + 30 * 60_000, fetcher)).due).toBe(0)
   })
 
   it('does nothing without VAPID keys', async () => {

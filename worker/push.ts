@@ -65,7 +65,8 @@ export async function sendDueReminders(env: Env, now = Date.now(), fetcher: type
   if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY) return { due: 0, sent: 0, removed: 0 }
   const due = await dueReminders(env, now)
   if (!due.length) return { due: 0, sent: 0, removed: 0 }
-  const { results: subs } = await env.DB.prepare('SELECT endpoint FROM push_subscriptions').all<{ endpoint: string }>()
+  // Only subscriptions of devices still allowed in (a revoked device's rows are gone, but be safe).
+  const { results: subs } = await env.DB.prepare('SELECT endpoint FROM push_subscriptions WHERE device_id IN (SELECT id FROM devices)').all<{ endpoint: string }>()
   let sent = 0
   let removed = 0
   for (const { endpoint } of subs) {
@@ -76,7 +77,9 @@ export async function sendDueReminders(env: Env, now = Date.now(), fetcher: type
       removed++
     }
   }
-  // Mark as reminded even if no browser is subscribed yet, so a later subscription doesn't get a backlog.
+  // Mark as reminded once a push got through, or if no browser is subscribed at all (so a later
+  // subscription doesn't get a backlog). If every push failed (429, 5xx, network), try again next run.
+  if (sent === 0 && subs.length - removed > 0) return { due: due.length, sent, removed }
   await env.DB.batch(due.map((d) => env.DB.prepare('INSERT OR IGNORE INTO push_sent (lesson_uid, round, sent_at) VALUES (?, ?, ?)').bind(d.lessonUid, d.round, now)))
   return { due: due.length, sent, removed }
 }

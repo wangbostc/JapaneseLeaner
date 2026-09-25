@@ -35,7 +35,13 @@ export function reminderNotification(reviewsDue: number): { title: string; optio
   return {
     title: 'Kikitori',
     options: {
-      body: reviewsDue === 1 ? '1 review is due. 復習の時間です。' : `${reviewsDue} reviews are due. 復習の時間です。`,
+      // 0: a server push for a lesson this device hasn't synced yet; don't claim a count.
+      body:
+        reviewsDue === 0
+          ? 'Time for a Japanese review. 復習の時間です。'
+          : reviewsDue === 1
+            ? '1 review is due. 復習の時間です。'
+            : `${reviewsDue} reviews are due. 復習の時間です。`,
       tag: REMINDER_TAG, // replaces the previous reminder instead of stacking
       icon: 'favicon.svg',
     },

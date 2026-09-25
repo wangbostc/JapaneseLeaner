@@ -147,6 +147,6 @@ test.describe('notifications', () => {
     await sw.evaluate(() => (self as unknown as ServiceWorkerGlobalScope).dispatchEvent(new PushEvent('push')))
     await expect
       .poll(() => page.evaluate(async () => (await (await navigator.serviceWorker.ready).getNotifications()).map((n) => n.body)))
-      .toEqual(['1 review is due. 復習の時間です。'])
+      .toEqual(['Time for a Japanese review. 復習の時間です。']) // no count this device can't back up
   })
 })

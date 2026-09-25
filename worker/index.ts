@@ -57,8 +57,12 @@ const routes: [string, RegExp, Handler][] = [
     'DELETE',
     /^\/api\/devices\/([\w-]+)$/,
     async (_req, env, _device, [id]) => {
-      const { meta } = await env.DB.prepare('DELETE FROM devices WHERE id = ?').bind(id).run()
-      return meta.changes ? json({ deleted: id }) : error(404, 'no such device')
+      // A revoked device stops getting reminders too.
+      const [, removed] = await env.DB.batch([
+        env.DB.prepare('DELETE FROM push_subscriptions WHERE device_id = ?').bind(id),
+        env.DB.prepare('DELETE FROM devices WHERE id = ?').bind(id),
+      ])
+      return removed.meta.changes ? json({ deleted: id }) : error(404, 'no such device')
     },
   ],
 ]

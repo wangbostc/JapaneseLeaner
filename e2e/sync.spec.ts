@@ -82,12 +82,19 @@ test('a connected device subscribes to server push reminders', async ({ browser 
   // pushManager.subscribe is faked; the key fetch, the POST to the Worker and the UI are real.
   const phone = await newDevice(browser, 'PushPhone')
   await phone.addInitScript(() => {
-    const fake = { endpoint: 'https://push.example/e2e-subscription', toJSON: () => ({ endpoint: 'https://push.example/e2e-subscription', keys: { p256dh: 'x', auth: 'y' } }) }
     let subscribed: unknown = null
+    const w = window as unknown as { __appKey: number; __unsubscribed: number }
+    w.__unsubscribed = 0
     PushManager.prototype.subscribe = async function (opts?: PushSubscriptionOptionsInit) {
-      ;(window as unknown as { __appKey: number }).__appKey = new Uint8Array(opts!.applicationServerKey as ArrayBuffer).length
-      subscribed = fake
-      return fake as unknown as PushSubscription
+      const key = new Uint8Array(opts!.applicationServerKey as ArrayBuffer)
+      w.__appKey = key.length
+      subscribed = {
+        endpoint: 'https://push.example/e2e-subscription',
+        options: { applicationServerKey: key.buffer },
+        toJSON: () => ({ endpoint: 'https://push.example/e2e-subscription', keys: { p256dh: 'x', auth: 'y' } }),
+        unsubscribe: async () => ((subscribed = null), w.__unsubscribed++, true),
+      }
+      return subscribed as PushSubscription
     }
     PushManager.prototype.getSubscription = async () => subscribed as PushSubscription | null
   })
@@ -102,6 +109,13 @@ test('a connected device subscribes to server push reminders', async ({ browser 
   expect(res.request().postDataJSON()).toMatchObject({ endpoint: 'https://push.example/e2e-subscription' })
   expect(await phone.evaluate(() => (window as unknown as { __appKey: number }).__appKey)).toBe(65) // the server's P-256 public key
   await expect(phone.getByTestId('push-row').locator('.ok')).toHaveText('on')
+
+  // Disconnecting tells the server and unsubscribes the browser, so this device stops getting pushes.
+  const removed = phone.waitForResponse((r) => r.url().endsWith('/api/push/subscriptions') && r.request().method() === 'DELETE')
+  await phone.getByRole('button', { name: 'Disconnect this device' }).click()
+  expect((await removed).ok()).toBe(true)
+  expect(await phone.evaluate(() => (window as unknown as { __unsubscribed: number }).__unsubscribed)).toBe(1)
+  await expect(phone.getByTestId('push-row')).toContainText('Connect sync first.')
 })
 
 test('the static build (no server) hides sync entirely', async ({ page }) => {

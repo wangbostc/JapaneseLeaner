@@ -50,7 +50,7 @@ async function checkDue(fromPush = false): Promise<number> {
     // Just try: the worker's view of Notification.permission can lag a grant made after it
     // started, and showNotification fails harmlessly without permission.
     if (reviewsDue || fromPush) {
-      const { title, options } = reminderNotification(Math.max(reviewsDue, 1))
+      const { title, options } = reminderNotification(reviewsDue)
       await self.registration.showNotification(title, options).catch(() => {})
     }
     return reviewsDue
