@@ -38,11 +38,15 @@ describe('/api/ai/explain', () => {
   })
 
   it('validates input and stays off without a key', async () => {
-    expect((await explain(env, { sentence: '', lang: 'en' })).status).toBe(400)
-    expect((await explain(env, { sentence: 'x'.repeat(2001), lang: 'en' })).status).toBe(400)
-    expect((await explain(env, { sentence: 'x', lang: 'fr' })).status).toBe(400)
-    expect((await explain(env, { sentence: 'x', lang: 'en', context: ['y'.repeat(20_001)] })).status).toBe(400)
-    expect((await explain({} as Env, { sentence: 'x', lang: 'en' })).status).toBe(503)
+    const code = async (r: Promise<Response>) => {
+      const res = await r
+      return [res.status, ((await res.json()) as { error: string }).error]
+    }
+    expect(await code(explain(env, { sentence: '', lang: 'en' }))).toEqual([400, 'invalid'])
+    expect(await code(explain(env, { sentence: 'x'.repeat(2001), lang: 'en' }))).toEqual([400, 'tooLong'])
+    expect(await code(explain(env, { sentence: 'x', lang: 'fr' }))).toEqual([400, 'invalid'])
+    expect(await code(explain(env, { sentence: 'x', lang: 'en', context: ['y'.repeat(20_001)] }))).toEqual([400, 'tooLong'])
+    expect(await code(explain({} as Env, { sentence: 'x', lang: 'en' }))).toEqual([503, 'serverOff'])
   })
 })
 
@@ -60,5 +64,6 @@ describe('/api/ai/translate', () => {
     expect(res.status).toBe(502)
     expect(await res.json()).toEqual({ error: 'count' })
     expect((await translate(env, { sentences: [], lang: 'en' })).status).toBe(400)
+    expect(await (await translate(env, { sentences: Array(301).fill('一。'), lang: 'en' })).json()).toEqual({ error: 'tooLong' })
   })
 })

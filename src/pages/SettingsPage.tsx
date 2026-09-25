@@ -257,6 +257,11 @@ export function SettingsPage() {
       ) : (
         <p className="muted small">{t.aiHint}</p>
       )}
+      {serverAi && aiKey && (
+        <button className="btn" onClick={() => setAiKey('')}>
+          {t.aiClearOld}
+        </button>
+      )}
       {serverAi ? null : aiKey ? (
         <div className="row">
           <code className="key-mask">{`${aiKey.slice(0, 7)}…${aiKey.slice(-4)}`}</code>

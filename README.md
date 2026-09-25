@@ -145,7 +145,7 @@ pnpm worker:smoke   # CI check: app shell, service worker, R2-served files, auth
 3. Create the bucket: `pnpm exec wrangler r2 bucket create kikitori-files`.
 4. Set a setup code: `pnpm exec wrangler secret put SETUP_CODE`. Use a long random one, such as `openssl rand -base64 24`. The guess limit is per IP, so the code's strength is the real protection.
 5. For push reminders, generate VAPID keys with `node scripts/vapid-keys.mjs`, then set them: `pnpm exec wrangler secret put VAPID_PUBLIC_KEY` and `pnpm exec wrangler secret put VAPID_PRIVATE_KEY`.
-6. For AI explanations and translations, store an Anthropic key on the server: `pnpm exec wrangler secret put ANTHROPIC_API_KEY`. Connected devices then use it, and no key is kept in any browser.
+6. For AI explanations and translations, store an Anthropic key on the server: `pnpm exec wrangler secret put ANTHROPIC_API_KEY`. Connected devices then use it, and no key is kept in any browser. (`ANTHROPIC_BASE_URL` is a test-only hook; never set it in production, because the key would be sent wherever it points.)
 7. For automatic deploys, set the `CLOUDFLARE_API_TOKEN` (Workers, D1 and R2 edit) and `CLOUDFLARE_ACCOUNT_ID` repository secrets. Until they exist, `.github/workflows/deploy-worker.yml` skips.
 
 ## Development

@@ -33,7 +33,7 @@ const routes: [string, RegExp, Handler][] = [
     },
   ],
   ['GET', /^\/api\/ai$/, async (_req, env) => json({ enabled: aiEnabled(env) })],
-  ['POST', /^\/api\/ai\/explain$/, async (req, env) => explain(env, await readJson(req))],
+  ['POST', /^\/api\/ai\/explain$/, async (req, env) => explain(env, await readJson(req), undefined, req.signal)],
   ['POST', /^\/api\/ai\/translate$/, async (req, env) => translate(env, await readJson(req))],
   ['GET', /^\/api\/push\/key$/, async (_req, env) => (env.VAPID_PUBLIC_KEY ? json({ key: env.VAPID_PUBLIC_KEY }) : error(503, 'push is not configured'))],
   ['POST', /^\/api\/push\/subscriptions$/, async (req, env, device) => subscribe(env, device.id, await readJson(req))],

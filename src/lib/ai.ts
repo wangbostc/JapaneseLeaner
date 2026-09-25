@@ -22,7 +22,23 @@ export function createAiClient(apiKey: string): Anthropic {
 }
 
 /** Failure kinds the UI translates; see `aiErrors` in i18n. */
-export type AiErrorCode = 'refusal' | 'tooLong' | 'unreadable' | 'count' | 'auth' | 'rateLimit' | 'offline' | 'api' | 'unknown'
+export type AiErrorCode =
+  | 'refusal'
+  | 'tooLong'
+  | 'unreadable'
+  | 'count'
+  | 'auth'
+  | 'rateLimit'
+  | 'offline'
+  | 'api'
+  | 'unknown'
+  // Server mode:
+  | 'serverOff'
+  | 'serverKey'
+  | 'reconnect'
+  | 'invalid'
+
+export const AI_ERROR_CODES: readonly AiErrorCode[] = ['refusal', 'tooLong', 'unreadable', 'count', 'auth', 'rateLimit', 'offline', 'api', 'unknown', 'serverOff', 'serverKey', 'reconnect', 'invalid']
 
 export class AiError extends Error {
   code: AiErrorCode
