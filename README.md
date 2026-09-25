@@ -155,6 +155,8 @@ Browser storage belongs to one web address, so lessons and progress on the old s
 1. Deploy the Worker (above), connect a device, and check the new address works.
 2. Set the repository variable `KIKITORI_URL` to the new address (Settings → Secrets and variables → Actions → Variables). The next Pages deploy then shows a **"Kikitori has moved"** banner with an **Export backup** button and a link to the new address.
 3. On each device: export a backup on the old site, open the new address, restore the backup in Settings, and connect sync. If you added the old site to your Home Screen, add the new one and remove the old.
+
+   The old site updates itself in the background, so the banner may only appear after one more reload (or after closing and reopening a Home Screen app). Start with the device you've practised on most. Each device's own lessons have their own ids and merge through sync. The built-in samples share ids on every device, so their review history merges too: progress only goes forward, and the latest review of a card wins.
 4. Once everything has moved, you can switch off GitHub Pages.
 
 ## Development
