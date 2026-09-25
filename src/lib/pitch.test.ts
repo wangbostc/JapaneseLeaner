@@ -89,10 +89,13 @@ describe('the committed accent table', () => {
       ['歯が痛い。', '歯', 1],
       ['橋を渡る。', '橋', 2],
       ['毎朝起きます。', '起き', 2],
+      ['それはいいね。', 'いい', 1], // lemma 良い in UniDic, lForm ヨイ
+      ['彼を信じる。', '信じる', 3], // UniDic's lemma is 信ずる
     ]
     for (const [sentence, surface, expected] of cases) {
       const token = a.tokenize(sentence).find((t) => t.surface === surface)!
-      expect({ sentence, types: table.lookup(token.lemma, readingOf(a, token.lemma), token.pos) }).toEqual({ sentence, types: [expected] })
+      // The first type is the one the word sheet draws; some words list alternates (信じる 3,0).
+      expect({ sentence, shown: table.lookup(token.lemma, readingOf(a, token.lemma), token.pos)?.[0] }).toEqual({ sentence, shown: expected })
     }
   })
 })

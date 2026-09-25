@@ -36,6 +36,13 @@ function splitCsv(line) {
   return out
 }
 
+/** kanaBase is lForm with only its first kana voiced (カス → ガス, ハシ → バシ/パシ). */
+function isRendaku(kanaBase, lForm) {
+  if (!kanaBase || kanaBase === lForm || kanaBase.slice(1) !== lForm.slice(1)) return false
+  const [k, l] = [kanaBase[0].normalize('NFD'), lForm[0].normalize('NFD')]
+  return k === l + '\u3099' || k === l + '\u309a'
+}
+
 const toHiragana = (s) => s.replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60))
 
 // The words we can show: every written form of JMdict's common entries, with their readings.
@@ -66,8 +73,9 @@ for await (const line of rl) {
   if (f[COL.pos1] === '補助記号' || f[COL.pos1] === '記号') continue
   // Proper nouns share spellings with common words (橋 the surname is 1, 橋 the bridge is 2).
   if (f[COL.pos2] === '固有名詞') continue
-  // Sound-changed variants (貸す read がす after rendaku) aren't the word's own reading.
-  if (f[COL.kanaBase] !== f[COL.lForm]) continue
+  // Rendaku variants (貸す as がす in a compound) aren't the word's own reading. Only a voiced
+  // first kana counts: lForm also differs for spelling variants and ずる-lemma verbs (信じる).
+  if (isRendaku(f[COL.kanaBase], f[COL.lForm])) continue
   const key = `${f[COL.orthBase]}|${toHiragana(f[COL.kanaBase])}`
   if (!wanted.has(key)) continue
   const pos = f[COL.pos1]
