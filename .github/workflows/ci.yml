@@ -18,6 +18,8 @@ jobs:
       - run: pnpm test
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm exec playwright test
+      # The Worker (API + static assets + R2-served large files) under wrangler dev, locally.
+      - run: pnpm worker:smoke
       - uses: actions/upload-artifact@v4
         if: always()
         with:
