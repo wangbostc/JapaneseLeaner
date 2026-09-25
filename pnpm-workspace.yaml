@@ -1,7 +1,8 @@
 # Install scripts pnpm asks about. The app runs Whisper in the browser (onnxruntime-web),
-# so the native Node runtime and protobufjs's postinstall aren't needed.
+# so the native Node runtime and protobufjs's postinstall aren't needed. esbuild and workerd
+# are wrangler's bundler and local Workers runtime; their scripts verify platform binaries.
 allowBuilds:
-  esbuild: set this to true or false
+  esbuild: true
   onnxruntime-node: false
   protobufjs: false
-  workerd: set this to true or false
+  workerd: true
