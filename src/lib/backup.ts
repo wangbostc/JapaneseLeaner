@@ -123,7 +123,9 @@ export async function restoreBackup(db: KikitoriDB, backup: Backup, now = Date.n
     await db.media.bulkAdd(media)
     await db.lessons.bulkAdd(touch(backup.lessons))
     await db.cards.bulkAdd(touch(backup.cards.map(reviveCard)))
-    await db.logs.bulkAdd(backup.logs)
+    // v1 logs predate lessonUid; name their lessons from the restored rows (ids are preserved).
+    const uidById = new Map((await db.lessons.toArray()).map((l) => [l.id!, l.uid!]))
+    await db.logs.bulkAdd(backup.logs.map((l) => ({ ...l, lessonUid: l.lessonUid !== undefined ? l.lessonUid : (uidById.get(l.lessonId) ?? null) })))
     await db.words.bulkAdd(backup.words)
     if (backup.deletions?.length) await db.deletions.bulkAdd(backup.deletions)
   })

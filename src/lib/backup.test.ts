@@ -39,17 +39,22 @@ describe('backup', () => {
       format: 'kikitori-backup',
       version: 1,
       exportedAt: T0,
-      lessons: [{ id: 1, title: 'old', sentences: [{ text: 'はい。' }], hard: [], progress: { roundsDone: 2, lastCompletedAt: T0 }, resume: null, createdAt: T0 }],
+      lessons: [
+        { id: 1, title: 'old', sentences: [{ text: 'はい。' }], hard: [], progress: { roundsDone: 2, lastCompletedAt: T0 }, resume: null, createdAt: T0 },
+        { id: 2, title: '私の朝', builtIn: true, sentences: [{ text: 'はい。' }], hard: [], progress: { roundsDone: 0, lastCompletedAt: null }, resume: null, createdAt: T0 },
+      ],
       media: [],
       cards: [{ id: 1, lessonId: 1, kind: 'word', front: 'はい', reading: 'はい', context: 'はい。', card: { due: new Date(T0).toISOString() } }],
-      logs: [],
+      logs: [{ id: 1, lessonId: 1, step: 'intensive', mode: 'input', ms: 60000, at: T0 }],
       words: [],
     })
     const dst = fresh('v1')
     await restoreBackup(dst, parseBackup(v1), T0 + 5)
-    const [l] = await dst.lessons.toArray()
+    const [l, sample] = await dst.lessons.orderBy('id').toArray()
     expect(l.uid).toMatch(/^[0-9a-f-]{36}$/)
     expect(l).toMatchObject({ title: 'old', progress: { roundsDone: 2 }, updatedAt: T0 + 5 })
+    expect(sample.uid).toBe('sample:私の朝') // not a random uid that would duplicate it on other devices
+    expect((await dst.logs.toArray())[0].lessonUid).toBe(l.uid)
     expect((await dst.cards.toArray())[0].uid).toMatch(/^[0-9a-f-]{36}$/)
   })
 

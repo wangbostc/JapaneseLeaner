@@ -40,7 +40,7 @@ describe('schema v2 upgrade', () => {
     const [card] = await db.cards.toArray()
     expect(card).toMatchObject({ updatedAt: T0 + 5, lessonId: 2 })
     expect(card.uid).toMatch(UUID)
-    expect((await db.logs.toArray())[0]).toMatchObject({ updatedAt: T0 + 9 })
+    expect((await db.logs.toArray())[0]).toMatchObject({ updatedAt: T0 + 9, lessonUid: sampleUid('私の朝') })
     expect((await db.media.toArray())[0].uid).toMatch(UUID)
     db.close()
   })
@@ -69,6 +69,30 @@ describe('sync bookkeeping', () => {
     await seedOnce(s)
     const uids = (await s.db.lessons.toArray()).map((l) => l.uid)
     expect(uids).toEqual(['sample:私の朝', 'sample:週末のカフェ', 'sample:雨の日の過ごし方'])
+    // The oldest possible version: a tombstone from another device always beats it.
+    expect((await s.db.lessons.toArray()).map((l) => l.updatedAt)).toEqual([0, 0, 0])
+    s.db.close()
+  })
+
+  it('gives built-in samples their shared uid however they are created', async () => {
+    const db = new KikitoriDB(fresh())
+    await db.lessons.bulkAdd([
+      { title: '私の朝', builtIn: true, sentences: [], progress: { roundsDone: 0, lastCompletedAt: null }, resume: null, hard: [], createdAt: T0 },
+      { title: 'mine', sentences: [], progress: { roundsDone: 0, lastCompletedAt: null }, resume: null, hard: [], createdAt: T0 },
+    ])
+    const [sample, mine] = await db.lessons.orderBy('id').toArray()
+    expect(sample.uid).toBe(sampleUid('私の朝'))
+    expect(mine.uid).toMatch(UUID)
+    db.close()
+  })
+
+  it('logs remember their lesson uid, so they still name it after the lesson is deleted', async () => {
+    const s = createStore(new KikitoriDB(fresh()))
+    const id = await s.createLesson({ title: 't', sentences: [] }, T0)
+    const { uid } = (await s.db.lessons.get(id))!
+    await s.log({ lessonId: id, step: 'intensive', mode: 'input', ms: 1000, at: T0 })
+    await s.deleteLesson(id, T0 + 1)
+    expect((await s.db.logs.toArray())[0].lessonUid).toBe(uid)
     s.db.close()
   })
 

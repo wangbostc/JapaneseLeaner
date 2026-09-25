@@ -20,7 +20,16 @@ export function createStore(database: KikitoriDB = db) {
     db: database,
 
     async createLesson(
-      input: { title: string; sentences: Sentence[]; level?: string; media?: { blob: Blob; name: string }; builtIn?: boolean; uid?: string },
+      input: {
+        title: string
+        sentences: Sentence[]
+        level?: string
+        media?: { blob: Blob; name: string }
+        builtIn?: boolean
+        uid?: string
+        /** Defaults to `now`; seeding uses 0 so a sample deleted on another device stays deleted. */
+        updatedAt?: number
+      },
       now = Date.now(),
     ) {
       const mediaId = input.media ? ((await database.media.add(input.media)) as number) : undefined
@@ -35,7 +44,7 @@ export function createStore(database: KikitoriDB = db) {
         createdAt: now,
         builtIn: input.builtIn,
         uid: input.uid,
-        updatedAt: now,
+        updatedAt: input.updatedAt ?? now,
       })) as number
     },
 
@@ -136,7 +145,11 @@ export function createStore(database: KikitoriDB = db) {
       await database.cards.update(id, { card: review(c.card, grade, new Date(now)) })
     },
 
-    log: (entry: Omit<PracticeLog, 'id'>) => (entry.ms > 0 ? database.logs.add(entry) : Promise.resolve(undefined)),
+    async log(entry: Omit<PracticeLog, 'id' | 'lessonUid'>) {
+      if (entry.ms <= 0) return undefined
+      const lesson = await database.lessons.get(entry.lessonId)
+      return database.logs.add({ ...entry, lessonUid: lesson?.uid ?? null })
+    },
 
     async addKnownWords(lemmas: Iterable<string>, now = Date.now()) {
       const existing = new Set((await database.words.toCollection().primaryKeys()) as string[])

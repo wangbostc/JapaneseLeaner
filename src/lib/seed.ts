@@ -14,5 +14,7 @@ export async function seedOnce(store: Store) {
   }
   if (await store.db.lessons.count()) return
   let t = Date.now()
-  for (const lesson of sampleLessons()) await store.createLesson({ ...lesson, uid: sampleUid(lesson.title) }, t++)
+  // updatedAt 0: a sample is the oldest possible version, so a deletion synced from another
+  // device always wins over this fresh copy instead of resurrecting it.
+  for (const lesson of sampleLessons()) await store.createLesson({ ...lesson, uid: sampleUid(lesson.title), updatedAt: 0 }, t++)
 }
