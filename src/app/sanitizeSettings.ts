@@ -13,6 +13,7 @@ export function sanitizeSettings(input: unknown): Partial<Settings> {
   if (typeof raw.lang === 'string' && Object.hasOwn(STRINGS, raw.lang)) out.lang = raw.lang as Settings['lang']
   if (typeof raw.furigana === 'boolean') out.furigana = raw.furigana
   if (typeof raw.translation === 'boolean') out.translation = raw.translation
+  if (typeof raw.chunks === 'boolean') out.chunks = raw.chunks
   if (typeof raw.rate === 'number' && Number.isFinite(raw.rate)) out.rate = Math.min(2, Math.max(0.5, raw.rate))
   // An explicit undefined means "back to the default voice".
   if (typeof raw.voiceURI === 'string' || (Object.hasOwn(raw, 'voiceURI') && raw.voiceURI === undefined)) out.voiceURI = raw.voiceURI as string | undefined

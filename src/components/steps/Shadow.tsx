@@ -65,7 +65,16 @@ function ShadowSentence({ lesson, analyzer, player, onPosition, onDone, indices,
         {lesson.hard.includes(i) && <span className="pill hard">{t.markHard}</span>}
       </div>
       <div className="sentence-card">
-        <JapaneseText className="jp-large" text={s.text} analyzer={analyzer} furigana={settings.furigana} />
+        <JapaneseText
+          className="jp-large"
+          text={s.text}
+          analyzer={analyzer}
+          furigana={settings.furigana}
+          chunked={settings.chunks}
+          onPlayGroup={lesson.mediaId ? undefined : (text) => player.play({ start: null, end: null, text }, settings.rate)}
+          playLabel={t.playChunk}
+              uiLang={settings.lang}
+        />
         {settings.translation && s.translations?.[settings.lang] && <p className="translation">{s.translations[settings.lang]}</p>}
       </div>
 

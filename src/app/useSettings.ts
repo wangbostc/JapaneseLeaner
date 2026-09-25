@@ -6,6 +6,8 @@ export interface Settings {
   lang: UiLang
   furigana: boolean
   translation: boolean
+  /** Show 文節/意群 divisions in sentences. */
+  chunks: boolean
   rate: number
   voiceURI?: string
 }

@@ -9,6 +9,7 @@ const defaults = (): Settings => ({
   lang: typeof navigator !== 'undefined' && navigator.language.startsWith('zh') ? 'zh' : 'en',
   furigana: true,
   translation: true,
+  chunks: true,
   rate: 1,
 })
 

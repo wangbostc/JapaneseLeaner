@@ -83,6 +83,10 @@ export function SettingsPage() {
         <input type="checkbox" checked={settings.translation} onChange={(e) => update({ translation: e.target.checked })} />
         {t.settingsTranslation}
       </label>
+      <label className="toggle">
+        <input type="checkbox" checked={settings.chunks} onChange={(e) => update({ chunks: e.target.checked })} />
+        {t.settingsChunks}
+      </label>
       <label>
         {t.settingsRate}: {settings.rate.toFixed(2)}×
         <input type="range" min={0.6} max={1.4} step={0.05} value={settings.rate} onChange={(e) => update({ rate: Number(e.target.value) })} />

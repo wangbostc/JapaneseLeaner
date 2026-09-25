@@ -362,3 +362,11 @@ ruby rt { font-size: 0.5em; color: var(--muted); letter-spacing: 0; }
 .transcribe { background: var(--surface-2); border-radius: var(--radius); padding: 12px 14px; }
 .transcribe .section-label { margin-top: 0; }
 .transcribe select { width: auto !important; }
+
+/* 文節 get a hairline gap; 意群 in long sentences are separated by a slash. */
+.chunked .phrase { margin-right: 0.35em; white-space: nowrap; } /* a gap between phrases; lines break between them, never inside one */
+.chunked .sense-group + .sense-group::before { content: '／'; color: var(--shu); margin: 0 0.15em; font-weight: 400; }
+.play-group {
+  font-size: 0.55em; vertical-align: middle; border: 0; background: var(--accent-soft); color: var(--accent);
+  border-radius: 999px; width: 1.8em; height: 1.8em; margin: 0 0.25em; cursor: pointer; line-height: 1;
+}
