@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { relativeTime } from '../app/i18n'
 import { useAiKey } from '../app/aiKey'
+import { translateViaServer, useServerAi } from '../app/serverAi'
 import { useSettings } from '../app/useSettings'
 import { useAnalyzer } from '../app/useAnalyzer'
 import { AddToCalendar } from '../components/AddToCalendar'
@@ -23,6 +24,7 @@ export function LessonPage() {
   const [confirming, setConfirming] = useState(false)
   const [now] = useState(() => Date.now())
   const aiKey = useAiKey()
+  const serverAi = useServerAi()
   const [translating, setTranslating] = useState(false)
   const [aiError, setAiError] = useState<AiErrorCode | null>(null)
   if (!lesson) return null
@@ -35,7 +37,8 @@ export function LessonPage() {
     try {
       // Loaded on demand: learners without a key never download the SDK.
       ai = await import('../lib/ai')
-      const out = await ai.translateSentences(ai.createAiClient(aiKey), lesson.sentences.map((s) => s.text), settings.lang)
+      const texts = lesson.sentences.map((s) => s.text)
+      const out = serverAi ? await translateViaServer(texts, settings.lang) : await ai.translateSentences(ai.createAiClient(aiKey), texts, settings.lang)
       await store.setTranslations(lesson.id!, settings.lang, out)
     } catch (e) {
       // No module means the chunk itself failed to load (offline, or replaced by a deploy).
@@ -86,7 +89,7 @@ export function LessonPage() {
         </div>
       )}
 
-      {aiKey && missingTranslation && (
+      {(serverAi || aiKey) && missingTranslation && (
         <div className="row">
           <button className="btn" onClick={translate} disabled={translating}>
             ✦ {translating ? t.translating : t.translateAi}

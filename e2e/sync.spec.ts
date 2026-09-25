@@ -118,6 +118,36 @@ test('a connected device subscribes to server push reminders', async ({ browser 
   await expect(phone.getByTestId('push-row')).toContainText('Connect sync first.')
 })
 
+test('a connected device uses the server for AI, with no key in the browser', async ({ browser }) => {
+  const phone = await newDevice(browser, 'AiPhone')
+  await expect(phone.getByTestId('server-ai')).toBeVisible()
+  await expect(phone.getByLabel('Anthropic API key')).toHaveCount(0)
+
+  await phone.goto('./#/import')
+  await phone.getByRole('textbox', { name: /^Title/ }).fill('AIテスト')
+  await phone.getByRole('textbox', { name: /^Transcript/ }).fill('はじめまして。よろしく。')
+  await phone.getByRole('button', { name: 'Create lesson' }).click()
+  await phone.getByRole('button', { name: /Translate with AI/ }).click()
+  await expect(phone.locator('.transcript .translation')).toHaveText(['server translation 1', 'server translation 2'])
+
+  await phone.getByRole('link', { name: 'Start' }).click()
+  await phone.getByRole('button', { name: 'Show text' }).first().click()
+  await phone.getByRole('button', { name: /Explain/ }).click()
+  await expect(phone.getByTestId('explanation')).toHaveText('（サーバー経由）explained by the server.')
+  expect(await phone.evaluate(() => localStorage.getItem('kikitori.anthropicKey'))).toBeNull()
+})
+
+test('translates a long lesson through the server in batches', async ({ browser }) => {
+  const phone = await newDevice(browser, 'LongPhone')
+  await phone.goto('./#/import')
+  await phone.getByRole('textbox', { name: /^Title/ }).fill('長いレッスン')
+  await phone.getByRole('textbox', { name: /^Transcript/ }).fill(Array.from({ length: 320 }, (_, i) => `文${i}です。`).join('\n'))
+  await phone.getByRole('button', { name: 'Create lesson' }).click()
+  await phone.getByRole('button', { name: /Translate with AI/ }).click()
+  // 320 sentences > the server's 300 per request: two batches, every sentence translated.
+  await expect(phone.locator('.transcript .translation')).toHaveCount(320)
+})
+
 test('the static build (no server) hides sync entirely', async ({ page }) => {
   await page.goto('http://localhost:' + (process.env.E2E_PORT ?? '4173') + '/#/settings')
   await expect(page.getByRole('heading', { name: 'Reminders' })).toBeVisible()
