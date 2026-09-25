@@ -4,6 +4,9 @@
   "name": "kikitori",
   "main": "worker/index.ts",
   "compatibility_date": "2026-09-01",
+  // Without this flag Workers never aborts request.signal when the client disconnects,
+  // so a closed explain stream would keep the upstream Anthropic call (and its cost) running.
+  "compatibility_flags": ["enable_request_signal"],
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
