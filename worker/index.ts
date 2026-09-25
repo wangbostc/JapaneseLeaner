@@ -1,5 +1,6 @@
 import { authenticate, registerDevice, type Device } from './auth'
 import type { Env } from './env'
+import { BadRequest, getMedia, parseSyncRequest, putMedia, sync } from './sync'
 
 const json = (body: unknown, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } })
 const error = (status: number, message: string) => json({ error: message }, status)
@@ -17,6 +18,20 @@ type Handler = (request: Request, env: Env, device: Device, params: string[]) =>
 
 /** Authenticated routes: method + path pattern. */
 const routes: [string, RegExp, Handler][] = [
+  [
+    'POST',
+    /^\/api\/sync$/,
+    async (req, env) => {
+      try {
+        return json(await sync(env, parseSyncRequest(await readJson(req))))
+      } catch (e) {
+        if (e instanceof BadRequest) return error(400, e.message)
+        throw e
+      }
+    },
+  ],
+  ['PUT', /^\/api\/media\/([\w:-]+)$/, (req, env, _device, [uid]) => putMedia(env, uid, req)],
+  ['GET', /^\/api\/media\/([\w:-]+)$/, (_req, env, _device, [uid]) => getMedia(env, uid)],
   ['GET', /^\/api\/me$/, async (_req, _env, device) => json({ device })],
   [
     'GET',

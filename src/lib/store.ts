@@ -33,11 +33,13 @@ export function createStore(database: KikitoriDB = db) {
       now = Date.now(),
     ) {
       const mediaId = input.media ? ((await database.media.add(input.media)) as number) : undefined
+      const mediaUid = mediaId ? (await database.media.get(mediaId))?.uid : undefined
       return (await database.lessons.add({
         title: input.title,
         level: input.level,
         sentences: input.sentences,
         mediaId,
+        mediaUid,
         progress: { roundsDone: 0, lastCompletedAt: null },
         resume: null,
         hard: [],

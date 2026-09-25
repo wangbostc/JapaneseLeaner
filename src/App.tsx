@@ -2,6 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect } from 'react'
 import { HashRouter, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import { registerBackgroundCheck, updateBadge } from './app/reminders'
+import { startAutoSync } from './app/sync'
 import { useSettings } from './app/useSettings'
 import { db } from './lib/db'
 import { ErrorBoundary } from './components/ErrorBoundary'
@@ -80,6 +81,8 @@ export function App() {
     navigator.storage?.persist?.().catch(() => {})
     // Picks up an install that happened after notifications were allowed.
     registerBackgroundCheck()
+    // Only does anything where the server exists (the Worker build), and once this device is connected.
+    void startAutoSync()
   }, [])
   return (
     <HashRouter>

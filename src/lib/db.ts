@@ -1,4 +1,4 @@
-import Dexie, { type EntityTable } from 'dexie'
+import Dexie, { type EntityTable, type Transaction } from 'dexie'
 import type { LessonProgress, Step } from './schedule'
 import type { Cue } from './subtitles'
 import type { Card } from './srs'
@@ -32,6 +32,8 @@ export interface Lesson extends Partial<Synced> {
   sentences: Sentence[]
   /** Id into `media`; absent for text-only lessons voiced by TTS. */
   mediaId?: number
+  /** The audio's uid: lets a synced lesson find its audio once that has downloaded. */
+  mediaUid?: string
   progress: LessonProgress
   resume: Resume | null
   /** Sentence indices the learner marked as hard. */
@@ -88,6 +90,17 @@ export interface Deletion {
 export const sampleUid = (title: string) => `sample:${title}`
 
 const newUid = () => crypto.randomUUID()
+
+const SYNC_APPLY = Symbol('syncApply')
+
+/** Marks a transaction as applying server changes: the stamping hooks leave updatedAt alone. */
+export function markSyncApply(trans: Transaction) {
+  ;(trans as unknown as Record<symbol, boolean>)[SYNC_APPLY] = true
+}
+const isSyncApply = (trans: Transaction) => (trans as unknown as Record<symbol, boolean>)[SYNC_APPLY] === true
+
+/** Fields that only mean something on this device and never travel. */
+const LOCAL_ONLY = new Set(['mediaId', 'lessonId'])
 
 export class KikitoriDB extends Dexie {
   lessons!: EntityTable<Lesson, 'id'>
@@ -155,7 +168,14 @@ export class KikitoriDB extends Dexie {
         obj.uid ??= sample ? sampleUid((obj as Lesson).title) : newUid()
         obj.updatedAt ??= Date.now()
       })
-      table.hook('updating', (mods) => ('updatedAt' in mods ? undefined : { updatedAt: Date.now() }))
+      table.hook('updating', (mods, _key, _obj, trans) => {
+        // Writes that apply the server's version keep its updatedAt, even when unchanged.
+        if (isSyncApply(trans)) return undefined
+        // Changes to device-local fields (which audio row a lesson points at) aren't edits to sync.
+        const keys = Object.keys(mods)
+        if ('updatedAt' in mods || keys.every((k) => LOCAL_ONLY.has(k))) return undefined
+        return { updatedAt: Date.now() }
+      })
     }
   }
 }

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { setAiKey, useAiKey } from '../app/aiKey'
+import { relativeTime } from '../app/i18n'
+import { connect, disconnect, syncNow, useSyncStatus } from '../app/sync'
 import { backgroundRemindersOn, enableReminders, registerBackgroundCheck, reminderSupport, type ReminderSupport } from '../app/reminders'
 import { sanitizeSettings } from '../app/sanitizeSettings'
 import { Link } from 'react-router-dom'
@@ -27,6 +29,16 @@ export function SettingsPage() {
     const r = await enableReminders()
     setPermission(r.permission)
     setBackground(r.background)
+  }
+  const sync = useSyncStatus()
+  const [setupCode, setSetupCode] = useState('')
+  const [deviceName, setDeviceName] = useState(() => (/iPhone|iPad/.test(navigator.userAgent) ? 'iPhone' : /Android/.test(navigator.userAgent) ? 'Android' : 'Computer'))
+  const [connectError, setConnectError] = useState('')
+  const connectDevice = async () => {
+    setConnectError('')
+    const r = await connect(setupCode, deviceName.trim())
+    if (r.ok) setSetupCode('')
+    else setConnectError(r.message)
   }
   const aiKey = useAiKey()
   const [keyDraft, setKeyDraft] = useState('')
@@ -120,6 +132,47 @@ export function SettingsPage() {
           </select>
         )}
       </label>
+
+      {sync.kind !== 'unavailable' && (
+        <section className="form" data-testid="sync-section" aria-labelledby="sync-title">
+          <h2 className="section-label" id="sync-title">
+            {t.syncTitle}
+          </h2>
+          <p className="muted small">{t.syncHint}</p>
+          {sync.kind === 'disconnected' ? (
+            <>
+              <label>
+                {t.syncSetupCode}
+                <input type="password" autoComplete="off" value={setupCode} onChange={(e) => setSetupCode(e.target.value)} />
+              </label>
+              <label>
+                {t.syncDeviceName}
+                <input value={deviceName} onChange={(e) => setDeviceName(e.target.value)} maxLength={80} />
+              </label>
+              <button className="btn primary" disabled={!setupCode || !deviceName.trim()} onClick={connectDevice}>
+                {t.syncConnect}
+              </button>
+              {connectError && <p className="error small">{connectError}</p>}
+            </>
+          ) : (
+            <>
+              <p className="ok small">{t.syncConnected(sync.device)}</p>
+              <p className="muted small" role="status" data-testid="sync-status">
+                {sync.kind === 'syncing' ? t.syncing : sync.lastSyncedAt ? t.syncLast(relativeTime(settings.lang, sync.lastSyncedAt)) : t.syncNever}
+                {sync.kind === 'error' && <span className="error"> {t.syncFailed}</span>}
+              </p>
+              <div className="row">
+                <button className="btn" onClick={() => void syncNow()} disabled={sync.kind === 'syncing'}>
+                  {t.syncNow}
+                </button>
+                <button className="btn" onClick={() => void disconnect()}>
+                  {t.syncDisconnect}
+                </button>
+              </div>
+            </>
+          )}
+        </section>
+      )}
 
       <h2 className="section-label">{t.remindersTitle}</h2>
       <p className="muted small">{t.remindersHint}</p>

@@ -31,6 +31,6 @@ export default defineConfig({
   test: {
     environment: 'node',
     setupFiles: ['src/test/setup.ts'],
-    include: ['src/**/*.test.{ts,tsx}', 'worker/**/*.test.ts'],
+    include: ['src/**/*.test.{ts,tsx}', 'worker/**/*.test.ts', 'integration/**/*.test.ts'],
   },
 })
