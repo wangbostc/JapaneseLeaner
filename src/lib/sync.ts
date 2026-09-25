@@ -296,5 +296,8 @@ export async function syncOnce(db: KikitoriDB, api: Api, state: SyncState, now =
   } finally {
     hooks.applying?.(false)
   }
-  return { pushed, pulled, state: { since, pushedAt: startedAt, uploaded: [...uploaded], pendingDownloads } }
+  // One ms before the start: a write in the same millisecond as the gather but after it would
+  // otherwise fall on the cursor and never be pushed (gathering is strictly `> pushedAt`).
+  // Re-sending a same-ms change is harmless: pushes are idempotent and syncedVersion skips it.
+  return { pushed, pulled, state: { since, pushedAt: startedAt - 1, uploaded: [...uploaded], pendingDownloads } }
 }

@@ -324,4 +324,27 @@ describe('sync between two devices', () => {
       expect(await byTitle(d.db, 'N')).toBeUndefined()
     }
   })
+
+  it('pushes a change made in the same millisecond the sync started', async () => {
+    const env = await server()
+    const a = await device(env, 'a')
+    const b = await device(env, 'b')
+    const id = await a.store.createLesson({ title: 'S', sentences: [] }, 1000)
+    await a.sync()
+    await b.sync()
+    const T = Date.now() + 10_000
+    const { syncOnce: run } = await import('../src/lib/sync')
+    let fired = false
+    const api: Api = async (path, init) => {
+      if (path === '/api/sync' && !fired) {
+        fired = true
+        await a.store.deleteLesson(id, T) // after the gather, stamped exactly at the start time
+      }
+      return apiFor(a)(path, init)
+    }
+    a.setState((await run(a.db, api, a.state(), () => T)).state)
+    await a.sync()
+    await b.sync()
+    expect(await byTitle(b.db, 'S')).toBeUndefined()
+  })
 })
