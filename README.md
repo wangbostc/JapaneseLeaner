@@ -41,6 +41,11 @@ review pushes every later one back. Due reviews are listed before new lessons.
 - **意群 chunking.** Sentences are split into 文節 (natural phrases) using kuromoji's part-of-speech tags: a word plus its particles and auxiliaries, with compounds, prefixes and サ変 verbs kept together. Long sentences (20+ characters) are also split into sense units at commas and clause-linking particles (て, が, けど, から, ので, ば, たら, ながら…) and shown with a ／ between them. In text-only lessons each unit has its own play button; imported audio has no timings per chunk, so it gets none. You can turn this off in Settings.
 - **Flashcards in context.** Tap any word to save its dictionary form along with
   the sentence it came from. Cards are scheduled with FSRS (`ts-fsrs`).
+- **Reminders (best effort, no server).**
+  - **Calendar:** *Add next review to calendar* (on the round-complete screen and the lesson page) saves an .ics event with an alarm at the exact due time. It works on every device, and it's the most reliable option.
+  - **Background check:** an installed app in Chrome or Edge on Android or desktop can check for due reviews in the background (Periodic Background Sync) and notify you. The browser decides how often, often every 12 hours or more.
+  - **Badge:** the installed app shows the due count on its icon, and Today moves a review to *Due now* the moment it comes due.
+  - iOS can't notify a closed web app without a push server. Use the calendar there.
 - **Stats:** practice time, the listening/speaking split, unique words met, and
   your day streak.
 
@@ -141,6 +146,5 @@ itself, so it works whether or not the host also sends `Content-Encoding: gzip`
 
 ## Roadmap
 
-- Review reminders (Web Push needs a server; for now, due reviews show on Today)
 - Pitch-accent display
 - A free-practice mode outside the scheduled rounds

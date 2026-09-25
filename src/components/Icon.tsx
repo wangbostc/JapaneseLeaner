@@ -18,6 +18,7 @@ const PATHS = {
   check: 'M9 16.2l-4.2-4.2L3.4 13.4 9 19 21 7l-1.4-1.4z',
   star: 'M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z',
   trash: 'M6 7h12l-1 13H7zM9 4h6l1 2H8z',
+  calendar: 'M7 3v2H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-2V3h-2v2H9V3zM6 10h12v9H6z',
 } as const
 
 export type IconName = keyof typeof PATHS
