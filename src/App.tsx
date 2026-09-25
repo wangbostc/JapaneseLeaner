@@ -21,7 +21,7 @@ import { Today } from './pages/Today'
 function Shell() {
   const { t } = useSettings()
   const { pathname } = useLocation()
-  const studying = pathname.endsWith('/study')
+  const studying = pathname.endsWith('/study') || pathname.includes('/practice/')
   const lessons = useLiveQuery(() => db.lessons.toArray(), [])
   useEffect(() => {
     if (!lessons) return
@@ -60,6 +60,7 @@ function Shell() {
           <Route path="/import" element={<Import />} />
           <Route path="/lesson/:id" element={<LessonPage />} />
           <Route path="/lesson/:id/study" element={<Study />} />
+          <Route path="/lesson/:id/practice/:step" element={<Study />} />
           <Route path="/cards" element={<Cards />} />
           <Route path="/stats" element={<Stats />} />
           <Route path="/settings" element={<SettingsPage />} />

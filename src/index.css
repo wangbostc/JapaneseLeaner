@@ -371,3 +371,6 @@ ruby rt { font-size: 0.5em; color: var(--muted); letter-spacing: 0; }
   border-radius: 999px; width: 1.8em; height: 1.8em; margin: 0 0.25em; cursor: pointer; line-height: 1;
 }
 .row.center { justify-content: center; }
+.seal.practice { background: var(--accent); }
+.free-practice { margin-top: 8px; }
+.free-practice .section-label { margin-top: 0; }

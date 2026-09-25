@@ -11,7 +11,7 @@ import { JapaneseText } from '../components/JapaneseText'
 import { RoundDots } from '../components/LessonRow'
 import type { AiErrorCode } from '../lib/ai'
 import { db } from '../lib/db'
-import { dueAt, isGraduated, ROUNDS } from '../lib/schedule'
+import { dueAt, isGraduated, ROUNDS, type Step } from '../lib/schedule'
 import { store } from '../lib/store'
 
 export function LessonPage() {
@@ -94,6 +94,22 @@ export function LessonPage() {
           {aiError && <span className="error small">{t.aiErrors[aiError]}</span>}
         </div>
       )}
+
+      <section className="free-practice" aria-labelledby="free-practice-title">
+        <h2 className="section-label" id="free-practice-title">
+          {t.freePractice}
+        </h2>
+        <p className="muted small">{t.freePracticeHint}</p>
+        <div className="row">
+          {(['intensive', 'shadowing', 'blind', 'retell', 'hardSentences'] as Step[])
+            .filter((s) => s !== 'hardSentences' || lesson.hard.length > 0)
+            .map((s) => (
+              <Link key={s} className="btn" to={`/lesson/${lesson.id}/practice/${s}`}>
+                {t.steps[s]}
+              </Link>
+            ))}
+        </div>
+      </section>
 
       <ol className="transcript">
         {lesson.sentences.map((s, i) => (
