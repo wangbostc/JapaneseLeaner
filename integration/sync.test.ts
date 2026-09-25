@@ -43,8 +43,13 @@ async function device(env: Awaited<ReturnType<typeof server>>, name: string) {
     return r
   }
   const setState = (s: SyncState) => (state = s)
-  return { store, db: store.db, sync, state: () => state, setState }
+  const dev = { store, db: store.db, sync, state: () => state, setState }
+  apis.set(dev, api)
+  return dev
 }
+
+const apis = new WeakMap<object, Api>()
+const apiFor = (dev: object) => apis.get(dev)!
 
 const byTitle = async (db: KikitoriDB, title: string) => (await db.lessons.toArray()).find((l) => l.title === title)
 
@@ -286,5 +291,37 @@ describe('sync between two devices', () => {
     for (let i = 0; i < 3; i++) pushes.push((await a.sync()).pushed)
     expect((await byTitle(a.db, 'P'))!.hard).toEqual([0, 1, 2])
     expect(pushes.slice(1)).toEqual([0, 0]) // settles; no repeated re-pushes
+  })
+
+  it('keeps a delete made while a sync is in flight (own echo, and another device’s edit)', async () => {
+    const env = await server()
+    const a = await device(env, 'a')
+    const b = await device(env, 'b')
+    const m = await a.store.createLesson({ title: 'M', sentences: [{ start: null, end: null, text: '一。' }] })
+    await a.store.createLesson({ title: 'N', sentences: [{ start: null, end: null, text: '一。' }] })
+    await a.sync()
+    await b.sync()
+    await b.store.setHard((await byTitle(b.db, 'N'))!.id!, 0, true) // B's edit to N arrives in A's next reply
+    await b.sync()
+    await a.store.setHard(m, 0, true) // M is in A's next push, so its echo comes back
+
+    // Delete both on A after the push was gathered but before the reply is applied.
+    const state = a.state()
+    const { syncOnce: run } = await import('../src/lib/sync')
+    let deleted = false
+    const api: Api = async (path, init) => {
+      if (path === '/api/sync' && !deleted) {
+        deleted = true
+        await a.store.deleteLesson((await byTitle(a.db, 'M'))!.id!)
+        await a.store.deleteLesson((await byTitle(a.db, 'N'))!.id!)
+      }
+      return apiFor(a)(path, init)
+    }
+    a.setState((await run(a.db, api, state)).state)
+    for (const d of [a, a, b, a]) await d.sync()
+    for (const d of [a, b]) {
+      expect(await byTitle(d.db, 'M')).toBeUndefined()
+      expect(await byTitle(d.db, 'N')).toBeUndefined()
+    }
   })
 })

@@ -115,12 +115,22 @@ async function applyChanges(db: KikitoriDB, changes: SyncBatch, editedSince: (ro
   const needBytes: WireMedia[] = []
   await db.transaction('rw', [db.lessons, db.media, db.cards, db.logs, db.words, db.deletions], async (tx) => {
     markSyncApply(tx)
-    // A record the server sends back is alive: drop any local tombstone for it, so it can be deleted again.
+    // Local tombstones for records the server sends alive: a deletion newer than the incoming
+    // version (e.g. made during this sync) stands and goes up next time; an older one is
+    // superseded (edited elsewhere after the delete), so drop it and the record can be deleted again.
     const alive = [...changes.lessons, ...changes.cards].map((r) => r.uid)
-    if (alive.length) await db.deletions.where('uid').anyOf(alive).delete()
+    const tombs = new Map((alive.length ? await db.deletions.where('uid').anyOf(alive).toArray() : []).map((t) => [t.uid, t]))
+    const deletedHere = async (w: { uid: string; updatedAt: number }) => {
+      const t = tombs.get(w.uid)
+      if (!t) return false
+      if (t.at > w.updatedAt) return true
+      await db.deletions.delete(t.id!)
+      return false
+    }
     for (const m of changes.media) if (!(await db.media.where('uid').equals(m.uid).first())) needBytes.push(m)
 
     for (const w of changes.lessons) {
+      if (await deletedHere(w)) continue
       const local = await db.lessons.where('uid').equals(w.uid).first()
       if (local && editedSince(local)) continue
       const media = w.mediaUid ? await db.media.where('uid').equals(w.mediaUid).first() : undefined
@@ -148,6 +158,7 @@ async function applyChanges(db: KikitoriDB, changes: SyncBatch, editedSince: (ro
     for (const w of changes.cards) {
       const id = lessonId.get(w.lessonUid)
       if (id === undefined) continue // its lesson is gone here
+      if (await deletedHere(w)) continue
       const local = await db.cards.where('uid').equals(w.uid).first()
       if (local && editedSince(local)) continue
       const row: Flashcard = { uid: w.uid, updatedAt: w.updatedAt, syncedVersion: w.updatedAt, lessonId: id, kind: w.kind, front: w.front, reading: w.reading, context: w.context, card: fromWireCard(w), createdAt: w.createdAt }
