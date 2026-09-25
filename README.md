@@ -148,4 +148,3 @@ itself, so it works whether or not the host also sends `Content-Encoding: gzip`
 ## Roadmap
 
 - Pitch-accent display
-- A free-practice mode outside the scheduled rounds
