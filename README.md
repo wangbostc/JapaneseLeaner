@@ -40,6 +40,7 @@ review pushes every later one back. Due reviews are listed before new lessons.
 - **Optional AI assistant (bring your own key).** Add an Anthropic API key in Settings to unlock two features: **Explain**, which streams a short explanation of a sentence's meaning, grammar and nuance in your UI language, and **Translate with AI**, which fills in missing translations for an imported lesson. Both use Claude Opus 5, called directly from the browser. The key is stored only in this browser and never in backups. Without a key, no AI buttons appear, and the study loop never depends on them.
 - **意群 chunking.** Sentences are split into 文節 (natural phrases) using kuromoji's part-of-speech tags: a word plus its particles and auxiliaries, with compounds, prefixes and サ変 verbs kept together. Long sentences (20+ characters) are also split into sense units at commas and clause-linking particles (て, が, けど, から, ので, ば, たら, ながら…) and shown with a ／ between them. In text-only lessons each unit has its own play button; imported audio has no timings per chunk, so it gets none. You can turn this off in Settings.
 - **Free practice.** The lesson page lets you run any single step (intensive, shadowing, blind listening, retell, or the hard-sentence drill) on any lesson at any time, including mastered ones. Free practice never completes a round or moves your resume point, so the review schedule stays as it was. Practice time still counts in stats, free intensive listening adds to the words-met count, and a weak shadowing attempt still marks the sentence as hard.
+- **Pitch accent.** The word sheet and flashcards show a word's dictionary-form pitch (Tokyo standard): an overline over high morae, a step down where the pitch falls, and a faint が showing whether a following particle stays high. For example, 橋 はし↓ (尾高) is shown differently from 箸 は↓し (頭高) and 端 はし (平板). It covers about 32k common words, using UniDic's `aType`. Accent shifts in compounds and conjugated forms, so the app deliberately doesn't draw a pitch contour for whole sentences.
 - **Flashcards in context.** Tap any word to save its dictionary form along with
   the sentence it came from. Cards are scheduled with FSRS (`ts-fsrs`).
 - **Reminders (best effort, no server).**
@@ -104,6 +105,9 @@ your browser supports.
   from [jmdict-simplified](https://github.com/scriptin/jmdict-simplified). It's
   downloaded at build time, pinned to a release and verified by checksum.
 - **kuromoji.js** (Apache 2.0) with **IPADIC** © NAIST.
+- **UniDic 3.1.0** (cwj) © The UniDic Consortium, used under the BSD 3-Clause licence
+  (`public/pitch/UNIDIC-LICENSE.txt`). `public/pitch/accents.json` is derived from it by
+  `scripts/build-accents.mjs`; that file's header explains how to regenerate it (the lexicon is a 555 MB download).
 - **ts-fsrs** (MIT).
 - The app lists these under **Settings → About & sources**.
 
@@ -145,6 +149,3 @@ The kuromoji dictionary is served gzipped. The loader checks the gzip magic byte
 itself, so it works whether or not the host also sends `Content-Encoding: gzip`
 (`vite preview` does).
 
-## Roadmap
-
-- Pitch-accent display

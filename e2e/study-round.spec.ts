@@ -44,6 +44,9 @@ test('first study round end to end', async ({ page }) => {
   await page.locator('.sentence-card .word', { hasText: '起' }).click()
   await expect(page.getByRole('dialog')).toContainText('起きる')
   await expect(page.getByTestId('meanings')).toContainText('to get up')
+  // Dictionary-form pitch: お↑き↓る (中高, type 2).
+  await expect(page.getByTestId('pitch')).toContainText('中高')
+  await expect(page.getByTestId('pitch').locator('.mora.drop')).toHaveText('き')
   await page.waitForTimeout(300) // let the sheet finish sliding in
   await shot(page, '03-intensive-word')
   await page.getByRole('button', { name: 'Save word' }).click()

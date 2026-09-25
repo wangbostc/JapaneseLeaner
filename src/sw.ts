@@ -28,6 +28,8 @@ registerRoute(({ url }) => /\/assets\/(transcribe\.worker-[^/]+\.js|[^/]+\.wasm)
 registerRoute(({ url }) => url.pathname.includes('/dict/'), cacheFirst('kuromoji-dict-0.1.2', 20))
 // Word meanings; the cache is named after the pinned JMdict release.
 registerRoute(({ url }) => url.pathname.endsWith('/jmdict/common.json'), cacheFirst(`jmdict-${jmdictRelease.version}`, 2))
+// Pitch accents (UniDic aType), fetched on first use; named after the UniDic release the file came from.
+registerRoute(({ url }) => url.pathname.endsWith('/pitch/accents.json'), cacheFirst('pitch-unidic-cwj-3.1.0', 2))
 
 // --- Reminders -----------------------------------------------------------
 

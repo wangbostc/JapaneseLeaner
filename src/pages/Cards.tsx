@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSettings } from '../app/useSettings'
 import { Icon } from '../components/Icon'
 import { Meanings } from '../components/Meanings'
+import { PitchAccent } from '../components/PitchAccent'
 import { db, type Flashcard } from '../lib/db'
 import { speak } from '../lib/speech'
 import { previewIntervals, Rating, type Grade } from '../lib/srs'
@@ -79,6 +80,7 @@ export function Cards() {
             <div className="card-reading" lang="ja">
               {card.reading}
             </div>
+            {card.kind === 'word' && <PitchAccent word={card.front} reading={card.reading} />}
             {card.kind === 'word' && <Meanings word={card.front} reading={card.reading} />}
             {translation && <p className="translation">{translation}</p>}
           </div>
