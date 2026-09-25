@@ -137,4 +137,16 @@ test.describe('notifications', () => {
       .poll(() => page.evaluate(async () => (await (await navigator.serviceWorker.ready).getNotifications()).length))
       .toBe(1)
   })
+
+  test('a push from the server always shows a reminder, even before this device has synced the lesson', async ({ page, context }) => {
+    await context.grantPermissions(['notifications'])
+    await page.goto('./')
+    await page.waitForFunction(() => navigator.serviceWorker?.controller, null, { timeout: 20_000 })
+    const [sw] = context.serviceWorkers()
+    // No local review is due, but the server pushed: browsers require a visible notification.
+    await sw.evaluate(() => (self as unknown as ServiceWorkerGlobalScope).dispatchEvent(new PushEvent('push')))
+    await expect
+      .poll(() => page.evaluate(async () => (await (await navigator.serviceWorker.ready).getNotifications()).map((n) => n.body)))
+      .toEqual(['Time for a Japanese review. 復習の時間です。']) // no count this device can't back up
+  })
 })

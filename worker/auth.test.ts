@@ -50,14 +50,17 @@ describe('device auth', () => {
   })
 
   it('rejects missing, wrong and revoked tokens', async () => {
-    const { call } = await setup()
+    const { env, call } = await setup()
     expect((await call('GET', '/api/me')).status).toBe(401)
     expect((await call('GET', '/api/me', { token: 'nope' })).status).toBe(401)
     const { token, device } = (await (await call('POST', '/api/devices', { body: { setupCode: SETUP, name: 'Mac' } })).json()) as {
       token: string
       device: { id: string }
     }
+    await env.DB.prepare("INSERT INTO push_subscriptions (endpoint, device_id, created_at) VALUES ('https://push.example/x', ?, 0)").bind(device.id).run()
     expect((await call('DELETE', `/api/devices/${device.id}`, { token })).status).toBe(200)
+    // Revoking a device also stops its reminders.
+    expect((await env.DB.prepare('SELECT COUNT(*) AS n FROM push_subscriptions').first<{ n: number }>())!.n).toBe(0)
     expect((await call('GET', '/api/me', { token })).status).toBe(401)
   })
 

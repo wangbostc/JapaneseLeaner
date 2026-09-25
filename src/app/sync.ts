@@ -56,6 +56,12 @@ export const useSyncStatus = () =>
     () => status,
   )
 
+/** An authenticated API caller for this device, or null if it isn't connected. */
+export function deviceApi(): Api | null {
+  const d = device()
+  return d && status.kind !== 'unavailable' ? authed(d.token) : null
+}
+
 const authed = (token: string): Api => (path, init = {}) =>
   fetch(path.replace(/^\//, ''), { ...init, headers: { ...(init.headers as Record<string, string>), Authorization: `Bearer ${token}` } })
 
@@ -97,6 +103,9 @@ export function resetSyncCursor() {
 /** Forgets this device's token (and revokes it on the server if reachable). */
 export async function disconnect() {
   const d = device()
+  // Stop server reminders for this browser before the token goes away.
+  const { disablePushReminders } = await import('./reminders')
+  await disablePushReminders(d ? authed(d.token) : null)
   if (d) await authed(d.token)(`/api/devices/${d.id}`, { method: 'DELETE' }).catch(() => undefined)
   write(DEVICE_KEY, null)
   write(STATE_KEY, null)
@@ -164,4 +173,6 @@ export async function startAutoSync() {
   window.addEventListener('online', () => void syncNow())
   setInterval(() => document.visibilityState === 'visible' && void syncNow(), INTERVAL_MS)
   void syncNow()
+  // Keep an existing push subscription matched to the server's current key and record.
+  if (device()) void import('./reminders').then((r) => r.refreshPushSubscription())
 }

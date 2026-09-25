@@ -47,7 +47,7 @@ review pushes every later one back. Due reviews are listed before new lessons.
   - **Calendar:** *Add next review to calendar* (on the round-complete screen and the lesson page) saves an .ics event with an alarm at the exact due time. It works on every device, and it's the most reliable option.
   - **Background check:** an installed app in Chrome or Edge on Android or desktop can check for due reviews in the background (Periodic Background Sync) and notify you. The browser decides how often, often every 12 hours or more.
   - **Badge:** the installed app shows the due count on its icon, and Today moves a review to *Due now* the moment it comes due.
-  - iOS can't notify a closed web app without a push server. Use the calendar there.
+  - **Push from your server** (with the backend below): every 15 minutes a cron finds reviews that have come due in your synced progress, and sends one Web Push per review round to each subscribed browser. It works with the app closed, on Android and desktop, and on iPhone once the app is added to the Home Screen (iOS 16.4+).
 - **Stats:** practice time, the listening/speaking split, unique words met, and
   your day streak.
 
@@ -144,7 +144,8 @@ pnpm worker:smoke   # CI check: app shell, service worker, R2-served files, auth
 2. Create the database and put its id in `wrangler.jsonc` (`database_id`): `pnpm exec wrangler d1 create kikitori`.
 3. Create the bucket: `pnpm exec wrangler r2 bucket create kikitori-files`.
 4. Set a setup code: `pnpm exec wrangler secret put SETUP_CODE`. Use a long random one, such as `openssl rand -base64 24`. The guess limit is per IP, so the code's strength is the real protection.
-5. For automatic deploys, set the `CLOUDFLARE_API_TOKEN` (Workers, D1 and R2 edit) and `CLOUDFLARE_ACCOUNT_ID` repository secrets. Until they exist, `.github/workflows/deploy-worker.yml` skips.
+5. For push reminders, generate VAPID keys with `node scripts/vapid-keys.mjs`, then set them: `pnpm exec wrangler secret put VAPID_PUBLIC_KEY` and `pnpm exec wrangler secret put VAPID_PRIVATE_KEY`.
+6. For automatic deploys, set the `CLOUDFLARE_API_TOKEN` (Workers, D1 and R2 edit) and `CLOUDFLARE_ACCOUNT_ID` repository secrets. Until they exist, `.github/workflows/deploy-worker.yml` skips.
 
 ## Development
 
