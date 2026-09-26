@@ -90,7 +90,7 @@ describe('neuralSynth', () => {
   })
 
   it('makes a VOICEVOX sentence on this computer and uploads it for the other devices', async () => {
-    const engine = { url: 'http://127.0.0.1:50021', voices: [{ id: 'voicevox:30' as const, name: 'No.7（アナウンス）', speaker: 'No.7' }] }
+    const engine = { urls: { voicevox: 'http://127.0.0.1:50021' }, voices: [{ id: 'voicevox:30' as const, name: 'No.7（アナウンス）', speaker: 'No.7' }] }
     const calls: string[] = []
     const realFetch = globalThis.fetch
     globalThis.fetch = (async (url: string, init?: RequestInit) => {
@@ -130,7 +130,7 @@ describe('neuralSynth', () => {
     }) as typeof fetch
     try {
       const server = fakeServer()
-      const engine = { url: 'http://127.0.0.1:50021', voices: [] }
+      const engine = { urls: { voicevox: 'http://127.0.0.1:50021' }, voices: [] }
       expect(await (await neuralSynth(server.api, async () => null, 100, () => engine)('はい。', 'voicevox:30')).text()).toBe('mp3')
       expect(await (await neuralSynth(server.api, async () => null, 100, () => null)('いいえ。', 'voicevox:30')).text()).toBe('mp3')
       expect(server.calls).toEqual([
@@ -162,16 +162,17 @@ describe('device cache keys', () => {
 })
 
 describe('defaultVoice', () => {
-  const vv = (n: number, speaker = 'x') => ({ id: `voicevox:${n}` as const, name: `v${n}`, speaker })
+  const vv = (id: `voicevox:${number}` | `aivis:${number}`) => ({ id, name: id, speaker: 'x' })
   it('is Nanami when the server has Azure', () => {
-    expect(defaultVoice(NEURAL_VOICES, [vv(29), vv(30)], [vv(3)])).toBe('ja-JP-NanamiNeural')
+    expect(defaultVoice(NEURAL_VOICES, [vv('aivis:888753760')], [vv('voicevox:3')])).toBe('ja-JP-NanamiNeural')
   })
-  it('is No.7 アナウンス on a computer whose engine has it, else the engine’s first voice', () => {
-    expect(defaultVoice(null, [vv(29), vv(30), vv(3)], [])).toBe('voicevox:30')
-    expect(defaultVoice(null, [vv(3), vv(8)], [vv(30)])).toBe('voicevox:3')
+  it('on a computer with engines: AivisSpeech まお, else VOICEVOX 青山龍星, else the first voice found', () => {
+    expect(defaultVoice(null, [vv('voicevox:3'), vv('voicevox:13'), vv('aivis:888753760')], [])).toBe('aivis:888753760')
+    expect(defaultVoice(null, [vv('voicevox:29'), vv('voicevox:13')], [])).toBe('voicevox:13')
+    expect(defaultVoice(null, [vv('voicevox:3'), vv('voicevox:8')], [vv('aivis:888753760')])).toBe('voicevox:3')
   })
   it('is the most recently prepared voice on a device without an engine, else none', () => {
-    expect(defaultVoice(null, null, [vv(8), vv(30)])).toBe('voicevox:8')
+    expect(defaultVoice(null, null, [vv('voicevox:8'), vv('aivis:888753760')])).toBe('voicevox:8')
     expect(defaultVoice(null, null, [])).toBeUndefined()
   })
 })
@@ -191,7 +192,7 @@ describe('parseRemembered', () => {
 
 describe('prepareClips', () => {
   it('uploads every sentence once, re-uploading ones cached here without asking the engine again', async () => {
-    const engine = { url: 'http://127.0.0.1:50021', voices: [{ id: 'voicevox:30' as const, name: 'No.7（アナウンス）', speaker: 'No.7' }] }
+    const engine = { urls: { voicevox: 'http://127.0.0.1:50021' }, voices: [{ id: 'voicevox:30' as const, name: 'No.7（アナウンス）', speaker: 'No.7' }] }
     const cache = memoryCache()
     // 一。 was played earlier (maybe offline) and is only in the device cache.
     const cached = await cache.open()
@@ -225,5 +226,7 @@ describe('prepareClips', () => {
     const api = async () => new Response()
     await expect(prepareClips(['一。'], 'voicevox:30', () => {}, { api: null, eng: null })).rejects.toThrow('notConnected')
     await expect(prepareClips(['一。'], 'voicevox:30', () => {}, { api, eng: null })).rejects.toThrow('engineOff')
+    // Only AivisSpeech is running: a VOICEVOX voice can't be prepared here.
+    await expect(prepareClips(['一。'], 'voicevox:30', () => {}, { api, eng: { urls: { aivis: 'http://127.0.0.1:10101' }, voices: [] } })).rejects.toThrow('engineOff')
   })
 })

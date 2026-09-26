@@ -227,38 +227,40 @@ test('opened offline, a connected device still plays the natural-voice audio it 
   await page.context().setOffline(false)
 })
 
-test('VOICEVOX on the computer prepares a lesson, and the phone plays it in that voice', async ({ browser }) => {
-  const engine = `http://127.0.0.1:${process.env.E2E_VOICEVOX_PORT ?? 50121}`
+test('an engine on the computer (AivisSpeech here) prepares a lesson, and the phone plays it in that voice', async ({ browser }) => {
+  const voicevox = `http://127.0.0.1:${process.env.E2E_VOICEVOX_PORT ?? 50121}`
+  const aivis = `http://127.0.0.1:${process.env.E2E_AIVIS_PORT ?? 10111}`
   const mac = await newDevice(browser, 'Mac')
-  // VOICEVOX turned on for this device, pointed at the e2e engine (the default is 127.0.0.1:50021).
-  await mac.evaluate((url) => localStorage.setItem('kikitori.voicevox', url), engine)
+  // Engines turned on for this device, pointed at the e2e ones (the defaults are :50021 and :10101).
+  await mac.evaluate(([v, a]) => (localStorage.setItem('kikitori.voicevox', v), localStorage.setItem('kikitori.aivis', a)), [voicevox, aivis])
   await mac.reload()
   await expect(mac.getByTestId('voicevox-toggle')).toBeChecked()
-  await expect(mac.getByTestId('voicevox-status')).toContainText('VOICEVOX is running: 3 voices')
+  await expect(mac.getByTestId('voicevox-status')).toContainText('Running: AivisSpeech (2 voices), VOICEVOX (3 voices).')
   const select = mac.getByTestId('voice-select')
+  await expect(select.locator('optgroup[label="AivisSpeech (this computer)"] option')).toHaveText(['まお（ノーマル）', 'まお（おちつき）'])
   await expect(select.locator('optgroup[label="VOICEVOX (this computer)"] option')).toHaveCount(3)
-  // This e2e server also has Azure, whose Nanami is the default; choose No.7 explicitly.
-  await select.selectOption('voicevox:30')
-  await expect(mac.getByTestId('voice-credit')).toHaveText('VOICEVOX:No.7')
+  // This e2e server also has Azure, whose Nanami is the default; choose まお explicitly.
+  await select.selectOption('aivis:888753760')
+  await expect(mac.getByTestId('voice-credit')).toHaveText('AivisSpeech:まお')
   await mac.goto('./#/library')
   const uploads: string[] = []
   mac.on('request', (r) => r.method() === 'PUT' && r.url().includes('/api/tts/clip') && uploads.push(new URL(r.url()).searchParams.get('text')!))
   await mac.getByRole('link', { name: /私の朝/ }).click()
   const prepare = mac.getByTestId('prepare-voice')
-  await prepare.getByRole('button', { name: 'Prepare VOICEVOX audio for your other devices' }).click()
+  await prepare.getByRole('button', { name: 'Prepare this voice for your other devices' }).click()
   await expect(prepare).toContainText('Ready on your other devices.')
   expect(new Set(uploads).size).toBe(6)
-  await expect(prepare.getByTestId('voice-credit')).toHaveText('VOICEVOX:No.7')
+  await expect(prepare.getByTestId('voice-credit')).toHaveText('AivisSpeech:まお')
 
   // The phone has no engine: it lists the prepared voice and plays the lesson from the server.
   const phone = await newDevice(browser, 'Phone')
-  // A device that didn't turn VOICEVOX on never contacts an engine (that could prompt for local-network access).
+  // A device that didn't turn engines on never contacts one (that could prompt for local-network access).
   const engineRequests: string[] = []
-  phone.on('request', (r) => /:(50021|50121)\//.test(r.url()) && engineRequests.push(r.url()))
+  phone.on('request', (r) => /:(50021|50121|10101|10111)\//.test(r.url()) && engineRequests.push(r.url()))
   await phone.reload() // start-up again, now watched
   const phoneSelect = phone.getByTestId('voice-select')
-  await expect(phoneSelect.locator('optgroup[label="VOICEVOX (prepared on your computer)"] option')).toHaveText(['No.7（アナウンス）'])
-  await phoneSelect.selectOption('voicevox:30')
+  await expect(phoneSelect.locator('optgroup[label="AivisSpeech (prepared on your computer)"] option')).toHaveText(['まお（ノーマル）'])
+  await phoneSelect.selectOption('aivis:888753760')
   await expect(phone.getByTestId('voicevox-toggle')).not.toBeChecked()
   const played = phone.waitForResponse((r) => r.url().endsWith('/api/tts') && r.request().postDataJSON()?.text === '私は毎朝六時に起きます。')
   await phone.goto('./#/library')
@@ -268,7 +270,7 @@ test('VOICEVOX on the computer prepares a lesson, and the phone plays it in that
   const res = await played
   expect(res.status()).toBe(200)
   expect(res.headers()['content-type']).toBe('audio/wav')
-  await expect(phone.getByTestId('voice-credit')).toHaveText('VOICEVOX:No.7')
+  await expect(phone.getByTestId('voice-credit')).toHaveText('AivisSpeech:まお')
   expect(engineRequests).toEqual([])
 })
 

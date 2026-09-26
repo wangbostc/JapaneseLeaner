@@ -29,6 +29,7 @@ const SOURCES: { name: string; use: string; licence: string; href: string }[] = 
   { name: 'Whisper (OpenAI)', use: 'whisper', licence: 'MIT', href: 'https://github.com/openai/whisper' },
   { name: 'Transformers.js', use: 'transformers', licence: 'Apache 2.0', href: 'https://github.com/huggingface/transformers.js' },
   { name: 'UniDic 3.1.0', use: 'unidic', licence: 'BSD 3-Clause', href: 'https://clrd.ninjal.ac.jp/unidic/en/' },
+  { name: 'AivisSpeech', use: 'aivis', licence: 'LGPL-3.0; voices ACML 1.0', href: 'https://github.com/Aivis-Project/AivisSpeech-Engine' },
   { name: 'VOICEVOX', use: 'voicevox', licence: 'Free, with credit (per-voice terms)', href: 'https://voicevox.hiroshiba.jp/term/' },
   { name: 'ts-fsrs', use: 'fsrs', licence: 'MIT', href: 'https://github.com/open-spaced-repetition/ts-fsrs' },
   {

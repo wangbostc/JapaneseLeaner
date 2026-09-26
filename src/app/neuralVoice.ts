@@ -1,14 +1,14 @@
 import { useEffect, useSyncExternalStore } from 'react'
 import { setNeuralSynth, type NeuralSynth } from '../lib/speech'
-import { DEFAULT_NEURAL_VOICE, DEFAULT_VOICEVOX_VOICE, isVoicevoxId, type NaturalVoiceId, type NeuralVoice, type VoicevoxVoice, type VoicevoxVoiceId } from '../lib/voices'
+import { DEFAULT_ENGINE_VOICES, DEFAULT_NEURAL_VOICE, engineOf, isEngineVoiceId, type EngineKind, type EngineVoice, type EngineVoiceId, type NaturalVoiceId, type NeuralVoice } from '../lib/voices'
 import type { Api } from '../lib/sync'
 import { storedDeviceApi, useSyncStatus } from './sync'
-import { engineUrl, probeEngine, synthesize } from './voicevox'
+import { engineUrls, probeEngines, synthesize } from './engines'
 
 /**
  * Natural voices, from two places:
  * - Azure neural voices through the server, when it has a Speech key;
- * - VOICEVOX (open source), from the engine on this computer when it's turned on in Settings.
+ * - open-source engines on this computer (AivisSpeech, VOICEVOX) when they're turned on in Settings.
  *   Clips made here are uploaded, so the learner's other devices play them from the server.
  *
  * Each sentence's audio is kept in Cache Storage, so it plays again instantly and offline. The
@@ -27,16 +27,16 @@ interface Known {
   /** The server's Azure voices, or null when it has none. */
   azure: readonly NeuralVoice[] | null
   /** VOICEVOX voices with clips on the server, most recently used first. */
-  prepared: readonly VoicevoxVoice[]
+  prepared: readonly EngineVoice[]
 }
 
 /** What Settings and the lesson page show. */
 export interface NaturalVoices {
   azure: readonly NeuralVoice[] | null
-  /** This computer's engine voices when it's running, else the server's prepared ones (or null). */
-  voicevox: readonly VoicevoxVoice[] | null
-  /** True when the VOICEVOX engine on this computer answered. */
-  engineUp: boolean
+  /** This computer's engine voices when one is running, else the server's prepared ones (or null). */
+  engineVoices: readonly EngineVoice[] | null
+  /** The engines on this computer that answered (none: the voices listed were prepared elsewhere). */
+  enginesUp: readonly EngineKind[]
 }
 
 /** Reads the remembered voice lists. Before VOICEVOX, only the Azure list was kept, as a bare array. */
@@ -63,9 +63,9 @@ const remembered = (): Known => {
  * on a computer running VOICEVOX, No.7「アナウンス」(or its first voice); else the voice most
  * recently prepared on the learner's computer. None: the device's own voice.
  */
-export function defaultVoice(azure: readonly NeuralVoice[] | null, engineVoices: readonly VoicevoxVoice[] | null, prepared: readonly VoicevoxVoice[]): NaturalVoiceId | undefined {
+export function defaultVoice(azure: readonly NeuralVoice[] | null, engineVoices: readonly EngineVoice[] | null, prepared: readonly EngineVoice[]): NaturalVoiceId | undefined {
   if (azure?.length) return DEFAULT_NEURAL_VOICE
-  if (engineVoices?.length) return (engineVoices.find((v) => v.id === DEFAULT_VOICEVOX_VOICE) ?? engineVoices[0]).id
+  if (engineVoices?.length) return DEFAULT_ENGINE_VOICES.find((id) => engineVoices.some((v) => v.id === id)) ?? engineVoices[0].id
   return prepared[0]?.id
 }
 const remember = (k: Known | null) => {
@@ -78,8 +78,8 @@ const remember = (k: Known | null) => {
 }
 
 let known: Known = { azure: null, prepared: [] }
-let engine: readonly VoicevoxVoice[] | null = null
-let snapshot: NaturalVoices = { azure: null, voicevox: null, engineUp: false }
+let engine: { voices: readonly EngineVoice[]; up: readonly EngineKind[] } | null = null
+let snapshot: NaturalVoices = { azure: null, engineVoices: null, enginesUp: [] }
 let checking: Promise<void> | null = null
 let askedThisConnection = false
 const listeners = new Set<() => void>()
@@ -89,9 +89,9 @@ function apply() {
   const api = storedDeviceApi()
   const azure = api && known.azure?.length ? known.azure : null
   const prepared = api ? known.prepared : []
-  const voicevox = engine?.length ? engine : prepared.length ? prepared : null
-  snapshot = { azure, voicevox, engineUp: !!engine?.length }
-  const fallback = defaultVoice(azure, engine, prepared)
+  const here = engine?.voices.length ? engine.voices : null
+  snapshot = { azure, engineVoices: here ?? (prepared.length ? prepared : null), enginesUp: here ? engine!.up : [] }
+  const fallback = defaultVoice(azure, here, prepared)
   setNeuralSynth(fallback ? neuralSynth(api) : null, fallback)
   listeners.forEach((l) => l())
 }
@@ -108,7 +108,7 @@ export function refreshNeuralVoices(): Promise<void> {
     .then(async (res) => {
       if (res.status === 401) known = { azure: null, prepared: [] }
       else if (res.ok) {
-        const body = (await res.json()) as { enabled: boolean; voices: NeuralVoice[]; prepared?: VoicevoxVoice[] }
+        const body = (await res.json()) as { enabled: boolean; voices: NeuralVoice[]; prepared?: EngineVoice[] }
         known = { azure: body.enabled && body.voices.length ? body.voices : null, prepared: body.prepared ?? [] }
         remember(known)
       }
@@ -119,15 +119,15 @@ export function refreshNeuralVoices(): Promise<void> {
   return checking
 }
 
-/** Asks this computer's VOICEVOX engine (if turned on) which voices it has. */
-export async function refreshEngine(): Promise<boolean> {
-  const url = engineUrl()
-  const found = url ? await probeEngine(url) : null
+/** Asks this computer's engines (if turned on) which voices they have. Resolves to the engines that answered. */
+export async function refreshEngine(): Promise<readonly EngineKind[]> {
+  const urls = engineUrls()
+  const found = urls ? await probeEngines(urls) : null
   // Turned off (or pointed elsewhere) while we were asking: that answer no longer applies.
-  if (engineUrl() !== url) return !!engine
-  engine = found
+  if (JSON.stringify(engineUrls()) !== JSON.stringify(urls)) return engine?.up ?? []
+  engine = found?.voices.length ? found : null
   apply()
-  return !!engine
+  return engine?.up ?? []
 }
 
 /** The natural voices this device can use. Mounted in the app shell so every page speaks with them. */
@@ -162,7 +162,7 @@ export function useNaturalVoices(): NaturalVoices {
 export async function cacheUrl(voice: NaturalVoiceId, text: string) {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${voice}\n${text}`))
   const hex = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('')
-  return isVoicevoxId(voice) ? `https://tts.kikitori.invalid/${voice.replace(':', '-')}/${hex}.wav` : `https://tts.kikitori.invalid/${voice}/${hex}.mp3`
+  return isEngineVoiceId(voice) ? `https://tts.kikitori.invalid/${voice.replace(':', '-')}/${hex}.wav` : `https://tts.kikitori.invalid/${voice}/${hex}.mp3`
 }
 
 const openCache = () => (typeof caches === 'undefined' ? Promise.resolve(null) : caches.open(CACHE).catch(() => null))
@@ -173,17 +173,19 @@ async function trim(store: Cache, max: number) {
   await Promise.all(keys.slice(0, Math.max(0, keys.length - max)).map((k) => store.delete(k)))
 }
 
+/** The engines on this computer that answered: their addresses, and all their voices. */
 export interface Engine {
-  url: string
-  voices: readonly VoicevoxVoice[]
+  urls: Partial<Record<EngineKind, string>>
+  voices: readonly EngineVoice[]
 }
 const currentEngine = (): Engine | null => {
-  const url = engineUrl()
-  return url && engine?.length ? { url, voices: engine } : null
+  const urls = engineUrls()
+  if (!urls || !engine?.voices.length) return null
+  return { urls: Object.fromEntries(engine.up.map((k) => [k, urls[k]])), voices: engine.voices }
 }
 
 /** Puts a VOICEVOX clip on the server, naming the voice so other devices can choose it. */
-async function upload(api: Api, voices: readonly VoicevoxVoice[], voice: VoicevoxVoiceId, text: string, blob: Blob) {
+async function upload(api: Api, voices: readonly EngineVoice[], voice: EngineVoiceId, text: string, blob: Blob) {
   const meta = voices.find((v) => v.id === voice)
   const q = new URLSearchParams({ voice, text, ...(meta ? { name: meta.name, speaker: meta.speaker } : {}) })
   const res = await api(`/api/tts/clip?${q}`, { method: 'PUT', headers: { 'Content-Type': blob.type || 'audio/wav' }, body: blob })
@@ -213,7 +215,7 @@ async function fromServer(api: Api | null, text: string, voice: NaturalVoiceId, 
 const inflight = new Map<string, Promise<Blob>>()
 
 /**
- * VOICEVOX sentences the server said aren't prepared, so a phone doesn't ask again for every
+ * Engine sentences the server said aren't prepared, so a phone doesn't ask again for every
  * replay; the device voice speaks them meanwhile. Rechecked after a while, in case the computer
  * has prepared them since.
  */
@@ -237,12 +239,13 @@ export function neuralSynth(
         const hit = url ? await store!.match(url) : undefined
         if (hit) return hit.blob()
         let blob: Blob
-        const eng = isVoicevoxId(voice) ? getEngine() : null
-        if (eng) {
+        const eng = isEngineVoiceId(voice) ? getEngine() : null
+        const engineUrl = eng && isEngineVoiceId(voice) ? eng.urls[engineOf(voice)] : undefined
+        if (eng && engineUrl) {
           try {
-            blob = await synthesize(eng.url, voice as VoicevoxVoiceId, text)
+            blob = await synthesize(engineUrl, voice as EngineVoiceId, text)
             // Made here: share it with the learner's other devices (best effort; "Prepare" retries).
-            if (api) void upload(api, eng.voices, voice as VoicevoxVoiceId, text, blob).catch(() => undefined)
+            if (api) void upload(api, eng.voices, voice as EngineVoiceId, text, blob).catch(() => undefined)
           } catch {
             blob = await fromServer(api, text, voice) // engine stopped: maybe it was uploaded earlier
           }
@@ -267,22 +270,23 @@ export function neuralSynth(
 }
 
 /**
- * Makes every sentence in a VOICEVOX voice on this computer and uploads it, so the learner's other
+ * Makes every sentence in an engine voice (AivisSpeech or VOICEVOX) on this computer and uploads it, so the learner's other
  * devices can play the whole lesson. Re-uploads clips cached here earlier (maybe while offline).
  */
 export async function prepareClips(
   texts: string[],
-  voice: VoicevoxVoiceId,
+  voice: EngineVoiceId,
   onProgress: (done: number) => void,
   { api = storedDeviceApi(), eng = currentEngine(), cache = openCache, refresh = refreshNeuralVoices }: { api?: Api | null; eng?: Engine | null; cache?: () => Promise<Cache | null>; refresh?: () => Promise<void> } = {},
 ): Promise<void> {
-  if (!api || !eng) throw new Error(api ? 'engineOff' : 'notConnected')
+  const engineUrl = eng?.urls[engineOf(voice)]
+  if (!api || !eng || !engineUrl) throw new Error(api ? 'engineOff' : 'notConnected')
   const store = await cache()
   const unique = [...new Set(texts.map((t) => t.trim()).filter(Boolean))]
   for (const [i, text] of unique.entries()) {
     const url = store ? await cacheUrl(voice, text) : null
     const hit = url ? await store!.match(url) : undefined
-    const blob = hit ? await hit.blob() : await synthesize(eng.url, voice, text)
+    const blob = hit ? await hit.blob() : await synthesize(engineUrl, voice, text)
     await upload(api, eng.voices, voice, text, blob)
     notPrepared.delete(`${voice}\n${text}`)
     if (url && !hit) await store!.put(url, new Response(blob, { headers: { 'Content-Type': blob.type || 'audio/wav' } })).catch(() => undefined)
@@ -294,15 +298,15 @@ export async function prepareClips(
 }
 
 // Last, once everything above is defined: a device opened offline starts with what it knew last time,
-// and a computer with VOICEVOX turned on looks for its engine.
+// and a computer with engines turned on looks for them.
 if (typeof window !== 'undefined') {
   known = remembered()
   apply()
-  if (engineUrl()) void refreshEngine()
-  // VOICEVOX may be opened after Kikitori: look again when the learner comes back to the app.
+  if (engineUrls()) void refreshEngine()
+  // An engine may be opened after Kikitori: look again when the learner comes back to the app.
   let lastLook = Date.now()
   window.addEventListener('focus', () => {
-    if (!engineUrl() || Date.now() - lastLook < 30_000) return
+    if (!engineUrls() || Date.now() - lastLook < 30_000) return
     lastLook = Date.now()
     void refreshEngine()
   })

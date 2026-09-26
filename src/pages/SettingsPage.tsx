@@ -93,7 +93,7 @@ export function SettingsPage() {
   const support: [string, boolean][] = [
     [t.speechRec, recognitionSupported()],
     [t.micRec, recordingSupported()],
-    [t.tts, (ttsSupported() && !!voices?.length) || !!natural.azure?.length || !!natural.voicevox?.length],
+    [t.tts, (ttsSupported() && !!voices?.length) || !!natural.azure?.length || !!natural.engineVoices?.length],
     [t.offlineLabel, 'serviceWorker' in navigator],
   ]
 
