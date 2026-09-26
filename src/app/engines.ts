@@ -65,11 +65,11 @@ export async function probeEngine(kind: EngineKind, url: string, timeoutMs = PRO
   }
 }
 
-/** Every turned-on engine's voices (AivisSpeech first), and which engines answered. */
+/** Every turned-on engine's voices (AivisSpeech first), and which engines answered with voices. */
 export async function probeEngines(urls: Record<EngineKind, string>): Promise<{ voices: EngineVoice[]; up: EngineKind[] }> {
   const order: EngineKind[] = ['aivis', 'voicevox']
   const found = await Promise.all(order.map((k) => probeEngine(k, urls[k])))
-  return { voices: found.flatMap((v) => v ?? []), up: order.filter((_, i) => found[i] !== null) }
+  return { voices: found.flatMap((v) => v ?? []), up: order.filter((_, i) => !!found[i]?.length) }
 }
 
 /** One sentence as 24 kHz WAV: the engine's two-step query, then synthesis. */

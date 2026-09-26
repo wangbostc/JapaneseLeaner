@@ -63,6 +63,10 @@ const fakeEngine = (port, speakers) =>
       const path = (req.url ?? '').split('?')[0]
       if (req.method === 'OPTIONS') return res.writeHead(204, cors).end()
       if (path === '/speakers') return res.writeHead(200, { ...cors, 'content-type': 'application/json' }).end(JSON.stringify(speakers))
+      // Like the real engines, refuse a style this engine doesn't have (a voice sent to the wrong engine).
+      const speaker = Number(new URL(req.url ?? '', 'http://x').searchParams.get('speaker'))
+      const known = speakers.some((sp) => sp.styles.some((st) => st.id === speaker))
+      if ((path === '/audio_query' || path === '/synthesis') && !known) return res.writeHead(404, cors).end('{"detail":"style not found"}')
       if (path === '/audio_query') return res.writeHead(200, { ...cors, 'content-type': 'application/json' }).end('{"speedScale":1,"outputSamplingRate":44100}')
       if (path === '/synthesis') return res.writeHead(200, { ...cors, 'content-type': 'audio/wav' }).end(wav)
       res.writeHead(404, cors).end()

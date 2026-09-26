@@ -160,7 +160,14 @@ Two free, open-source Japanese speech engines can run on your own computer (not 
 AivisSpeech speaks VOICEVOX's API, so Kikitori treats them alike. The computer makes the audio and uploads it, so your phone plays the same voice.
 
 1. Install either app (or both) and keep it open. AivisSpeech serves `http://127.0.0.1:10101`, VOICEVOX `http://127.0.0.1:50021`. The engines alone also run in Docker: `ghcr.io/aivis-project/aivisspeech-engine:cpu-latest` on port 10101, and `voicevox/voicevox_engine:cpu-latest` on port 50021 (publish each as `-p 127.0.0.1:PORT:PORT`).
-2. If Kikitori isn't on `localhost` (for example on its workers.dev address), open the engine's `/setting` page, such as `http://127.0.0.1:10101/setting`, and add Kikitori's address to the allowed origins. The app shows the exact address when it can't reach an engine. With Docker, pass `--allow_origin https://your-kikitori.workers.dev` instead, because a /setting change is lost when the container is recreated.
+2. If Kikitori isn't on `localhost` (for example on its workers.dev address), open the engine's `/setting` page, such as `http://127.0.0.1:10101/setting`, and add Kikitori's address to the allowed origins. The app names each engine that isn't answering, with the exact address to allow. With Docker, a /setting change is lost when the container is recreated. To make it last, pass `--allow_origin` to the engine. The images run whatever follows the image name as their whole command, so repeat the image's own command with the flag added:
+
+   ```bash
+   docker run -d -p 127.0.0.1:10101:10101 ghcr.io/aivis-project/aivisspeech-engine:cpu-latest \
+     gosu user /opt/python/bin/poetry run python ./run.py --host 0.0.0.0 --allow_origin https://your-kikitori.workers.dev
+   docker run -d -p 127.0.0.1:50021:50021 voicevox/voicevox_engine:cpu-latest \
+     gosu user /opt/voicevox_engine/run --host 0.0.0.0 --allow_origin https://your-kikitori.workers.dev
+   ```
 3. On that computer, go to **Settings → Use AivisSpeech / VOICEVOX on this computer**. Their voices appear under **Japanese voice**. The default is AivisSpeech's まお (ノーマル), or VOICEVOX's 青山龍星 (ノーマル) if only VOICEVOX is running.
 4. On a lesson page, press **Prepare this voice for your other devices**. Every sentence is made on the computer and uploaded, and sentences you just play there are uploaded too.
 5. On your phone, the prepared voice appears under "<engine> (prepared on your computer)". With no Azure, it's the default once anything has been prepared. Sentences that haven't been prepared use the phone's own voice; after one miss, the phone doesn't ask again for 10 minutes.

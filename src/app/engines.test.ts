@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { probeEngine, probeEngines, synthesize } from './engines'
+import { engineUrls, probeEngine, probeEngines, setEnginesOn, synthesize } from './engines'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -54,5 +54,38 @@ describe('speech engines on this computer', () => {
       'http://127.0.0.1:10101/synthesis?speaker=888753760',
     ])
     expect(JSON.parse(calls[1].body!)).toEqual({ speedScale: 1, outputSamplingRate: 24000 })
+  })
+
+  it('counts an engine that answers with no voices as not running', async () => {
+    vi.stubGlobal('fetch', async (url: string) => Response.json(url.includes(':10101') ? [] : speakers['http://127.0.0.1:50021']))
+    const found = await probeEngines({ voicevox: 'http://127.0.0.1:50021', aivis: 'http://127.0.0.1:10101' })
+    expect(found.up).toEqual(['voicevox'])
+  })
+})
+
+describe('turning engines on', () => {
+  function memoryStorage(initial: Record<string, string> = {}) {
+    const m = new Map(Object.entries(initial))
+    vi.stubGlobal('localStorage', {
+      getItem: (k: string) => m.get(k) ?? null,
+      setItem: (k: string, v: string) => void m.set(k, v),
+      removeItem: (k: string) => void m.delete(k),
+    })
+    return m
+  }
+
+  it('keeps a device that turned VOICEVOX on before AivisSpeech existed on, now with AivisSpeech too', () => {
+    memoryStorage({ 'kikitori.voicevox': 'http://127.0.0.1:50021' })
+    expect(engineUrls()).toEqual({ voicevox: 'http://127.0.0.1:50021', aivis: 'http://127.0.0.1:10101' })
+  })
+
+  it('is off until turned on, and off again after', () => {
+    const m = memoryStorage()
+    expect(engineUrls()).toBeNull()
+    setEnginesOn(true)
+    expect(engineUrls()).toEqual({ voicevox: 'http://127.0.0.1:50021', aivis: 'http://127.0.0.1:10101' })
+    setEnginesOn(false)
+    expect(engineUrls()).toBeNull()
+    expect(m.size).toBe(0)
   })
 })

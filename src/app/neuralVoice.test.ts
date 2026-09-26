@@ -151,13 +151,45 @@ describe('neuralSynth', () => {
   })
 })
 
+describe('which engine speaks', () => {
+  it('sends each voice to its own engine when both are running', async () => {
+    const engine = {
+      urls: { voicevox: 'http://127.0.0.1:50021', aivis: 'http://127.0.0.1:10101' },
+      voices: [
+        { id: 'voicevox:13' as const, name: '青山龍星（ノーマル）', speaker: '青山龍星' },
+        { id: 'aivis:888753760' as const, name: 'まお（ノーマル）', speaker: 'まお' },
+      ],
+    }
+    const hosts: string[] = []
+    const realFetch = globalThis.fetch
+    globalThis.fetch = (async (url: string) => {
+      hosts.push(new URL(url).host)
+      return String(url).includes('audio_query') ? Response.json({}) : new Response(new Blob(['wav'], { type: 'audio/wav' }))
+    }) as typeof fetch
+    try {
+      const synth = neuralSynth(null, async () => null, 100, () => engine)
+      await synth('一。', 'aivis:888753760')
+      expect(hosts).toEqual(['127.0.0.1:10101', '127.0.0.1:10101'])
+      hosts.length = 0
+      await synth('二。', 'voicevox:13')
+      expect(hosts).toEqual(['127.0.0.1:50021', '127.0.0.1:50021'])
+    } finally {
+      globalThis.fetch = realFetch
+    }
+  })
+})
+
 describe('device cache keys', () => {
   it('keeps the key Azure clips were cached under before VOICEVOX, so they still play', async () => {
     const hex = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode('ja-JP-NanamiNeural\nおはよう。')))]
       .map((b) => b.toString(16).padStart(2, '0'))
       .join('')
     expect(await cacheUrl('ja-JP-NanamiNeural', 'おはよう。')).toBe(`https://tts.kikitori.invalid/ja-JP-NanamiNeural/${hex}.mp3`)
-    expect(await cacheUrl('voicevox:30', 'おはよう。')).toMatch(/^https:\/\/tts\.kikitori\.invalid\/voicevox-30\/[0-9a-f]{64}\.wav$/)
+    // VOICEVOX clips cached before AivisSpeech keep their key too.
+    const vhex = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode('voicevox:30\nおはよう。')))]
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('')
+    expect(await cacheUrl('voicevox:30', 'おはよう。')).toBe(`https://tts.kikitori.invalid/voicevox-30/${vhex}.wav`)
   })
 })
 

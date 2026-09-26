@@ -114,7 +114,13 @@ export function VoiceSettings({ voices }: { voices: SpeechSynthesisVoice[] | nul
               ? t.enginesFound(
                   natural.enginesUp.map((k) => [ENGINE_NAMES[k], byEngine(k).length] as [string, number]),
                   sync.kind !== 'unavailable' && sync.kind !== 'disconnected',
-                )
+                ) +
+                // On a deployed address, an engine that doesn't answer may just not allow it yet.
+                (isLocalOrigin()
+                  ? ''
+                  : ENGINES.filter((k) => !natural.enginesUp.includes(k))
+                      .map((k) => ' ' + t.engineNotAllowed(ENGINE_NAMES[k], (engineUrls() ?? DEFAULT_URLS)[k], location.origin))
+                      .join(''))
               : t.enginesMissing(
                   ENGINES.map((k) => [ENGINE_NAMES[k], (engineUrls() ?? DEFAULT_URLS)[k]] as [string, string]),
                   isLocalOrigin() ? null : location.origin,

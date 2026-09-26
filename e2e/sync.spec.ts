@@ -256,7 +256,8 @@ test('an engine on the computer (AivisSpeech here) prepares a lesson, and the ph
   const phone = await newDevice(browser, 'Phone')
   // A device that didn't turn engines on never contacts one (that could prompt for local-network access).
   const engineRequests: string[] = []
-  phone.on('request', (r) => /:(50021|50121|10101|10111)\//.test(r.url()) && engineRequests.push(r.url()))
+  const enginePorts = new Set(['50021', '10101', new URL(voicevox).port, new URL(aivis).port])
+  phone.on('request', (r) => enginePorts.has(new URL(r.url()).port) && engineRequests.push(r.url()))
   await phone.reload() // start-up again, now watched
   const phoneSelect = phone.getByTestId('voice-select')
   await expect(phoneSelect.locator('optgroup[label="AivisSpeech (prepared on your computer)"] option')).toHaveText(['まお（ノーマル）'])

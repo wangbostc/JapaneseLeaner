@@ -105,6 +105,8 @@ const en = {
   enginesFound: (found: [string, number][], shared: boolean) =>
     `Running: ${found.map(([name, n]) => `${name} (${n} voices)`).join(', ')}.` +
     (shared ? ' Sentences you play or prepare here are shared with your other devices.' : ' Connect sync to share them with your other devices.'),
+  engineNotAllowed: (engine: string, url: string, origin: string) =>
+    `${engine} isn’t answering at ${url}: if it’s open, allow this address in its settings (${url}/setting): ${origin}`,
   enginesMissing: (engines: [string, string][], origin: string | null) =>
     `Neither is answering (${engines.map(([name, url]) => `${name} at ${url}`).join(', ')}). Install the free AivisSpeech (aivis-project.com) or VOICEVOX (voicevox.hiroshiba.jp) app and keep it open.` +
     (origin ? ` Then, in its settings (${engines.map(([, url]) => `${url}/setting`).join(' or ')}), allow this address: ${origin}` : ''),
@@ -374,6 +376,7 @@ const zh: Strings = {
   voicevoxChecking: '正在查找 AivisSpeech 和 VOICEVOX…',
   enginesFound: (found, shared) =>
     `正在运行：${found.map(([name, n]) => `${name}（${n} 种声音）`).join('、')}。` + (shared ? '在这里播放或生成的句子会同步到你的其他设备。' : '连接同步后可分享到其他设备。'),
+  engineNotAllowed: (engine, url, origin) => `${url} 上的 ${engine} 没有响应：如果它已打开，请在其设置（${url}/setting）中允许此地址：${origin}`,
   enginesMissing: (engines, origin) =>
     `都没有响应（${engines.map(([name, url]) => `${name}：${url}`).join('，')}）。请安装免费的 AivisSpeech（aivis-project.com）或 VOICEVOX（voicevox.hiroshiba.jp）应用并保持打开。` +
     (origin ? `然后在其设置（${engines.map(([, url]) => `${url}/setting`).join(' 或 ')}）中允许此地址：${origin}` : ''),
