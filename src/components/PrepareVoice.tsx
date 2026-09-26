@@ -4,11 +4,11 @@ import { useSyncStatus } from '../app/sync'
 import { useSettings } from '../app/useSettings'
 import type { Lesson } from '../lib/db'
 import { neuralChoice } from '../lib/speech'
-import { isVoicevoxId } from '../lib/voices'
+import { engineOf, isEngineVoiceId } from '../lib/voices'
 import { VoiceCredit } from './VoiceCredit'
 
 /**
- * On a computer running VOICEVOX: makes the whole lesson in the chosen voice and uploads it, so a
+ * On a computer running the chosen voice's engine (AivisSpeech or VOICEVOX): makes the whole lesson in the chosen voice and uploads it, so a
  * phone can play it (offline too, once played there). Lessons with their own audio don't need it.
  */
 export function PrepareVoice({ lesson }: { lesson: Lesson }) {
@@ -18,7 +18,7 @@ export function PrepareVoice({ lesson }: { lesson: Lesson }) {
   const [state, setState] = useState<{ kind: 'idle' } | { kind: 'busy'; done: number } | { kind: 'done' } | { kind: 'error'; message: string }>({ kind: 'idle' })
   const voice = neuralChoice(settings.voiceURI)
   const connected = sync.kind === 'idle' || sync.kind === 'syncing' || sync.kind === 'error'
-  if (lesson.mediaId || !natural.engineUp || !connected || !voice || !isVoicevoxId(voice)) return null
+  if (lesson.mediaId || !connected || !voice || !isEngineVoiceId(voice) || !natural.enginesUp.includes(engineOf(voice))) return null
   const total = new Set(lesson.sentences.map((s) => s.text.trim()).filter(Boolean)).size
   const run = async () => {
     setState({ kind: 'busy', done: 0 })

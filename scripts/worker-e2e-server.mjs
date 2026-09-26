@@ -53,24 +53,32 @@ const fakeAzure = createServer((req, res) => {
 }).listen(0)
 const azureUrl = `http://127.0.0.1:${fakeAzure.address().port}/cognitiveservices/v1`
 
-// A fake VOICEVOX engine (the one a learner runs on their computer), reachable from the browser.
-const voicevoxPort = Number(process.env.E2E_VOICEVOX_PORT ?? 50121)
-const fakeVoicevox = createServer((req, res) => {
-  const cors = { 'access-control-allow-origin': req.headers.origin ?? '*', 'access-control-allow-headers': 'content-type', 'access-control-allow-methods': 'GET, POST' }
-  req.resume()
-  req.on('end', () => {
-    const path = (req.url ?? '').split('?')[0]
-    if (req.method === 'OPTIONS') return res.writeHead(204, cors).end()
-    if (path === '/speakers')
-      return res.writeHead(200, { ...cors, 'content-type': 'application/json' }).end(JSON.stringify([
-        { name: 'No.7', styles: [{ name: 'ノーマル', id: 29, type: 'talk' }, { name: 'アナウンス', id: 30, type: 'talk' }] },
-        { name: 'ずんだもん', styles: [{ name: 'ノーマル', id: 3, type: 'talk' }] },
-      ]))
-    if (path === '/audio_query') return res.writeHead(200, { ...cors, 'content-type': 'application/json' }).end('{"speedScale":1}')
-    if (path === '/synthesis') return res.writeHead(200, { ...cors, 'content-type': 'audio/wav' }).end(wav)
-    res.writeHead(404, cors).end()
-  })
-}).listen(voicevoxPort, '127.0.0.1')
+// Fake speech engines (what a learner runs on their computer), reachable from the browser:
+// VOICEVOX and AivisSpeech, which speaks the same API.
+const fakeEngine = (port, speakers) =>
+  createServer((req, res) => {
+    const cors = { 'access-control-allow-origin': req.headers.origin ?? '*', 'access-control-allow-headers': 'content-type', 'access-control-allow-methods': 'GET, POST' }
+    req.resume()
+    req.on('end', () => {
+      const path = (req.url ?? '').split('?')[0]
+      if (req.method === 'OPTIONS') return res.writeHead(204, cors).end()
+      if (path === '/speakers') return res.writeHead(200, { ...cors, 'content-type': 'application/json' }).end(JSON.stringify(speakers))
+      // Like the real engines, refuse a style this engine doesn't have (a voice sent to the wrong engine).
+      const speaker = Number(new URL(req.url ?? '', 'http://x').searchParams.get('speaker'))
+      const known = speakers.some((sp) => sp.styles.some((st) => st.id === speaker))
+      if ((path === '/audio_query' || path === '/synthesis') && !known) return res.writeHead(404, cors).end('{"detail":"style not found"}')
+      if (path === '/audio_query') return res.writeHead(200, { ...cors, 'content-type': 'application/json' }).end('{"speedScale":1,"outputSamplingRate":44100}')
+      if (path === '/synthesis') return res.writeHead(200, { ...cors, 'content-type': 'audio/wav' }).end(wav)
+      res.writeHead(404, cors).end()
+    })
+  }).listen(port, '127.0.0.1')
+const fakeVoicevox = fakeEngine(Number(process.env.E2E_VOICEVOX_PORT ?? 50121), [
+  { name: 'No.7', styles: [{ name: 'ノーマル', id: 29, type: 'talk' }, { name: 'アナウンス', id: 30, type: 'talk' }] },
+  { name: '青山龍星', styles: [{ name: 'ノーマル', id: 13, type: 'talk' }] },
+])
+const fakeAivis = fakeEngine(Number(process.env.E2E_AIVIS_PORT ?? 10111), [
+  { name: 'まお', styles: [{ name: 'ノーマル', id: 888753760, type: 'talk' }, { name: 'おちつき', id: 888753763, type: 'talk' }] },
+])
 
 // A throwaway VAPID pair so push subscriptions can be tested.
 const pair = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify'])
@@ -88,4 +96,4 @@ const dev = spawn(
 )
 process.on('SIGTERM', () => dev.kill('SIGTERM'))
 process.on('SIGINT', () => dev.kill('SIGINT'))
-dev.on('exit', (code) => (fakeAnthropic.close(), fakeAzure.close(), fakeVoicevox.close(), process.exit(code ?? 0)))
+dev.on('exit', (code) => (fakeAnthropic.close(), fakeAzure.close(), fakeVoicevox.close(), fakeAivis.close(), process.exit(code ?? 0)))

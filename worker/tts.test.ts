@@ -167,6 +167,7 @@ describe('VOICEVOX clips', () => {
     const e = await env()
     expect(await status(await put(e, { voice: 'ja-JP-NanamiNeural', text: 'はい' }))).toEqual([400, 'invalid'])
     expect(await status(await put(e, { voice: 'voicevox:abc', text: 'はい' }))).toEqual([400, 'invalid'])
+    expect(await status(await put(e, { voice: 'coeiroink:3', text: 'はい' }))).toEqual([400, 'invalid'])
     expect(await status(await put(e, { voice: 'voicevox:3', text: '  ' }))).toEqual([400, 'invalid'])
     expect(await status(await put(e, { voice: 'voicevox:3', text: 'あ'.repeat(1001) }))).toEqual([400, 'tooLong'])
     expect(await status(await put(e, { voice: 'voicevox:3', text: 'はい' }, '<html>', 'text/html'))).toEqual([415, 'invalid'])
@@ -184,3 +185,30 @@ describe('VOICEVOX clips', () => {
   })
 })
 
+describe('AivisSpeech clips', () => {
+  it('are stored and served like VOICEVOX ones, as a separate voice', async () => {
+    const e = await env({ AZURE_SPEECH_KEY: undefined })
+    const put = (voice: string, bytes: number[], extra: Record<string, string> = {}) =>
+      putClip(
+        e,
+        new Request(`https://k.test/api/tts/clip?${new URLSearchParams({ voice, text: '一。', ...extra })}`, {
+          method: 'PUT',
+          body: new Uint8Array(bytes),
+          headers: { 'Content-Type': 'audio/wav', 'Content-Length': String(bytes.length) },
+        }),
+      )
+    expect((await put('aivis:888753760', [1, 1], { name: 'まお（ノーマル）', speaker: 'まお' })).status).toBe(201)
+    expect((await put('voicevox:13', [2, 2])).status).toBe(201)
+    const get = async (voice: string) => [...new Uint8Array(await (await speech(e, { text: '一。', voice })).arrayBuffer())]
+    expect(await get('aivis:888753760')).toEqual([1, 1])
+    expect(await get('voicevox:13')).toEqual([2, 2])
+    expect((await ttsInfo(e)).prepared).toEqual([{ id: 'aivis:888753760', name: 'まお（ノーマル）', speaker: 'まお' }])
+    // VOICEVOX clips uploaded before AivisSpeech keep their R2 key, so they're still found.
+    const hex = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode('voicevox-wav\nvoicevox:13\n一。')))]
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('')
+    const keys = (await e.FILES.list({ prefix: 'tts/' })).objects.map((o) => o.key)
+    expect(keys).toContain(`tts/voicevox-13/${hex}.wav`)
+    expect(keys.some((k) => k.startsWith('tts/aivis-888753760/'))).toBe(true)
+  })
+})

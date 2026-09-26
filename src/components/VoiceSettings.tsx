@@ -2,34 +2,34 @@ import { useEffect, useState } from 'react'
 import { refreshEngine, useNaturalVoices } from '../app/neuralVoice'
 import { useSyncStatus } from '../app/sync'
 import { useSettings } from '../app/useSettings'
-import { DEFAULT_ENGINE_URL, engineUrl, setEngineUrl } from '../app/voicevox'
+import { DEFAULT_URLS, engineUrls, setEnginesOn } from '../app/engines'
 import { neuralChoice, speak } from '../lib/speech'
-import { isVoicevoxId, NEURAL_PREFIX, type NaturalVoiceId } from '../lib/voices'
+import { ENGINE_NAMES, ENGINES, engineOf, isEngineVoiceId, NEURAL_PREFIX, type EngineKind, type NaturalVoiceId } from '../lib/voices'
 import { VoiceCredit } from './VoiceCredit'
 
 /** The setting value for a natural voice: Azure voices are prefixed, VOICEVOX ids already are. */
-const valueOf = (id: NaturalVoiceId) => (isVoicevoxId(id) ? id : NEURAL_PREFIX + id)
+const valueOf = (id: NaturalVoiceId) => (isEngineVoiceId(id) ? id : NEURAL_PREFIX + id)
 
 const isLocalOrigin = () => ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname)
 
-/** Settings → Japanese voice: natural voices (Azure, VOICEVOX), the device's own, and VOICEVOX on this computer. */
+/** Settings → Japanese voice: natural voices (Azure, AivisSpeech, VOICEVOX), the device's own, and the engines on this computer. */
 export function VoiceSettings({ voices }: { voices: SpeechSynthesisVoice[] | null }) {
   const { t, settings, update } = useSettings()
   const natural = useNaturalVoices()
   const sync = useSyncStatus()
-  const [useEngine, setUseEngine] = useState(() => !!engineUrl())
-  const [engine, setEngine] = useState<'checking' | 'up' | 'down' | null>(() => (engineUrl() ? 'checking' : null))
+  const [useEngine, setUseEngine] = useState(() => !!engineUrls())
+  const [engine, setEngine] = useState<'checking' | 'up' | 'down' | null>(() => (engineUrls() ? 'checking' : null))
 
   const check = async () => {
     setEngine('checking')
-    setEngine((await refreshEngine()) ? 'up' : 'down')
+    setEngine((await refreshEngine()).length ? 'up' : 'down')
   }
   useEffect(() => {
-    if (engineUrl()) void refreshEngine().then((ok) => setEngine(ok ? 'up' : 'down'))
+    if (engineUrls()) void refreshEngine().then((up) => setEngine(up.length ? 'up' : 'down'))
   }, [])
   const toggle = async (on: boolean) => {
     setUseEngine(on)
-    setEngineUrl(on ? DEFAULT_ENGINE_URL : null)
+    setEnginesOn(on)
     if (on) await check()
     else {
       await refreshEngine()
@@ -37,13 +37,15 @@ export function VoiceSettings({ voices }: { voices: SpeechSynthesisVoice[] | nul
     }
   }
 
-  const hasAny = !!voices?.length || !!natural.azure?.length || !!natural.voicevox?.length
+  const hasAny = !!voices?.length || !!natural.azure?.length || !!natural.engineVoices?.length
   const fallback = neuralChoice(undefined)
   // With natural voices on and nothing chosen, the default natural voice speaks; show that, not the first device voice.
   const value = settings.voiceURI ?? (fallback ? valueOf(fallback) : (voices?.[0]?.voiceURI ?? ''))
   // A VOICEVOX voice chosen earlier but not available now (engine closed, nothing prepared): say so
   // rather than showing whichever option comes first while the device voice speaks.
-  const stale = !!settings.voiceURI && isVoicevoxId(settings.voiceURI) && !natural.voicevox?.some((v) => v.id === settings.voiceURI)
+  const stale = !!settings.voiceURI && isEngineVoiceId(settings.voiceURI) && !natural.engineVoices?.some((v) => v.id === settings.voiceURI)
+  const byEngine = (kind: EngineKind) => natural.engineVoices?.filter((v) => engineOf(v.id) === kind) ?? []
+  const here = natural.enginesUp.length > 0
 
   return (
     <>
@@ -62,14 +64,17 @@ export function VoiceSettings({ voices }: { voices: SpeechSynthesisVoice[] | nul
                 ))}
               </optgroup>
             )}
-            {!!natural.voicevox?.length && (
-              <optgroup label={natural.engineUp ? t.voiceVoicevoxHere : t.voiceVoicevoxPrepared}>
-                {natural.voicevox.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.name}
-                  </option>
-                ))}
-              </optgroup>
+            {(['aivis', 'voicevox'] as const).map(
+              (kind) =>
+                byEngine(kind).length > 0 && (
+                  <optgroup key={kind} label={here ? t.voiceEngineHere(ENGINE_NAMES[kind]) : t.voiceEnginePrepared(ENGINE_NAMES[kind])}>
+                    {byEngine(kind).map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                ),
             )}
             {stale && (
               <option value={settings.voiceURI} disabled>
@@ -87,7 +92,7 @@ export function VoiceSettings({ voices }: { voices: SpeechSynthesisVoice[] | nul
             )}
           </select>
         )}
-        {!natural.azure?.length && !natural.voicevox?.length && sync.kind !== 'unavailable' && <small className="muted">{t.voiceNaturalHint}</small>}
+        {!natural.azure?.length && !natural.engineVoices?.length && sync.kind !== 'unavailable' && <small className="muted">{t.voiceNaturalHint}</small>}
       </label>
       <VoiceCredit />
       {hasAny && (
@@ -106,8 +111,20 @@ export function VoiceSettings({ voices }: { voices: SpeechSynthesisVoice[] | nul
           {engine === 'checking'
             ? t.voicevoxChecking
             : engine === 'up'
-              ? t.voicevoxFound(natural.voicevox?.length ?? 0, sync.kind !== 'unavailable' && sync.kind !== 'disconnected')
-              : t.voicevoxMissing(engineUrl() ?? DEFAULT_ENGINE_URL, isLocalOrigin() ? null : location.origin)}
+              ? t.enginesFound(
+                  natural.enginesUp.map((k) => [ENGINE_NAMES[k], byEngine(k).length] as [string, number]),
+                  sync.kind !== 'unavailable' && sync.kind !== 'disconnected',
+                ) +
+                // On a deployed address, an engine that doesn't answer may just not allow it yet.
+                (isLocalOrigin()
+                  ? ''
+                  : ENGINES.filter((k) => !natural.enginesUp.includes(k))
+                      .map((k) => ' ' + t.engineNotAllowed(ENGINE_NAMES[k], (engineUrls() ?? DEFAULT_URLS)[k], location.origin))
+                      .join(''))
+              : t.enginesMissing(
+                  ENGINES.map((k) => [ENGINE_NAMES[k], (engineUrls() ?? DEFAULT_URLS)[k]] as [string, string]),
+                  isLocalOrigin() ? null : location.origin,
+                )}
         </small>
       )}
     </>

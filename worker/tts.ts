@@ -1,32 +1,33 @@
-import { isNeuralVoiceId, isVoicevoxId, MAX_TTS_CHARS, NEURAL_VOICES, type VoicevoxVoice } from '../src/lib/voices'
+import { engineOf, isEngineVoiceId, isNeuralVoiceId, MAX_TTS_CHARS, NEURAL_VOICES, type EngineVoice } from '../src/lib/voices'
 import type { Env } from './env'
 
 /**
  * Natural Japanese speech, kept in R2 per sentence and voice:
  * - Azure neural voices, synthesised here (its free F0 tier covers 500k characters a month);
- * - VOICEVOX voices, made on the learner's own computer and uploaded (PUT /api/tts/clip), so
- *   their other devices can play them. The server only stores and serves those.
+ * - VOICEVOX and AivisSpeech voices, made on the learner's own computer and uploaded
+ *   (PUT /api/tts/clip), so their other devices can play them. The server only stores and serves those.
  */
 
 export const ttsEnabled = (env: Env) => Boolean(env.AZURE_SPEECH_KEY && env.AZURE_SPEECH_REGION)
 
+// The list of voices clips were made with (both engines; the name predates AivisSpeech).
 const VOICEVOX_VOICES_KEY = 'tts/voicevox/voices.json'
 const MAX_PREPARED_VOICES = 20
 /** A clip is one sentence of 24 kHz WAV (~50 KB a second); this is several minutes. */
 export const MAX_CLIP_BYTES = 10 * 1024 * 1024
 
-async function preparedVoices(env: Env): Promise<VoicevoxVoice[]> {
+async function preparedVoices(env: Env): Promise<EngineVoice[]> {
   const obj = await env.FILES.get(VOICEVOX_VOICES_KEY)
   if (!obj) return []
   try {
-    const list = (await obj.json()) as VoicevoxVoice[]
+    const list = (await obj.json()) as EngineVoice[]
     return Array.isArray(list) ? list : []
   } catch {
     return []
   }
 }
 
-/** Azure's voices when it's configured, and the VOICEVOX voices with clips here, most recently used first. */
+/** Azure's voices when it's configured, and the engine voices with clips here, most recently used first. */
 export const ttsInfo = async (env: Env) => ({ enabled: ttsEnabled(env), voices: ttsEnabled(env) ? NEURAL_VOICES : [], prepared: await preparedVoices(env) })
 
 // Mono MP3 at 24 kHz: small, and every browser plays it.
@@ -40,10 +41,11 @@ export const ssml = (voice: string, text: string) =>
   `<speak version='1.0' xml:lang='ja-JP'><voice xml:lang='ja-JP' name='${voice}'>${escapeXml(text)}</voice></speak>`
 
 async function cacheKey(voice: string, text: string) {
-  const format = isVoicevoxId(voice) ? 'voicevox-wav' : OUTPUT_FORMAT
+  // VOICEVOX clips keep the key they were first stored under.
+  const format = isEngineVoiceId(voice) ? `${engineOf(voice)}-wav` : OUTPUT_FORMAT
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${format}\n${voice}\n${text}`))
   const hex = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('')
-  return isVoicevoxId(voice) ? `tts/${voice.replace(':', '-')}/${hex}.wav` : `tts/${voice}/${hex}.mp3`
+  return isEngineVoiceId(voice) ? `tts/${voice.replace(':', '-')}/${hex}.wav` : `tts/${voice}/${hex}.mp3`
 }
 
 const audio = (body: ReadableStream | ArrayBuffer, type: string) =>
@@ -52,7 +54,7 @@ const audio = (body: ReadableStream | ArrayBuffer, type: string) =>
 export async function speech(env: Env, body: Record<string, unknown> | null, fetcher: typeof fetch = fetch): Promise<Response> {
   const voice = body?.voice
   const text = typeof body?.text === 'string' ? body.text.trim() : ''
-  if (typeof voice === 'string' && isVoicevoxId(voice)) {
+  if (typeof voice === 'string' && isEngineVoiceId(voice)) {
     // Made elsewhere: serve it if it's been uploaded; the device's own voice covers the rest.
     if (!text) return fail(400, 'invalid')
     if (text.length > MAX_TTS_CHARS) return fail(400, 'tooLong')
@@ -97,7 +99,7 @@ export async function speech(env: Env, body: Record<string, unknown> | null, fet
 }
 
 /**
- * Stores a VOICEVOX clip made on the learner's computer: PUT /api/tts/clip?voice=&text=[&name=&speaker=]
+ * Stores an engine clip (VOICEVOX or AivisSpeech) made on the learner's computer: PUT /api/tts/clip?voice=&text=[&name=&speaker=]
  * with the audio as the body. `name` and `speaker` put the voice on the list other devices choose from.
  */
 export async function putClip(env: Env, request: Request): Promise<Response> {
@@ -106,7 +108,7 @@ export async function putClip(env: Env, request: Request): Promise<Response> {
   const text = (q.get('text') ?? '').trim()
   const name = q.get('name')
   const speaker = q.get('speaker')
-  if (!isVoicevoxId(voice) || !text) return fail(400, 'invalid')
+  if (!isEngineVoiceId(voice) || !text) return fail(400, 'invalid')
   if (text.length > MAX_TTS_CHARS) return fail(400, 'tooLong')
   if ((name !== null || speaker !== null) && !(name && speaker && name.length <= 80 && speaker.length <= 80)) return fail(400, 'invalid')
   const type = request.headers.get('Content-Type') ?? ''
