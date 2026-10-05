@@ -7,9 +7,9 @@ import { backgroundRemindersOn, enablePushReminders, enableReminders, pushSubscr
 import { sanitizeSettings } from '../app/sanitizeSettings'
 import { Link } from 'react-router-dom'
 import { useSettings } from '../app/useSettings'
-import { parseBackup, restoreBackup, type Backup } from '../lib/backup'
+import { parseBackup, restoreBackup, type Backup } from '@kikitori/core/backup'
 import { downloadBackup } from '../app/backupFile'
-import { db } from '../lib/db'
+import { database } from '../lib/store'
 import { japaneseVoices, recognitionSupported, recordingSupported, ttsSupported } from '../lib/speech'
 import { useNaturalVoices } from '../app/neuralVoice'
 import { VoiceSettings } from '../components/VoiceSettings'
@@ -56,7 +56,7 @@ export function SettingsPage() {
 
   const download = async () => {
     try {
-      await downloadBackup(db, settings)
+      await downloadBackup(database, settings)
     } catch (err) {
       setMessage({ ok: false, text: err instanceof Error ? err.message : String(err) })
     }
@@ -77,7 +77,7 @@ export function SettingsPage() {
   const restore = async () => {
     if (!pending) return
     try {
-      await restoreBackup(db, pending)
+      await restoreBackup(database, pending)
       resetSyncCursor()
       update(sanitizeSettings(pending.settings))
       setMessage({ ok: true, text: t.restored(pending.lessons.length) })

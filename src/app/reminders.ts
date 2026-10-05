@@ -3,7 +3,7 @@ import { buildIcs } from '@kikitori/core/ics'
 import { db } from '../lib/db'
 import { REMINDER_TAG, reminderNotification, summarizeDue } from '@kikitori/core/reminders'
 import { dueAt, nextRound } from '@kikitori/core/schedule'
-import type { Api } from '../lib/sync'
+import type { Api } from '@kikitori/core/sync'
 import { deviceApi } from './sync'
 
 type PeriodicSyncManager = { register(tag: string, opts: { minInterval: number }): Promise<void>; getTags(): Promise<string[]> }

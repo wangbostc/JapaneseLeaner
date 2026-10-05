@@ -1,7 +1,7 @@
 import { useEffect, useSyncExternalStore } from 'react'
 import { setNeuralSynth, type NeuralSynth } from '../lib/speech'
 import { DEFAULT_ENGINE_VOICES, DEFAULT_NEURAL_VOICE, engineOf, isEngineVoiceId, type EngineKind, type EngineVoice, type EngineVoiceId, type NaturalVoiceId, type NeuralVoice } from '@kikitori/core/voices'
-import type { Api } from '../lib/sync'
+import type { Api } from '@kikitori/core/sync'
 import { storedDeviceApi, useSyncStatus } from './sync'
 import { engineUrls, probeEngines, synthesize } from './engines'
 

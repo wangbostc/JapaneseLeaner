@@ -1,5 +1,6 @@
 import Dexie, { type EntityTable, type Transaction } from 'dexie'
-import { nextStamp, sampleUid, type Deletion, type Flashcard, type KnownWord, type Lesson, type Media, type PracticeLog, type Synced } from '@kikitori/core/model'
+import { stampEdit, stampNew, type SyncedTableName } from '@kikitori/core/database'
+import { sampleUid, type Deletion, type Flashcard, type KnownWord, type Lesson, type Media, type PracticeLog, type Synced } from '@kikitori/core/model'
 
 const newUid = () => crypto.randomUUID()
 
@@ -9,10 +10,30 @@ const SYNC_APPLY = Symbol('syncApply')
 export function markSyncApply(trans: Transaction) {
   ;(trans as unknown as Record<symbol, boolean>)[SYNC_APPLY] = true
 }
-const isSyncApply = (trans: Transaction) => (trans as unknown as Record<symbol, boolean>)[SYNC_APPLY] === true
+export const isSyncApply = (trans: Transaction) => (trans as unknown as Record<symbol, boolean>)[SYNC_APPLY] === true
 
-/** Fields that only mean something on this device and never travel. */
-const LOCAL_ONLY = new Set(['mediaId', 'lessonId', 'syncedVersion'])
+/** Equal by value: arrays, plain objects and Dates compared deeply, anything else by identity. */
+function sameValue(a: unknown, b: unknown): boolean {
+  if (a === b) return true
+  if (a instanceof Date && b instanceof Date) return a.getTime() === b.getTime()
+  if (Array.isArray(a) && Array.isArray(b)) return a.length === b.length && a.every((x, i) => sameValue(x, b[i]))
+  const plain = (x: unknown): x is Record<string, unknown> => !!x && Object.getPrototypeOf(x) === Object.prototype
+  if (plain(a) && plain(b)) {
+    const keys = Object.keys(a)
+    return keys.length === Object.keys(b).length && keys.every((k) => sameValue(a[k], b[k]))
+  }
+  return false
+}
+
+/**
+ * The fields an update really changes. Dexie's `mods` (a diff of the row) compares arrays and
+ * Dates by reference, so it lists every array field of a lesson as changed on any update; that
+ * made a local-only edit (linking downloaded audio) count as a synced one.
+ */
+function realChanges(mods: object, row: object): object {
+  const at = (path: string) => path.split('.').reduce<unknown>((o, k) => (o as Record<string, unknown> | undefined)?.[k], row)
+  return Object.fromEntries(Object.entries(mods).filter(([path, value]) => !sameValue(at(path), value)))
+}
 
 export class KikitoriDB extends Dexie {
   lessons!: EntityTable<Lesson, 'id'>
@@ -72,21 +93,13 @@ export class KikitoriDB extends Dexie {
           })
       })
 
-    // Every write path gets a uid and a fresh updatedAt without having to remember to.
-    for (const table of [this.lessons, this.media, this.cards, this.logs] as Dexie.Table<Partial<Synced>>[]) {
-      table.hook('creating', (_key, obj) => {
-        // Built-in samples keep their shared uid however they arrive (seeding, a v1 restore, ...).
-        const sample = table === (this.lessons as unknown) && (obj as Lesson).builtIn
-        obj.uid ??= sample ? sampleUid((obj as Lesson).title) : newUid()
-        obj.updatedAt ??= Date.now()
-      })
+    // Every write path gets a uid and a fresh updatedAt, by the rules every backend shares.
+    for (const name of ['lessons', 'media', 'cards', 'logs'] as SyncedTableName[]) {
+      const table = this.table(name) as Dexie.Table<Partial<Synced>>
+      table.hook('creating', (_key, obj) => stampNew(name, obj, newUid))
       table.hook('updating', (mods, _key, obj, trans) => {
-        // Writes that apply the server's version keep its updatedAt, even when unchanged.
-        if (isSyncApply(trans)) return undefined
-        // Changes to device-local fields (which audio row a lesson points at) aren't edits to sync.
-        const keys = Object.keys(mods)
-        if ('updatedAt' in mods || keys.every((k) => LOCAL_ONLY.has(k))) return undefined
-        return { updatedAt: nextStamp(obj.updatedAt) }
+        const updatedAt = stampEdit(realChanges(mods, obj), obj, isSyncApply(trans))
+        return updatedAt === undefined ? undefined : { updatedAt }
       })
     }
   }

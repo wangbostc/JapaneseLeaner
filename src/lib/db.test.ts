@@ -2,7 +2,8 @@ import Dexie from 'dexie'
 import { afterEach, describe, expect, it } from 'vitest'
 import { sampleUid } from '@kikitori/core/model'
 import { KikitoriDB } from './db'
-import { createStore } from './store'
+import { createStore } from '@kikitori/core/store'
+import { dexieDatabase } from './dexieDatabase'
 
 // Later than the real clock: stamps never go backwards, so a T0 in the past would be overtaken by
 // the time records are really written (this was 2026-09-25 and started failing that morning).
@@ -51,31 +52,33 @@ describe('schema v2 upgrade', () => {
 
 describe('sync bookkeeping', () => {
   it('gives every new record a uid and bumps updatedAt on every change', async () => {
-    const s = createStore(new KikitoriDB(fresh()))
+    const d = new KikitoriDB(fresh())
+    const s = createStore(dexieDatabase(d))
     const id = await s.createLesson({ title: 't', sentences: [] }, T0)
-    const created = (await s.db.lessons.get(id))!
+    const created = (await d.lessons.get(id))!
     expect(created.uid).toMatch(UUID)
     expect(created.updatedAt).toBe(T0)
 
     const before = Date.now()
     await s.setHard(id, 0, true)
-    expect((await s.db.lessons.get(id))!.updatedAt).toBeGreaterThanOrEqual(before)
+    expect((await d.lessons.get(id))!.updatedAt).toBeGreaterThanOrEqual(before)
 
     const card = await s.addCard({ lessonId: id, kind: 'word', front: '雨', reading: 'あめ', context: '雨' }, T0)
-    expect((await s.db.cards.get(card))!.uid).toMatch(UUID)
-    s.db.close()
+    expect((await d.cards.get(card))!.uid).toMatch(UUID)
+    d.close()
   })
 
   it('seeds sample lessons with deterministic uids', async () => {
-    const { seedOnce } = await import('./seed')
-    const s = createStore(new KikitoriDB(fresh()))
+    const { seedOnce } = await import('@kikitori/core/seed')
+    const d = new KikitoriDB(fresh())
+    const s = createStore(dexieDatabase(d))
     await seedOnce(s)
     const { sampleLessons } = await import('@kikitori/core/samples')
-    const uids = (await s.db.lessons.toArray()).map((l) => l.uid)
+    const uids = (await d.lessons.toArray()).map((l) => l.uid)
     expect(uids).toEqual(sampleLessons().map((l) => `sample:${l.title}`))
     // The oldest possible version: a tombstone from another device always beats it.
-    expect((await s.db.lessons.toArray()).map((l) => l.updatedAt)).toEqual(uids.map(() => 0))
-    s.db.close()
+    expect((await d.lessons.toArray()).map((l) => l.updatedAt)).toEqual(uids.map(() => 0))
+    d.close()
   })
 
   it('gives built-in samples their shared uid however they are created', async () => {
@@ -91,35 +94,37 @@ describe('sync bookkeeping', () => {
   })
 
   it('logs remember their lesson uid, so they still name it after the lesson is deleted', async () => {
-    const s = createStore(new KikitoriDB(fresh()))
+    const d = new KikitoriDB(fresh())
+    const s = createStore(dexieDatabase(d))
     const id = await s.createLesson({ title: 't', sentences: [] }, T0)
-    const { uid } = (await s.db.lessons.get(id))!
+    const { uid } = (await d.lessons.get(id))!
     await s.log({ lessonId: id, step: 'intensive', mode: 'input', ms: 1000, at: T0 })
     await s.deleteLesson(id, T0 + 1)
-    expect((await s.db.logs.toArray())[0].lessonUid).toBe(uid)
-    s.db.close()
+    expect((await d.logs.toArray())[0].lessonUid).toBe(uid)
+    d.close()
   })
 
   it('leaves tombstones for deleted lessons, their audio and cards, and removed cards', async () => {
-    const s = createStore(new KikitoriDB(fresh()))
+    const d = new KikitoriDB(fresh())
+    const s = createStore(dexieDatabase(d))
     const id = await s.createLesson({ title: 't', sentences: [], media: { blob: new Blob(['x']), name: 'a.mp3' } }, T0)
     const c1 = await s.addCard({ lessonId: id, kind: 'word', front: '一', reading: 'いち', context: '一' }, T0)
     const c2 = await s.addCard({ lessonId: id, kind: 'word', front: '二', reading: 'に', context: '二' }, T0)
-    const lesson = (await s.db.lessons.get(id))!
-    const media = (await s.db.media.toArray())[0]
-    const [card1, card2] = await s.db.cards.bulkGet([c1, c2])
+    const lesson = (await d.lessons.get(id))!
+    const media = (await d.media.toArray())[0]
+    const [card1, card2] = await d.cards.bulkGet([c1, c2])
 
     await s.removeCard(c1, T0 + 1)
     await s.deleteLesson(id, T0 + 2)
 
-    const tombs = (await s.db.deletions.toArray()).map(({ uid, table, at }) => ({ uid, table, at }))
+    const tombs = (await d.deletions.toArray()).map(({ uid, table, at }) => ({ uid, table, at }))
     expect(tombs).toEqual([
       { uid: card1!.uid, table: 'cards', at: T0 + 1 },
       { uid: lesson.uid, table: 'lessons', at: T0 + 2 },
       { uid: media.uid, table: 'media', at: T0 + 2 },
       { uid: card2!.uid, table: 'cards', at: T0 + 2 },
     ])
-    expect(await s.db.lessons.count()).toBe(0)
-    s.db.close()
+    expect(await d.lessons.count()).toBe(0)
+    d.close()
   })
 })

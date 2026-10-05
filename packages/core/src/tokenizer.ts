@@ -1,4 +1,3 @@
-/// <reference path="./kuromoji.d.ts" />
 import DictionaryLoader from 'kuromoji/src/loader/DictionaryLoader'
 import Tokenizer from 'kuromoji/src/Tokenizer'
 import { toHiragana } from './kana'

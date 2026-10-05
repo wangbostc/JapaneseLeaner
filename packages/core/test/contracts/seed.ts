@@ -1,22 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { sampleLessons } from '@kikitori/core/samples'
-import { sampleUid } from '@kikitori/core/model'
-import { KikitoriDB } from './db'
-import { seedOnce } from './seed'
-import { createStore, type Store } from './store'
+import { sampleUid } from '../../src/model'
+import { sampleLessons } from '../../src/samples'
+import { seedOnce } from '../../src/seed'
+import { createStore, type Store } from '../../src/store'
+import type { Backend } from './backend'
 
 const ALL = sampleLessons().map((l) => sampleUid(l.title))
 const OLD = ['私の朝', '週末のカフェ', '雨の日の過ごし方'].map(sampleUid)
-let s: Store
-let n = 0
-
-beforeEach(() => {
-  s = createStore(new KikitoriDB(`seed-test-${n++}`))
-})
-afterEach(async () => {
-  vi.unstubAllGlobals()
-  await s.db.delete()
-})
 
 function memoryStorage(initial: Record<string, string> = {}) {
   const m = new Map(Object.entries(initial))
@@ -27,10 +17,21 @@ function memoryStorage(initial: Record<string, string> = {}) {
   return m
 }
 
-const uids = async () => (await s.db.lessons.toArray()).map((l) => l.uid).sort()
-const byUid = (uid: string) => s.db.lessons.where('uid').equals(uid).first()
+/** Seeding the starter lessons, which every storage backend must reproduce. */
+export function seedContract(backend: Backend) {
+  let s: Store
+  beforeEach(() => {
+    s = createStore(backend.open())
+  })
+  afterEach(async () => {
+    vi.unstubAllGlobals()
+    await backend.cleanup()
+  })
 
-describe('seedOnce', () => {
+  const uids = async () => (await s.db.lessons.all()).map((l) => l.uid).sort()
+  const byUid = async (uid: string) => (await s.db.lessons.where('uid', [uid]))[0]
+
+  describe(`seedOnce (${backend.name})`, () => {
   it('covers every level from N5 to N1, with unique titles', () => {
     expect(new Set(sampleLessons().map((l) => l.level))).toEqual(new Set(['N5', 'N4', 'N3', 'N2', 'N1']))
     expect(new Set(ALL).size).toBe(ALL.length)
@@ -70,7 +71,7 @@ describe('seedOnce', () => {
     const id = await s.createLesson({ title: synced.slice('sample:'.length), sentences: [], builtIn: true, uid: synced, updatedAt: 5 })
     await s.db.lessons.update(id, { progress: { roundsDone: 2, lastCompletedAt: 5 } })
     await seedOnce(s)
-    expect(await s.db.lessons.where('uid').equals(synced).count()).toBe(1)
+    expect((await s.db.lessons.where('uid', [synced])).length).toBe(1)
     expect((await byUid(synced))!.progress.roundsDone).toBe(2)
   })
 
@@ -88,6 +89,7 @@ describe('seedOnce', () => {
   it('seeds samples as the oldest possible version, so a deletion from another device wins', async () => {
     memoryStorage()
     await seedOnce(s)
-    expect(new Set((await s.db.lessons.toArray()).map((l) => l.updatedAt))).toEqual(new Set([0]))
+    expect(new Set((await s.db.lessons.all()).map((l) => l.updatedAt))).toEqual(new Set([0]))
   })
 })
+}

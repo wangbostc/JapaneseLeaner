@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import Dexie from 'dexie'
-import { db } from '../lib/db'
-import { initialSyncState, SyncError, syncOnce, type Api, type SyncState } from '../lib/sync'
+import { database } from '../lib/store'
+import { initialSyncState, SyncError, syncOnce, type Api, type SyncState } from '@kikitori/core/sync'
 
 /**
  * Sync with the Kikitori server (same origin, /api). Only offered where the server exists:
@@ -137,7 +137,7 @@ export function syncNow(): Promise<void> {
     setStatus({ kind: 'syncing', device: d.name, lastSyncedAt })
     try {
       // Only the sync's own local writes are ignored; the user's edits meanwhile schedule another sync.
-      const result = await syncOnce(db, authed(d.token), read<SyncState>(STATE_KEY) ?? initialSyncState(), undefined, { applying: (on) => (applying = on) })
+      const result = await syncOnce(database, authed(d.token), read<SyncState>(STATE_KEY) ?? initialSyncState(), undefined, { applying: (on) => (applying = on) })
       write(STATE_KEY, result.state)
       lastSyncedAt = Date.now()
       write('kikitori.lastSyncedAt', lastSyncedAt)

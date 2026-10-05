@@ -1,6 +1,6 @@
-import { type Deletion, type Flashcard, type Lesson, type PracticeLog } from '@kikitori/core/model'
-import { markSyncApply, type KikitoriDB } from './db'
-import { emptyBatch, type SyncBatch, type SyncRequest, type SyncResponse, type WireCard, type WireLesson, type WireLog, type WireMedia } from '@kikitori/core/syncWire'
+import type { Database, SyncedTable } from './database'
+import type { Deletion, Flashcard, Lesson, PracticeLog } from './model'
+import { emptyBatch, type SyncBatch, type SyncRequest, type SyncResponse, type WireCard, type WireLesson, type WireLog, type WireMedia } from './syncWire'
 
 /** Talks to the API: `path` like "/api/sync"; the caller adds auth. */
 export type Api = (path: string, init?: RequestInit) => Promise<Response>
@@ -64,34 +64,33 @@ const fromWireCard = (c: WireCard): Flashcard['card'] =>
   ({ ...c.card, due: new Date(c.card.due), ...(c.card.last_review ? { last_review: new Date(c.card.last_review) } : {}) }) as Flashcard['card']
 
 /** Everything changed locally since the last push, in wire form. */
-async function gatherChanges(db: KikitoriDB, state: SyncState): Promise<SyncBatch> {
+async function gatherChanges(db: Database, state: SyncState): Promise<SyncBatch> {
   // (Each record's updatedAt as gathered is recorded by the caller from the batch.)
   const since = state.pushedAt
-  const lessons = await db.lessons.toArray()
+  const lessons = await db.lessons.all()
   const lessonUid = new Map(lessons.map((l) => [l.id!, l.uid!]))
-  const mediaUidById = new Map<number, string>()
-  await db.media.each((m) => void mediaUidById.set(m.id!, m.uid!))
+  const mediaUidById = new Map((await db.media.all()).map((m) => [m.id!, m.uid!]))
   const batch = emptyBatch()
   // syncedVersion: a record already exchanged at this version (e.g. pulled with another device's
   // clock ahead of ours, so still "newer" than our cursor) has nothing to push.
   const unsynced = (r: { updatedAt?: number; syncedVersion?: number }) => r.updatedAt! > since && r.updatedAt !== r.syncedVersion
   batch.lessons = lessons.filter(unsynced).map((l) => toWireLesson(l, mediaUidById))
-  batch.cards = (await db.cards.where('updatedAt').above(since).toArray())
+  batch.cards = (await db.cards.changedSince(since))
     .filter(unsynced)
     .filter((c) => lessonUid.has(c.lessonId))
     .map((c) => toWireCard(c, lessonUid.get(c.lessonId)!))
-  batch.logs = (await db.logs.where('updatedAt').above(since).toArray()).map(
+  batch.logs = (await db.logs.changedSince(since)).map(
     (l): WireLog => ({ uid: l.uid!, updatedAt: l.updatedAt!, lessonUid: l.lessonUid ?? null, step: l.step, mode: l.mode, ms: l.ms, at: l.at }),
   )
-  batch.media = (await db.media.where('updatedAt').above(since).toArray()).map((m) => ({
+  batch.media = (await db.media.changedSince(since)).map((m) => ({
     uid: m.uid!,
     updatedAt: m.updatedAt!,
     name: m.name,
     type: m.blob.type,
     size: m.blob.size,
   }))
-  batch.words = (await db.words.toArray()).filter((w) => w.firstSeen > since)
-  batch.deletions = (await db.deletions.toArray()).filter((d: Deletion) => d.at > since).map(({ uid, table, at }) => ({ uid, table, at }))
+  batch.words = (await db.words.all()).filter((w) => w.firstSeen > since)
+  batch.deletions = (await db.deletions.all()).filter((d: Deletion) => d.at > since).map(({ uid, table, at }) => ({ uid, table, at }))
   return batch
 }
 
@@ -112,29 +111,28 @@ function* chunks(batch: SyncBatch): Generator<SyncBatch> {
  * for this push is left alone: it goes up on the next sync. (Comparing against the wall clock
  * instead would misfire when another device's clock is ahead.)
  */
-async function applyChanges(db: KikitoriDB, changes: SyncBatch, editedSince: (row: { uid?: string; updatedAt?: number; syncedVersion?: number }) => boolean): Promise<WireMedia[]> {
+async function applyChanges(db: Database, changes: SyncBatch, editedSince: (row: { uid?: string; updatedAt?: number; syncedVersion?: number }) => boolean): Promise<WireMedia[]> {
   const needBytes: WireMedia[] = []
-  await db.transaction('rw', [db.lessons, db.media, db.cards, db.logs, db.words, db.deletions], async (tx) => {
-    markSyncApply(tx)
+  await db.transaction(async () => {
     // Local tombstones for records the server sends alive: a deletion newer than the incoming
     // version (e.g. made during this sync) stands and goes up next time; an older one is
     // superseded (edited elsewhere after the delete), so drop it and the record can be deleted again.
     const alive = [...changes.lessons, ...changes.cards].map((r) => r.uid)
-    const tombs = new Map((alive.length ? await db.deletions.where('uid').anyOf(alive).toArray() : []).map((t) => [t.uid, t]))
-    const deletedHere = async (w: { uid: string; updatedAt: number }) => {
+    const tombs = new Map((alive.length ? await db.deletions.where('uid', alive) : []).map((t) => [t.uid, t]))
+    // (Decided synchronously, with the delete awaited in the loop: see Database.transaction.)
+    const tombstone = (w: { uid: string; updatedAt: number }) => {
       const t = tombs.get(w.uid)
-      if (!t) return false
-      if (t.at > w.updatedAt) return true
-      await db.deletions.delete(t.id!)
-      return false
+      return !t ? undefined : t.at > w.updatedAt ? 'stands' : t
     }
-    for (const m of changes.media) if (!(await db.media.where('uid').equals(m.uid).first())) needBytes.push(m)
+    for (const m of changes.media) if (!(await db.media.where('uid', [m.uid])).length) needBytes.push(m)
 
     for (const w of changes.lessons) {
-      if (await deletedHere(w)) continue
-      const local = await db.lessons.where('uid').equals(w.uid).first()
+      const t = tombstone(w)
+      if (t === 'stands') continue
+      if (t) await db.deletions.delete(t.id!)
+      const [local] = await db.lessons.where('uid', [w.uid])
       if (local && editedSince(local)) continue
-      const media = w.mediaUid ? await db.media.where('uid').equals(w.mediaUid).first() : undefined
+      const [media] = w.mediaUid ? await db.media.where('uid', [w.mediaUid]) : []
       const row: Lesson = {
         ...(local ?? {}),
         uid: w.uid,
@@ -155,12 +153,14 @@ async function applyChanges(db: KikitoriDB, changes: SyncBatch, editedSince: (ro
       else await db.lessons.add(row)
     }
 
-    const lessonId = new Map((await db.lessons.toArray()).map((l) => [l.uid!, l.id!]))
+    const lessonId = new Map((await db.lessons.all()).map((l) => [l.uid!, l.id!]))
     for (const w of changes.cards) {
       const id = lessonId.get(w.lessonUid)
       if (id === undefined) continue // its lesson is gone here
-      if (await deletedHere(w)) continue
-      const local = await db.cards.where('uid').equals(w.uid).first()
+      const t = tombstone(w)
+      if (t === 'stands') continue
+      if (t) await db.deletions.delete(t.id!)
+      const [local] = await db.cards.where('uid', [w.uid])
       if (local && editedSince(local)) continue
       const row: Flashcard = { uid: w.uid, updatedAt: w.updatedAt, syncedVersion: w.updatedAt, lessonId: id, kind: w.kind, front: w.front, reading: w.reading, context: w.context, card: fromWireCard(w), createdAt: w.createdAt }
       if (local) await db.cards.put({ ...row, id: local.id })
@@ -168,7 +168,7 @@ async function applyChanges(db: KikitoriDB, changes: SyncBatch, editedSince: (ro
     }
 
     for (const w of changes.logs) {
-      if (await db.logs.where('uid').equals(w.uid).first()) continue
+      if ((await db.logs.where('uid', [w.uid])).length) continue
       const log: PracticeLog = { uid: w.uid, updatedAt: w.updatedAt, lessonUid: w.lessonUid, lessonId: (w.lessonUid && lessonId.get(w.lessonUid)) || 0, step: w.step, mode: w.mode, ms: w.ms, at: w.at }
       await db.logs.add(log)
     }
@@ -180,58 +180,51 @@ async function applyChanges(db: KikitoriDB, changes: SyncBatch, editedSince: (ro
     }
 
     for (const d of changes.deletions) {
-      const table = d.table === 'lessons' ? db.lessons : d.table === 'cards' ? db.cards : db.media
-      const local = await (table as typeof db.lessons).where('uid').equals(d.uid).first()
+      const table = db[d.table] as SyncedTable<{ id?: number; uid?: string; updatedAt?: number }>
+      const [local] = await table.where('uid', [d.uid])
       if (!local || local.updatedAt! > d.at) continue
-      if (d.table === 'lessons') await db.cards.where('lessonId').equals(local.id!).delete()
+      if (d.table === 'lessons') await db.cards.delete((await db.cards.where('lessonId', [local.id!])).map((c) => c.id!))
       await table.delete(local.id!)
     }
-  })
+  }, { syncApply: true })
   return needBytes
 }
 
 /** Records that the server now has these versions (unless the record changed again meanwhile). */
-async function markPushed(db: KikitoriDB, part: SyncBatch) {
-  await db.transaction('rw', [db.lessons, db.cards], async (tx) => {
-    markSyncApply(tx)
-    for (const [table, list] of [
-      [db.lessons, part.lessons],
-      [db.cards, part.cards],
-    ] as const) {
-      for (const r of list) {
-        await (table as typeof db.lessons)
-          .where('uid')
-          .equals(r.uid)
-          .filter((row) => row.updatedAt === r.updatedAt)
-          .modify({ syncedVersion: r.updatedAt })
-      }
+async function markPushed(db: Database, part: SyncBatch) {
+  await db.transaction(async () => {
+    for (const r of part.lessons) {
+      for (const row of await db.lessons.where('uid', [r.uid])) if (row.updatedAt === r.updatedAt) await db.lessons.update(row.id!, { syncedVersion: r.updatedAt })
     }
-  })
+    for (const r of part.cards) {
+      for (const row of await db.cards.where('uid', [r.uid])) if (row.updatedAt === r.updatedAt) await db.cards.update(row.id!, { syncedVersion: r.updatedAt })
+    }
+  }, { syncApply: true })
 }
 
 /** Downloads audio bytes and links them to lessons waiting for them; returns what's still missing. */
-async function downloadMedia(db: KikitoriDB, api: Api, wanted: WireMedia[]): Promise<WireMedia[]> {
+async function downloadMedia(db: Database, api: Api, wanted: WireMedia[]): Promise<WireMedia[]> {
   const missing: WireMedia[] = []
   for (const m of wanted) {
-    if (await db.media.where('uid').equals(m.uid).first()) continue
+    if ((await db.media.where('uid', [m.uid])).length) continue
     const res = await api(`/api/media/${encodeURIComponent(m.uid)}`)
     if (!res.ok) {
       missing.push(m)
       continue
     }
     const blob = await res.blob()
-    await db.transaction('rw', [db.media, db.lessons], async () => {
-      const id = (await db.media.add({ uid: m.uid, updatedAt: m.updatedAt, name: m.name, blob: new Blob([blob], { type: m.type }) })) as number
-      // mediaId is local-only, so linking doesn't count as an edit (see the updating hook).
-      await db.lessons.filter((l) => l.mediaUid === m.uid).modify({ mediaId: id })
+    await db.transaction(async () => {
+      const id = await db.media.add({ uid: m.uid, updatedAt: m.updatedAt, name: m.name, blob: new Blob([blob], { type: m.type }) })
+      // mediaId is local-only, so linking doesn't count as an edit (see stampEdit).
+      for (const l of await db.lessons.where('mediaUid', [m.uid])) await db.lessons.update(l.id!, { mediaId: id })
     })
   }
   return missing
 }
 
 /** Uploads the bytes of local audio the server doesn't have yet. */
-async function uploadMedia(db: KikitoriDB, api: Api, uploaded: Set<string>) {
-  for (const m of await db.media.toArray()) {
+async function uploadMedia(db: Database, api: Api, uploaded: Set<string>) {
+  for (const m of await db.media.all()) {
     if (!m.uid || uploaded.has(m.uid)) continue
     const res = await api(`/api/media/${encodeURIComponent(m.uid)}`, {
       method: 'PUT',
@@ -256,7 +249,7 @@ export interface SyncHooks {
   applying?: (on: boolean) => void
 }
 
-export async function syncOnce(db: KikitoriDB, api: Api, state: SyncState, now = () => Date.now(), hooks: SyncHooks = {}): Promise<SyncResult> {
+export async function syncOnce(db: Database, api: Api, state: SyncState, now = () => Date.now(), hooks: SyncHooks = {}): Promise<SyncResult> {
   const startedAt = now()
   const local = await gatherChanges(db, state)
   const gathered = new Map<string, number>([...local.lessons, ...local.cards].map((r) => [r.uid, r.updatedAt]))
