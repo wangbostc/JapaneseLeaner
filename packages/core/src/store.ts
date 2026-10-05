@@ -16,40 +16,43 @@ function daysBefore(day: number, n: number): number {
   return d.getTime()
 }
 
+export interface NewLesson {
+  title: string
+  sentences: Sentence[]
+  level?: string
+  builtIn?: boolean
+  uid?: string
+  /** Defaults to `now`; seeding uses 0 so a sample deleted on another device stays deleted. */
+  updatedAt?: number
+}
+
+/** A new lesson's row, before storage gives it an id (and a uid, if it has none). */
+export function newLessonRow(input: NewLesson & { mediaId?: number; mediaUid?: string }, now = Date.now()): Lesson {
+  return {
+    title: input.title,
+    level: input.level,
+    sentences: input.sentences,
+    mediaId: input.mediaId,
+    mediaUid: input.mediaUid,
+    progress: { roundsDone: 0, lastCompletedAt: null },
+    resume: null,
+    hard: [],
+    createdAt: now,
+    builtIn: input.builtIn,
+    uid: input.uid,
+    updatedAt: input.updatedAt ?? now,
+  }
+}
+
 /** The app's operations on lessons, cards and logs, over any storage backend. */
 export function createStore(database: Database) {
   return {
     db: database,
 
-    async createLesson(
-      input: {
-        title: string
-        sentences: Sentence[]
-        level?: string
-        media?: { blob: Blob; name: string }
-        builtIn?: boolean
-        uid?: string
-        /** Defaults to `now`; seeding uses 0 so a sample deleted on another device stays deleted. */
-        updatedAt?: number
-      },
-      now = Date.now(),
-    ) {
+    async createLesson(input: NewLesson & { media?: { blob: Blob; name: string } }, now = Date.now()) {
       const mediaId = input.media ? await database.media.add(input.media) : undefined
       const mediaUid = mediaId ? (await database.media.get(mediaId))?.uid : undefined
-      return database.lessons.add({
-        title: input.title,
-        level: input.level,
-        sentences: input.sentences,
-        mediaId,
-        mediaUid,
-        progress: { roundsDone: 0, lastCompletedAt: null },
-        resume: null,
-        hard: [],
-        createdAt: now,
-        builtIn: input.builtIn,
-        uid: input.uid,
-        updatedAt: input.updatedAt ?? now,
-      })
+      return database.lessons.add(newLessonRow({ ...input, mediaId, mediaUid }, now))
     },
 
     /** Deletes a lesson with its audio and cards, leaving tombstones so other devices delete them too. */

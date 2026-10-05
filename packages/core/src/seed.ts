@@ -1,6 +1,6 @@
 import { sampleUid } from './model'
 import { sampleLessons } from './samples'
-import type { Store } from './store'
+import { newLessonRow, type Store } from './store'
 
 /** Where a device remembers small values: localStorage in a browser, a prefs file elsewhere. */
 export interface KeyValueStore {
@@ -46,11 +46,13 @@ export async function seedOnce(store: Store, storage: () => KeyValueStore | unde
   await db.transaction(async () => {
     // Already here (synced from a device that added it first), or deleted here: leave it be.
     const uids = wanted.map((s) => s.uid)
-    const [present, deleted] = await Promise.all([db.lessons.where('uid', uids), db.deletions.where('uid', uids)])
+    const present = await db.lessons.where('uid', uids)
+    const deleted = await db.deletions.where('uid', uids)
     const skip = new Set([...present, ...deleted].map((r) => r.uid))
     let t = Date.now()
     // updatedAt 0: a sample is the oldest possible version, so a deletion synced from another
     // device always wins over this fresh copy instead of resurrecting it.
-    for (const lesson of wanted) if (!skip.has(lesson.uid)) await store.createLesson({ ...lesson, updatedAt: 0 }, t++)
+    // The rows are added directly, not through store.createLesson: see Database.transaction.
+    for (const lesson of wanted) if (!skip.has(lesson.uid)) await db.lessons.add(newLessonRow({ ...lesson, updatedAt: 0 }, t++))
   })
 }
