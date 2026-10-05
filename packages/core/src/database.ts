@@ -81,3 +81,16 @@ export function stampEdit(changes: object, previous: Partial<Synced>, syncApply:
   if ('updatedAt' in changes || keys.every((k) => LOCAL_ONLY.has(k))) return undefined
   return nextStamp(previous.updatedAt, now)
 }
+
+/** Equal by value: arrays, plain objects and Dates compared deeply, anything else by identity. */
+export function sameValue(a: unknown, b: unknown): boolean {
+  if (a === b) return true
+  if (a instanceof Date && b instanceof Date) return a.getTime() === b.getTime()
+  if (Array.isArray(a) && Array.isArray(b)) return a.length === b.length && a.every((x, i) => sameValue(x, b[i]))
+  const plain = (x: unknown): x is Record<string, unknown> => !!x && Object.getPrototypeOf(x) === Object.prototype
+  if (plain(a) && plain(b)) {
+    const keys = Object.keys(a)
+    return keys.length === Object.keys(b).length && keys.every((k) => sameValue(a[k], b[k]))
+  }
+  return false
+}
