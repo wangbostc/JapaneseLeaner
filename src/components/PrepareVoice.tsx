@@ -2,9 +2,9 @@ import { useState } from 'react'
 import { prepareClips, useNaturalVoices } from '../app/neuralVoice'
 import { useSyncStatus } from '../app/sync'
 import { useSettings } from '../app/useSettings'
-import type { Lesson } from '../lib/db'
+import type { Lesson } from '@kikitori/core/model'
 import { neuralChoice } from '../lib/speech'
-import { engineOf, isEngineVoiceId } from '../lib/voices'
+import { engineOf, isEngineVoiceId } from '@kikitori/core/voices'
 import { VoiceCredit } from './VoiceCredit'
 
 /**

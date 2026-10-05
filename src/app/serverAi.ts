@@ -1,5 +1,5 @@
 import { useEffect, useSyncExternalStore } from 'react'
-import { AI_ERROR_CODES, AiError, type AiErrorCode } from '../lib/ai'
+import { AI_ERROR_CODES, AiError, type AiErrorCode } from '@kikitori/core/ai'
 import { deviceApi, useSyncStatus } from './sync'
 
 /** AI through the server's own key: available when this device is connected and the server has a key. */

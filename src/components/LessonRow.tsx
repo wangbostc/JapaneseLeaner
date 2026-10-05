@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom'
-import { relativeTime } from '../app/i18n'
+import { relativeTime } from '@kikitori/core/i18n'
 import { useSettings } from '../app/useSettings'
-import type { Lesson } from '../lib/db'
-import { dueAt, isGraduated, TOTAL_ROUNDS } from '../lib/schedule'
+import type { Lesson } from '@kikitori/core/model'
+import { dueAt, isGraduated, TOTAL_ROUNDS } from '@kikitori/core/schedule'
 
 export function RoundDots({ done }: { done: number }) {
   return (

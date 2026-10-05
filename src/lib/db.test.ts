@@ -1,6 +1,7 @@
 import Dexie from 'dexie'
 import { afterEach, describe, expect, it } from 'vitest'
-import { KikitoriDB, sampleUid } from './db'
+import { sampleUid } from '@kikitori/core/model'
+import { KikitoriDB } from './db'
 import { createStore } from './store'
 
 // Later than the real clock: stamps never go backwards, so a T0 in the past would be overtaken by
@@ -69,7 +70,7 @@ describe('sync bookkeeping', () => {
     const { seedOnce } = await import('./seed')
     const s = createStore(new KikitoriDB(fresh()))
     await seedOnce(s)
-    const { sampleLessons } = await import('../content/samples')
+    const { sampleLessons } = await import('@kikitori/core/samples')
     const uids = (await s.db.lessons.toArray()).map((l) => l.uid)
     expect(uids).toEqual(sampleLessons().map((l) => `sample:${l.title}`))
     // The oldest possible version: a tombstone from another device always beats it.

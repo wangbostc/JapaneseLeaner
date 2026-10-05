@@ -210,12 +210,12 @@ out through `window.__kikitoriFake`. Real-device speech needs checking by hand.
 ### Starter lessons (MongoDB)
 
 The starter lessons are kept in a local MongoDB (database `kikitori`, collection
-`lessons`). `src/content/samples.json` is their committed export, so building the
+`lessons`). `packages/core/src/samples.json` is their committed export, so building the
 app doesn't need MongoDB. A lesson looks like
 `{ title, level: 'N5'…'N1', lines: [{ ja, en, zh }] }`. After editing lessons:
 
 ```bash
-pnpm lessons:export   # MongoDB → src/content/samples.json (checks titles, levels and translations)
+pnpm lessons:export   # MongoDB → packages/core/src/samples.json (checks titles, levels and translations)
 pnpm lessons:import   # samples.json → MongoDB: adds lessons it lacks (a fresh machine), never overwrites
 ```
 

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { BackupError, exportBackup, parseBackup, restoreBackup } from './backup'
 import { KikitoriDB } from './db'
-import { Rating } from './srs'
+import { Rating } from '@kikitori/core/srs'
 import { createStore } from './store'
 
 const T0 = Date.UTC(2026, 0, 10, 9)

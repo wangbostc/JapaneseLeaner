@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { sampleLessons } from '../content/samples'
-import { KikitoriDB, sampleUid } from './db'
+import { sampleLessons } from '@kikitori/core/samples'
+import { sampleUid } from '@kikitori/core/model'
+import { KikitoriDB } from './db'
 import { seedOnce } from './seed'
 import { createStore, type Store } from './store'
 

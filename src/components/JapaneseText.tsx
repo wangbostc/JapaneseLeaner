@@ -1,8 +1,8 @@
 import { Fragment, type ReactNode } from 'react'
-import { phrases, senseGroups, textOf } from '../lib/chunking'
-import { rubySegments } from '../lib/furigana'
-import { contentLemmas } from '../lib/scoring'
-import type { Analyzer, Token } from '../lib/tokenizer'
+import { phrases, senseGroups, textOf } from '@kikitori/core/chunking'
+import { rubySegments } from '@kikitori/core/furigana'
+import { contentLemmas } from '@kikitori/core/scoring'
+import type { Analyzer, Token } from '@kikitori/core/tokenizer'
 
 interface Props {
   text: string

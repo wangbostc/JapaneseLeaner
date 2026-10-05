@@ -1,6 +1,6 @@
-import type { Lesson } from '../../lib/db'
+import type { Lesson } from '@kikitori/core/model'
 import type { Player } from '../../lib/player'
-import type { Analyzer } from '../../lib/tokenizer'
+import type { Analyzer } from '@kikitori/core/tokenizer'
 
 export interface StepProps {
   lesson: Lesson & { id: number }

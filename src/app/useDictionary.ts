@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { getDictionary, type Dictionary } from '../lib/jmdict'
+import { type Dictionary } from '@kikitori/core/jmdict'
+import { getDictionary } from '../lib/jmdict'
 
 /** undefined while loading, null if the dictionary isn't available. */
 export function useDictionary(): Dictionary | null | undefined {

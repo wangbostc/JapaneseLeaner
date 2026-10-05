@@ -1,7 +1,7 @@
 import { useNaturalVoices } from '../app/neuralVoice'
 import { useSettings } from '../app/useSettings'
 import { neuralChoice } from '../lib/speech'
-import { engineCredit, isEngineVoiceId } from '../lib/voices'
+import { engineCredit, isEngineVoiceId } from '@kikitori/core/voices'
 
 /** Names the engine and character wherever an engine voice speaks (VOICEVOX's terms require it). */
 export function VoiceCredit() {

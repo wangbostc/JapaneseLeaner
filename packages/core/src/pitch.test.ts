@@ -77,7 +77,7 @@ describe('the committed accent table', () => {
     const { readFileSync } = await import('node:fs')
     const { testAnalyzer } = await import('../test/analyzer')
     const { readingOf } = await import('./scoring')
-    const table = createAccentTable(JSON.parse(readFileSync(new URL('../../public/pitch/accents.json', import.meta.url), 'utf8')))
+    const table = createAccentTable(JSON.parse(readFileSync(new URL('../../../public/pitch/accents.json', import.meta.url), 'utf8')))
     const a = await testAnalyzer()
     // [sentence, the word tapped (its surface), expected aType of its dictionary form]
     const cases: [string, string, number][] = [

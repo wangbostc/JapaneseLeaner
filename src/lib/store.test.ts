@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { KikitoriDB } from './db'
-import { Rating } from './srs'
+import { Rating } from '@kikitori/core/srs'
 import { createStore, type Store } from './store'
 
 const H = 3_600_000

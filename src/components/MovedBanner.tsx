@@ -2,7 +2,7 @@ import { useId, useState } from 'react'
 import { downloadBackup } from '../app/backupFile'
 import { useSettings } from '../app/useSettings'
 import { db } from '../lib/db'
-import { movedTarget } from '../lib/movedTarget'
+import { movedTarget } from '@kikitori/core/movedTarget'
 
 /**
  * Shown by the old static (GitHub Pages) build once the app has a new home. Browser storage

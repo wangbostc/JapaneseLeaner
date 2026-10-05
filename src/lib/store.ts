@@ -1,6 +1,7 @@
-import { db, nextStamp, type Flashcard, type KikitoriDB, type Lesson, type PracticeLog, type Resume, type Sentence, type UiLang } from './db'
-import { completeRound, dueAt, isGraduated, type LessonProgress } from './schedule'
-import { newCard, review, type Grade } from './srs'
+import { nextStamp, type Flashcard, type Lesson, type PracticeLog, type Resume, type Sentence, type UiLang } from '@kikitori/core/model'
+import { db, type KikitoriDB } from './db'
+import { completeRound, dueAt, isGraduated, type LessonProgress } from '@kikitori/core/schedule'
+import { newCard, review, type Grade } from '@kikitori/core/srs'
 
 /** Local midnight of the day containing `ms`: streaks follow the learner's clock, not UTC. */
 export function localDay(ms: number): number {

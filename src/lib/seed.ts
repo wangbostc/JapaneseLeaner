@@ -1,5 +1,5 @@
-import { sampleLessons } from '../content/samples'
-import { sampleUid } from './db'
+import { sampleLessons } from '@kikitori/core/samples'
+import { sampleUid } from '@kikitori/core/model'
 import type { Store } from './store'
 
 /** The uids of the samples this device has added: each is added once, so deleting one sticks. */

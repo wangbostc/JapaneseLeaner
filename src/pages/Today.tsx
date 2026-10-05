@@ -1,12 +1,12 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { formatDuration } from '../app/i18n'
+import { formatDuration } from '@kikitori/core/i18n'
 import { useSettings } from '../app/useSettings'
 import { Icon } from '../components/Icon'
 import { LessonRow } from '../components/LessonRow'
 import { db } from '../lib/db'
-import { summarizeDue } from '../lib/reminders'
+import { summarizeDue } from '@kikitori/core/reminders'
 import { store } from '../lib/store'
 
 export function Today() {

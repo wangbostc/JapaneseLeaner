@@ -1,4 +1,4 @@
-import type { Lesson } from './db'
+import type { Lesson } from './model'
 import { dueAt, isGraduated } from './schedule'
 
 export interface DueSummary {
@@ -30,8 +30,15 @@ export function summarizeDue(lessons: Pick<Lesson, 'progress'>[], now: number): 
 
 export const REMINDER_TAG = 'kikitori-due-reviews'
 
+/** The parts of a notification Kikitori sets: a subset of the DOM's NotificationOptions. */
+export interface ReminderOptions {
+  body: string
+  tag: string
+  icon: string
+}
+
 /** The reminder notification, shared by the page and the service worker. */
-export function reminderNotification(reviewsDue: number): { title: string; options: NotificationOptions } {
+export function reminderNotification(reviewsDue: number): { title: string; options: ReminderOptions } {
   return {
     title: 'Kikitori',
     options: {

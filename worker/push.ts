@@ -1,4 +1,4 @@
-import { dueAt, isGraduated, type LessonProgress } from '../src/lib/schedule'
+import { dueAt, isGraduated, type LessonProgress } from '@kikitori/core/schedule'
 import type { Env } from './env'
 
 /**

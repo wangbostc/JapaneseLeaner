@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSettings } from '../../app/useSettings'
-import { gradeFor, readingOf, scoreShadowing, type ShadowingResult } from '../../lib/scoring'
+import { gradeFor, readingOf, scoreShadowing, type ShadowingResult } from '@kikitori/core/scoring'
 import { store } from '../../lib/store'
 import { Icon } from '../Icon'
 import { JapaneseText } from '../JapaneseText'

@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { relativeTime } from '../app/i18n'
+import { relativeTime } from '@kikitori/core/i18n'
 import { useAiKey } from '../app/aiKey'
 import { translateViaServer, useServerAi } from '../app/serverAi'
 import { useSettings } from '../app/useSettings'
@@ -11,9 +11,9 @@ import { PrepareVoice } from '../components/PrepareVoice'
 import { Icon } from '../components/Icon'
 import { JapaneseText } from '../components/JapaneseText'
 import { RoundDots } from '../components/LessonRow'
-import type { AiErrorCode } from '../lib/ai'
+import type { AiErrorCode } from '@kikitori/core/ai'
 import { db } from '../lib/db'
-import { dueAt, isGraduated, ROUNDS, type Step } from '../lib/schedule'
+import { dueAt, isGraduated, ROUNDS, type Step } from '@kikitori/core/schedule'
 import { store } from '../lib/store'
 
 export function LessonPage() {
@@ -34,10 +34,10 @@ export function LessonPage() {
   const translate = async () => {
     setTranslating(true)
     setAiError(null)
-    let ai: typeof import('../lib/ai') | null = null
+    let ai: typeof import('@kikitori/core/ai') | null = null
     try {
       // Loaded on demand: learners without a key never download the SDK.
-      ai = await import('../lib/ai')
+      ai = await import('@kikitori/core/ai')
       const texts = lesson.sentences.map((s) => s.text)
       const out = serverAi ? await translateViaServer(texts, settings.lang) : await ai.translateSentences(ai.createAiClient(aiKey), texts, settings.lang)
       await store.setTranslations(lesson.id!, settings.lang, out)

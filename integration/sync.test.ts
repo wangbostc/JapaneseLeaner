@@ -3,8 +3,9 @@
 import Dexie from 'dexie'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { exportBackup, parseBackup, restoreBackup } from '../src/lib/backup'
-import { KikitoriDB, sampleUid } from '../src/lib/db'
-import { Rating } from '../src/lib/srs'
+import { sampleUid } from '@kikitori/core/model'
+import { KikitoriDB } from '../src/lib/db'
+import { Rating } from '@kikitori/core/srs'
 import { createStore } from '../src/lib/store'
 import { initialSyncState, syncOnce, type Api, type SyncState } from '../src/lib/sync'
 import { handleApi } from '../worker/index'
@@ -130,7 +131,7 @@ describe('sync between two devices', () => {
     await seedOnce(b.store) // fresh install seeds all the samples
     await b.sync()
     const titles = (await b.db.lessons.toArray()).map((l) => l.uid).sort()
-    const { sampleLessons } = await import('../src/content/samples')
+    const { sampleLessons } = await import('@kikitori/core/samples')
     expect(titles).toEqual(sampleLessons().map((l) => sampleUid(l.title)).filter((uid) => uid !== sampleUid('私の朝')).sort())
   })
 

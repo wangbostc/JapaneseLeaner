@@ -1,4 +1,5 @@
-import type { Deletion, Flashcard, KikitoriDB, KnownWord, Lesson, PracticeLog } from './db'
+import type { Deletion, Flashcard, KnownWord, Lesson, PracticeLog } from '@kikitori/core/model'
+import type { KikitoriDB } from './db'
 
 export const BACKUP_FORMAT = 'kikitori-backup'
 /** v2 adds sync identity (uid, updatedAt) and tombstones; v1 files still restore. */

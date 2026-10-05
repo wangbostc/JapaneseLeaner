@@ -2,7 +2,7 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
-import { movedTarget } from './src/lib/movedTarget.ts'
+import { movedTarget } from './packages/core/src/movedTarget.ts'
 
 export default defineConfig(({ mode }) => {
   // Fail the build, rather than ship a broken "moved" link, when VITE_MOVED_TO is set but invalid.
@@ -31,11 +31,11 @@ export default defineConfig(({ mode }) => {
     ],
     // kuromoji's loader joins dictionary paths with node's `path`.
     resolve: { alias: { path: 'path-browserify' } },
-    optimizeDeps: { include: ['kuromoji/src/loader/DictionaryLoader', 'kuromoji/src/Tokenizer'] },
+    optimizeDeps: { include: ['@kikitori/core > kuromoji/src/loader/DictionaryLoader', '@kikitori/core > kuromoji/src/Tokenizer'] },
     test: {
       environment: 'node',
       setupFiles: ['src/test/setup.ts'],
-      include: ['src/**/*.test.{ts,tsx}', 'worker/**/*.test.ts', 'integration/**/*.test.ts'],
+      include: ['src/**/*.test.{ts,tsx}', 'packages/*/src/**/*.test.ts', 'worker/**/*.test.ts', 'integration/**/*.test.ts'],
     },
   }
 })

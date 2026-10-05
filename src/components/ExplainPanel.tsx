@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useAiKey } from '../app/aiKey'
 import { explainViaServer, useServerAi } from '../app/serverAi'
 import { useSettings } from '../app/useSettings'
-import type { AiErrorCode } from '../lib/ai'
+import type { AiErrorCode } from '@kikitori/core/ai'
 
 /** "Explain" button that streams an AI explanation of the sentence; hidden without an API key. */
 export function ExplainPanel({ sentence, context }: { sentence: string; context: string[] }) {
@@ -24,10 +24,10 @@ export function ExplainPanel({ sentence, context }: { sentence: string; context:
     setText('')
     setError(null)
     setState('loading')
-    let ai: typeof import('../lib/ai') | null = null
+    let ai: typeof import('@kikitori/core/ai') | null = null
     try {
       // Loaded on demand: learners without AI never download the SDK.
-      ai = await import('../lib/ai')
+      ai = await import('@kikitori/core/ai')
       const args = { sentence, lang: settings.lang, context, signal: ctrl.signal, onText: (chunk: string) => setText((prev) => prev + chunk) }
       // The server's key when connected to a server that has one; otherwise the learner's own.
       if (server) await explainViaServer(args)

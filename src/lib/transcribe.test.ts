@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseTranscript } from './subtitles'
+import { parseTranscript } from '@kikitori/core/subtitles'
 import { chunksToCues, cuesToSrt } from './transcribe'
 
 describe('chunksToCues', () => {

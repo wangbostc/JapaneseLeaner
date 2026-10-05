@@ -1,5 +1,6 @@
-import { markSyncApply, type Deletion, type Flashcard, type KikitoriDB, type Lesson, type PracticeLog } from './db'
-import { emptyBatch, type SyncBatch, type SyncRequest, type SyncResponse, type WireCard, type WireLesson, type WireLog, type WireMedia } from './syncWire'
+import { type Deletion, type Flashcard, type Lesson, type PracticeLog } from '@kikitori/core/model'
+import { markSyncApply, type KikitoriDB } from './db'
+import { emptyBatch, type SyncBatch, type SyncRequest, type SyncResponse, type WireCard, type WireLesson, type WireLog, type WireMedia } from '@kikitori/core/syncWire'
 
 /** Talks to the API: `path` like "/api/sync"; the caller adds auth. */
 export type Api = (path: string, init?: RequestInit) => Promise<Response>

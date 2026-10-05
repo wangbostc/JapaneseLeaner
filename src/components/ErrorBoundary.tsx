@@ -1,5 +1,5 @@
 import { Component, type ReactNode } from 'react'
-import type { Strings } from '../app/i18n'
+import type { Strings } from '@kikitori/core/i18n'
 
 interface Props {
   t: Strings

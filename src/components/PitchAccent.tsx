@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useSettings } from '../app/useSettings'
-import { getAccentTable, pitchPattern, type AccentTable } from '../lib/pitch'
+import { pitchPattern, type AccentTable } from '@kikitori/core/pitch'
+import { getAccentTable } from '../lib/pitch'
 
 /**
  * The word's dictionary-form pitch: an overline over high morae, a step down where

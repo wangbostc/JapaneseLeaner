@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react'
-import type { UiLang } from '../lib/db'
-import type { Strings } from './i18n'
+import type { UiLang } from '@kikitori/core/model'
+import type { Strings } from '@kikitori/core/i18n'
 
 export interface Settings {
   lang: UiLang

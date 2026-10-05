@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { setAiKey, useAiKey } from '../app/aiKey'
-import { relativeTime } from '../app/i18n'
+import { relativeTime } from '@kikitori/core/i18n'
 import { useServerAi } from '../app/serverAi'
 import { connect, disconnect, resetSyncCursor, syncNow, useSyncStatus } from '../app/sync'
 import { backgroundRemindersOn, enablePushReminders, enableReminders, pushSubscribed, pushSupported, registerBackgroundCheck, reminderSupport, type ReminderSupport } from '../app/reminders'

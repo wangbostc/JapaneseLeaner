@@ -1,4 +1,4 @@
-import { ENGINES, styleOf, type EngineKind, type EngineVoice, type EngineVoiceId } from '../lib/voices'
+import { ENGINES, styleOf, type EngineKind, type EngineVoice, type EngineVoiceId } from '@kikitori/core/voices'
 
 /**
  * Open-source speech engines on this computer: VOICEVOX and AivisSpeech, which speaks the same

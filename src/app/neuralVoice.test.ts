@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { cacheUrl, defaultVoice, neuralSynth, parseRemembered, prepareClips } from './neuralVoice'
-import { NEURAL_VOICES } from '../lib/voices'
+import { NEURAL_VOICES } from '@kikitori/core/voices'
 
 /** Just enough of Cache Storage: match/put by URL. */
 function memoryCache() {
