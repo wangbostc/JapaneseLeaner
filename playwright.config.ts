@@ -14,7 +14,7 @@ export default defineConfig({
     launchOptions: { args: ['--autoplay-policy=no-user-gesture-required'] },
   },
   webServer: [
-    { command: `pnpm build && pnpm preview --port ${port} --strictPort`, port, reuseExistingServer: true, timeout: 120_000 },
+    { command: `bun run build && bun run preview --port ${port} --strictPort`, port, reuseExistingServer: true, timeout: 120_000 },
     {
       command: `rm -rf .wrangler/e2e && E2E_PORT=${port} E2E_WORKER_PORT=${workerPort} node scripts/worker-e2e-server.mjs`,
       port: workerPort,

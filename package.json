@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "workspaces": ["packages/*"],
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build && node scripts/large-assets.mjs list",
@@ -14,7 +15,7 @@
     "predev": "node scripts/copy-dict.mjs && node scripts/build-jmdict.mjs",
     "prebuild": "node scripts/copy-dict.mjs && node scripts/build-jmdict.mjs",
     "e2e": "playwright test",
-    "dev:worker": "pnpm build && wrangler d1 migrations apply kikitori --local && node scripts/large-assets.mjs upload --local && wrangler dev",
+    "dev:worker": "bun run build && wrangler d1 migrations apply kikitori --local && node scripts/large-assets.mjs upload --local && wrangler dev",
     "worker:smoke": "node scripts/worker-smoke.mjs",
     "lessons:export": "node scripts/lessons.mjs export",
     "lessons:import": "node scripts/lessons.mjs import"
@@ -57,5 +58,9 @@
     "workbox-strategies": "^7.4.1",
     "wrangler": "^4.137.0"
   },
-  "packageManager": "pnpm@12.4.2"
+  "packageManager": "bun@1.4.2",
+  "trustedDependencies": [
+    "esbuild",
+    "workerd"
+  ]
 }

@@ -1,13 +1,17 @@
 // Starts the built app under `wrangler dev` (local D1, no Cloudflare account needed) and checks
-// that the Worker serves both the React app and the API. Run after `pnpm build`.
+// that the Worker serves both the React app and the API. Run after `bun run build`.
 import { spawn } from 'node:child_process'
 import { setTimeout as sleep } from 'node:timers/promises'
+import { fileURLToPath } from 'node:url'
+
+// The project's own wrangler, run directly: works under any package manager, and a kill reaches it.
+const WRANGLER = fileURLToPath(new URL('../node_modules/.bin/wrangler', import.meta.url))
 
 const port = Number(process.env.WORKER_PORT ?? 8788)
 const base = `http://localhost:${port}`
 const run = (args) =>
   new Promise((resolve, reject) => {
-    const p = spawn('pnpm', ['exec', 'wrangler', ...args], { stdio: 'inherit' })
+    const p = spawn(WRANGLER, args, { stdio: 'inherit' })
     p.on('exit', (code) => (code === 0 ? resolve() : reject(new Error(`wrangler ${args[0]} exited ${code}`))))
   })
 
@@ -18,7 +22,7 @@ await run(['d1', 'migrations', 'apply', 'kikitori', '--local'])
 await new Promise((resolve, reject) =>
   spawn('node', ['scripts/large-assets.mjs', 'upload', '--local'], { stdio: 'inherit' }).on('exit', (c) => (c === 0 ? resolve() : reject(new Error('upload failed')))),
 )
-const dev = spawn('pnpm', ['exec', 'wrangler', 'dev', '--port', String(port), '--var', 'SETUP_CODE:smoke-test-setup-code'], { stdio: 'ignore' })
+const dev = spawn(WRANGLER, ['dev', '--port', String(port), '--var', 'SETUP_CODE:smoke-test-setup-code'], { stdio: 'ignore' })
 try {
   let ready = false
   for (let i = 0; i < 60 && !ready; i++) {

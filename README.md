@@ -79,7 +79,7 @@ voice, so a best case; real recordings will be worse):
 | **base** (default) | 6.9% | 散歩 → 参考; a separate timestamp for each sentence |
 | small | 0% | one timestamp chunk for the whole clip |
 
-`WHISPER_E2E=1 pnpm e2e` re-runs the base measurement in a real browser.
+`WHISPER_E2E=1 bun run e2e` re-runs the base measurement in a real browser.
 
 Everything is stored locally in IndexedDB. There's no account and no server. The one exception is the optional AI assistant: if you add an API key, those requests go from your browser to Anthropic.
 Use **Settings → Your data** to export a backup (a JSON file, audio included) and to restore it on another device.
@@ -121,9 +121,9 @@ JMdict is revised regularly. EDRDG asks apps to keep their copy current, and to 
    `scripts/jmdict-release.json`. That file is the only place the version lives. The build
    script and the service-worker cache name (so returning visitors get the new data) both
    read it.
-3. Run `pnpm install` (or `node scripts/build-jmdict.mjs`). The script sees that the built
+3. Run `bun install` (or `node scripts/build-jmdict.mjs`). The script sees that the built
    file is from a different release and rebuilds it.
-4. Run `pnpm test && pnpm e2e`, then open a PR.
+4. Run `bun run test && bun run e2e`, then open a PR.
 
 ## Backend (Cloudflare Workers)
 
@@ -136,19 +136,19 @@ The app and its API run as one Cloudflare Worker (`worker/`, `wrangler.jsonc`):
 Each device unlocks once with a setup code you choose. The server stores only a hash of each device's token.
 
 ```bash
-pnpm dev:worker     # build, apply D1 migrations locally, run the Worker (no Cloudflare account needed;
+bun run dev:worker     # build, apply D1 migrations locally, run the Worker (no Cloudflare account needed;
                     # local secrets such as SETUP_CODE or AZURE_SPEECH_KEY go in .dev.vars, which git ignores)
-pnpm worker:smoke   # CI check: app shell, service worker, R2-served files, authenticated API
+bun run worker:smoke   # CI check: app shell, service worker, R2-served files, authenticated API
 ```
 
 **First deploy (one time):**
-1. Create a free Cloudflare account, then run `pnpm exec wrangler login`.
-2. Create the database and put its id in `wrangler.jsonc` (`database_id`): `pnpm exec wrangler d1 create kikitori`.
-3. Create the bucket: `pnpm exec wrangler r2 bucket create kikitori-files`.
-4. Set a setup code: `pnpm exec wrangler secret put SETUP_CODE`. Use a long random one, such as `openssl rand -base64 24`. The guess limit is per IP, so the code's strength is the real protection.
-5. For push reminders, generate VAPID keys with `node scripts/vapid-keys.mjs`, then set them: `pnpm exec wrangler secret put VAPID_PUBLIC_KEY` and `pnpm exec wrangler secret put VAPID_PRIVATE_KEY`.
-6. For AI explanations and translations, store an Anthropic key on the server: `pnpm exec wrangler secret put ANTHROPIC_API_KEY`. Connected devices then use it, and no key is kept in any browser. (`ANTHROPIC_BASE_URL` is a test-only hook; never set it in production, because the key would be sent wherever it points.)
-7. For natural voices (free), create an Azure **Speech** resource on the **Free F0** tier: portal.azure.com, then Create a resource, then Speech. F0 includes 500,000 characters of neural speech a month; a single learner uses a small fraction of that. From its **Keys and Endpoint** page, run `pnpm exec wrangler secret put AZURE_SPEECH_KEY` (key 1) and `pnpm exec wrangler secret put AZURE_SPEECH_REGION` (the location, such as `japaneast`). Connected devices then default to Nanami, and Settings → Japanese voice lists the eight standard ja-JP neural voices. Each sentence is synthesised once per voice, kept in R2 and on the device, so replays are free and work offline. Without these, or once the month's quota is used up, speech falls back to the device's best Japanese voice. (`AZURE_SPEECH_ENDPOINT` is a test-only hook.)
+1. Create a free Cloudflare account, then run `bunx wrangler login`.
+2. Create the database and put its id in `wrangler.jsonc` (`database_id`): `bunx wrangler d1 create kikitori`.
+3. Create the bucket: `bunx wrangler r2 bucket create kikitori-files`.
+4. Set a setup code: `bunx wrangler secret put SETUP_CODE`. Use a long random one, such as `openssl rand -base64 24`. The guess limit is per IP, so the code's strength is the real protection.
+5. For push reminders, generate VAPID keys with `node scripts/vapid-keys.mjs`, then set them: `bunx wrangler secret put VAPID_PUBLIC_KEY` and `bunx wrangler secret put VAPID_PRIVATE_KEY`.
+6. For AI explanations and translations, store an Anthropic key on the server: `bunx wrangler secret put ANTHROPIC_API_KEY`. Connected devices then use it, and no key is kept in any browser. (`ANTHROPIC_BASE_URL` is a test-only hook; never set it in production, because the key would be sent wherever it points.)
+7. For natural voices (free), create an Azure **Speech** resource on the **Free F0** tier: portal.azure.com, then Create a resource, then Speech. F0 includes 500,000 characters of neural speech a month; a single learner uses a small fraction of that. From its **Keys and Endpoint** page, run `bunx wrangler secret put AZURE_SPEECH_KEY` (key 1) and `bunx wrangler secret put AZURE_SPEECH_REGION` (the location, such as `japaneast`). Connected devices then default to Nanami, and Settings → Japanese voice lists the eight standard ja-JP neural voices. Each sentence is synthesised once per voice, kept in R2 and on the device, so replays are free and work offline. Without these, or once the month's quota is used up, speech falls back to the device's best Japanese voice. (`AZURE_SPEECH_ENDPOINT` is a test-only hook.)
 8. Optionally, for free open-source natural voices without Azure, use **AivisSpeech** or **VOICEVOX** on your computer (see below).
 9. For automatic deploys, set the `CLOUDFLARE_API_TOKEN` (Workers, D1 and R2 edit) and `CLOUDFLARE_ACCOUNT_ID` repository secrets. Until they exist, `.github/workflows/deploy-worker.yml` skips.
 
@@ -188,19 +188,27 @@ Browser storage belongs to one web address, so lessons and progress on the old s
 
 ## Development
 
+Bun installs packages and runs the scripts. Vitest, Playwright and wrangler still run on Node.
+Use `bun run test`, not `bun test`, which is Bun's own test runner.
+
 ```bash
-pnpm install        # also copies the kuromoji dictionary into public/dict
-pnpm dev
-pnpm test           # unit tests (vitest), using the real IPADIC dictionary
-pnpm e2e            # Playwright: a full first-study round on mobile and desktop
-pnpm build          # static site in dist/, deployable at any path
+bun install         # also copies the kuromoji dictionary into public/dict
+bun run dev
+bun run test        # unit tests (vitest), using the real IPADIC dictionary
+bun run e2e         # Playwright: a full first-study round on mobile and desktop
+bun run build       # static site in dist/, deployable at any path
 ```
 
 Code layout:
 
-- `src/lib/`: framework-free logic, including `schedule` (rounds and due times),
-  `scoring` (kana alignment, retell coverage), `tokenizer`, `furigana`,
-  `subtitles`, `srs`, `store` (Dexie) and `speech` / `player` (browser adapters).
+- `packages/core/` (`@kikitori/core`): the logic the web app, the Worker and the
+  coming macOS app share, with no DOM: `schedule` (rounds and due times), `scoring`
+  (kana alignment, retell coverage), `tokenizer`, `furigana`, `subtitles`, `srs`,
+  sync, backup, i18n and the starter lessons. `store`, `seed`, `sync` and `backup`
+  run on the `Database` interface (`database.ts`). Every storage backend runs the
+  contract tests in `packages/core/test/contracts`.
+- `src/lib/`: the browser side, including the Dexie database (`db.ts`, and
+  `dexieDatabase.ts` for the shared interface) and `speech` / `player`.
 - `src/components/steps/`: one component per study step.
 - `src/pages/`: Today, Library, Lesson, Study, Import, Cards, Stats and Settings.
 
@@ -215,8 +223,8 @@ app doesn't need MongoDB. A lesson looks like
 `{ title, level: 'N5'…'N1', lines: [{ ja, en, zh }] }`. After editing lessons:
 
 ```bash
-pnpm lessons:export   # MongoDB → packages/core/src/samples.json (checks titles, levels and translations)
-pnpm lessons:import   # samples.json → MongoDB: adds lessons it lacks (a fresh machine), never overwrites
+bun run lessons:export   # MongoDB → packages/core/src/samples.json (checks titles, levels and translations)
+bun run lessons:import   # samples.json → MongoDB: adds lessons it lacks (a fresh machine), never overwrites
 ```
 
 `MONGO_URL` overrides the default `mongodb://127.0.0.1:27017`. The title is the
