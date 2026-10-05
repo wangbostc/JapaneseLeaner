@@ -127,10 +127,11 @@ describe('sync between two devices', () => {
     await a.sync()
 
     const b = await device(env, 'b')
-    await seedOnce(b.store) // fresh install seeds all three samples
+    await seedOnce(b.store) // fresh install seeds all the samples
     await b.sync()
     const titles = (await b.db.lessons.toArray()).map((l) => l.uid).sort()
-    expect(titles).toEqual([sampleUid('週末のカフェ'), sampleUid('雨の日の過ごし方')].sort())
+    const { sampleLessons } = await import('../src/content/samples')
+    expect(titles).toEqual(sampleLessons().map((l) => sampleUid(l.title)).filter((uid) => uid !== sampleUid('私の朝')).sort())
   })
 
   it('keeps the most recently reviewed version of a card', async () => {

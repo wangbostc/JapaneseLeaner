@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
+import { SAMPLES } from './samples'
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('kikitori.settings', JSON.stringify({ lang: 'en' })))
@@ -22,7 +23,7 @@ test('works offline after the first visit', async ({ page, context }) => {
 
   await context.setOffline(true)
   await page.goto('./')
-  await expect(page.locator('.lesson-row')).toHaveCount(3)
+  await expect(page.locator('.lesson-row')).toHaveCount(SAMPLES)
   await page.getByRole('link', { name: /週末のカフェ/ }).click()
   await expect(page.locator('ruby').first()).toBeVisible({ timeout: 20_000 })
   await page.getByRole('link', { name: 'Start' }).click()
@@ -46,19 +47,19 @@ test('exports a backup and restores it over changed data', async ({ page }) => {
   await download.saveAs(path)
   const backup = JSON.parse(readFileSync(path, 'utf8'))
   expect(backup.format).toBe('kikitori-backup')
-  expect(backup.lessons).toHaveLength(4)
+  expect(backup.lessons).toHaveLength(SAMPLES + 1)
 
   // Delete the imported lesson, then restore it from the file.
   await page.goto('./#/library')
   await page.getByRole('link', { name: /バックアップ/ }).click()
   await page.getByRole('button', { name: 'Delete lesson' }).click()
   await page.getByRole('button', { name: 'Tap again to delete' }).click()
-  await expect(page.locator('.lesson-row')).toHaveCount(3)
+  await expect(page.locator('.lesson-row')).toHaveCount(SAMPLES)
 
   await page.goto('./#/settings')
   await page.getByTestId('restore-input').setInputFiles(path)
   await page.getByRole('alert').getByRole('button', { name: 'Restore backup' }).click()
-  await expect(page.getByText('Restored 4 lessons.')).toBeVisible()
+  await expect(page.getByText(`Restored ${SAMPLES + 1} lessons.`)).toBeVisible()
   await page.goto('./#/library')
   await expect(page.getByRole('link', { name: /バックアップ/ })).toBeVisible()
 })

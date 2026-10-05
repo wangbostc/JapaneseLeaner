@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { SAMPLES } from './samples'
 
 // The minimal headless shell always reports notifications as denied; full Chromium supports them.
 // Chromium otherwise hands notifications to the OS (macOS Notification Center), which parallel
@@ -50,7 +51,7 @@ async function setProgress(page: Page, title: string, roundsDone: number, lastCo
 
 test('the next review can be saved as a calendar event with an alarm', async ({ page }) => {
   await page.goto('./')
-  await expect(page.locator('.lesson-row')).toHaveCount(3)
+  await expect(page.locator('.lesson-row')).toHaveCount(SAMPLES)
   // Relative to now: the button only shows while the review is still ahead.
   const lastDone = Math.floor(Date.now() / 60_000) * 60_000 - 3_600_000
   const dtstart = new Date(lastDone + 6 * 3_600_000).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
@@ -70,7 +71,7 @@ test('the next review can be saved as a calendar event with an alarm', async ({ 
 
 test('Today moves a review to "Due now" when it comes due, without a reload', async ({ page }) => {
   await page.goto('./')
-  await expect(page.locator('.lesson-row')).toHaveCount(3)
+  await expect(page.locator('.lesson-row')).toHaveCount(SAMPLES)
   // Review 1 comes due 3 seconds from now.
   await setProgress(page, '私の朝', 1, Date.now() - 6 * 3_600_000 + 3000)
   await page.goto('./#/library')
@@ -94,7 +95,7 @@ test.describe('notifications', () => {
     await context.grantPermissions(['notifications'])
     await page.goto('./')
     await page.waitForFunction(() => navigator.serviceWorker?.controller, null, { timeout: 20_000 })
-    await expect(page.locator('.lesson-row')).toHaveCount(3)
+    await expect(page.locator('.lesson-row')).toHaveCount(SAMPLES)
 
     // Nothing is a due review yet (only new lessons): no notification.
     const check = () =>
@@ -128,7 +129,7 @@ test.describe('notifications', () => {
   test('turning reminders on checks right away and notifies if a review is already due', async ({ page, context }) => {
     await page.goto('./')
     await page.waitForFunction(() => navigator.serviceWorker?.controller, null, { timeout: 20_000 })
-    await expect(page.locator('.lesson-row')).toHaveCount(3)
+    await expect(page.locator('.lesson-row')).toHaveCount(SAMPLES)
     await setProgress(page, '私の朝', 1, Date.now() - 7 * 3_600_000)
     await page.goto('./#/settings')
     await expect(page.getByTestId('enable-reminders')).toBeVisible() // permission is still 'default'

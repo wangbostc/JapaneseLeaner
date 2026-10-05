@@ -4,7 +4,7 @@ import { expect, test } from '@playwright/test'
 test('upgrades an existing v1 database in place: data kept, sync ids assigned', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('kikitori.settings', JSON.stringify({ lang: 'en' }))
-    localStorage.setItem('kikitori.seeded', '1') // an existing user: no fresh samples
+    localStorage.setItem('kikitori.seeded', '1') // an existing user: the first three samples were added before
   })
   // A same-origin page that doesn't run the app, so nothing else holds the database open.
   await page.goto('./favicon.svg')
