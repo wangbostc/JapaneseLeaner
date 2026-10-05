@@ -1,0 +1,5 @@
+build/
+helper/build/
+gpuix/node_modules/
+gpuix/screenshots/
+*.bun-build

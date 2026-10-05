@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleIdentifier</key><string>dev.kikitori.spike</string>
+  <key>CFBundleName</key><string>Kikitori</string>
+  <key>CFBundleExecutable</key><string>kikitori</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleShortVersionString</key><string>0.0.1</string>
+  <key>CFBundleVersion</key><string>1</string>
+  <key>LSMinimumSystemVersion</key><string>14.0</string>
+  <key>NSMicrophoneUsageDescription</key><string>Kikitori records you shadowing a sentence so it can play it back and score it.</string>
+  <key>NSSpeechRecognitionUsageDescription</key><string>Kikitori turns your shadowing into text to score your pronunciation.</string>
+</dict>
+</plist>
