@@ -19,6 +19,8 @@ jobs:
       - run: bun run test
       # The storage contracts again on bun:sqlite, under the Bun runtime (the macOS app's setup).
       - run: bun run test:bun
+      # The macOS app's UI tests skip themselves where gpuix's test renderer can't run.
+      - run: bun run test:mac
       - run: bunx playwright install --with-deps chromium
       - run: bunx playwright test
       # The Worker (API + static assets + R2-served large files) under wrangler dev, locally.
@@ -28,3 +30,16 @@ jobs:
         with:
           name: e2e-screenshots
           path: e2e/screenshots
+  mac:
+    # The macOS app's UI, in gpuix's test renderer on a real Mac.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: bun install --frozen-lockfile
+      - run: bun run test:mac

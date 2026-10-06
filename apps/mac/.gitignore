@@ -1,0 +1,4 @@
+screenshots/
+build/
+.dev-data/
+*.bun-build

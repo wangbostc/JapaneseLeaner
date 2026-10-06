@@ -24,6 +24,9 @@
     },
     {
       "path": "./tsconfig.worker-test.json"
+    },
+    {
+      "path": "./apps/mac/tsconfig.json"
     }
   ]
 }
