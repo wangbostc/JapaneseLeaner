@@ -6,6 +6,8 @@ export interface Heard {
   text: string
   /** The attempt's recording, for playback; null if there is none. */
   recording: string | null
+  /** Why recognition produced nothing, when it said (often just silence). */
+  error?: string
 }
 
 export interface Listening {
@@ -52,7 +54,8 @@ export function helperAudio(helper: Helper, recordingPath: () => string): Audio 
   return {
     async status() {
       const r = await helper.call('status').result
-      return { canScore: r.speech === 'authorized' && r.recognizer === true, onDevice: r.onDevice === true }
+      // Not asked yet counts: the first attempt asks. Only a refusal turns scoring off.
+      return { canScore: r.speech !== 'denied' && r.speech !== 'restricted' && r.recognizer === true, onDevice: r.onDevice === true }
     },
     async speak(text, rate, signal) {
       if (signal?.aborted) return
@@ -97,7 +100,7 @@ export function helperAudio(helper: Helper, recordingPath: () => string): Audio 
             await helper.call('finish', { target: call.id }).result.catch(() => {})
           }
           const r = await call.result
-          return { text: (r.text as string) ?? '', recording: (r.recording as string) ?? null }
+          return { text: (r.text as string) ?? '', recording: (r.recording as string) ?? null, ...(r.recognitionError ? { error: r.recognitionError as string } : {}) }
         },
         cancel() {
           if (ended) return

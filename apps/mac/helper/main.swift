@@ -122,12 +122,15 @@ final class Listener {
   var id = 0
   var path = ""
   var heard = ""
+  /** The recogniser's last error, reported with the result (it often just means silence). */
+  var recognitionError: String?
   var finishing: DispatchWorkItem?
 
   func start(_ id: Int, path: String, recognize: Bool) {
     self.id = id
     self.path = path
     heard = ""
+    recognitionError = nil
     let input = engine.inputNode
     let format = input.outputFormat(forBus: 0)
     guard format.channelCount > 0, format.sampleRate > 0 else { return fail(id, "no microphone") }
@@ -138,7 +141,8 @@ final class Listener {
     if recognize, let recognizer = SFSpeechRecognizer(locale: Locale(identifier: "ja-JP")), recognizer.isAvailable {
       let req = SFSpeechAudioBufferRecognitionRequest()
       req.shouldReportPartialResults = true
-      if recognizer.supportsOnDeviceRecognition { req.requiresOnDeviceRecognition = true }
+      // Not required on-device: "supported" doesn't mean the Japanese model is installed, and
+      // requiring it then fails every attempt. macOS still prefers the device when it can.
       request = req
       task = recognizer.recognitionTask(with: req) { [weak self] result, error in
         DispatchQueue.main.async {
@@ -147,8 +151,11 @@ final class Listener {
             self.heard = result.bestTranscription.formattedString
             send(["event": "interim", "id": id, "text": self.heard])
             if result.isFinal { self.complete() }
-          } else if error != nil, self.finishing != nil {
-            self.complete() // "no speech detected" and the like: what was heard (maybe nothing) stands
+          } else if let error {
+            self.recognitionError = error.localizedDescription
+            FileHandle.standardError.write("recognition: \(error)\n".data(using: .utf8)!)
+            // "No speech detected" and the like: what was heard (maybe nothing) stands.
+            if self.finishing != nil { self.complete() }
           }
         }
       }
@@ -190,7 +197,11 @@ final class Listener {
     finishing = nil
     task = nil
     request = nil
-    if running.removeValue(forKey: id) != nil { send(["id": id, "ok": true, "text": heard, "recording": path]) }
+    if running.removeValue(forKey: id) != nil {
+      var reply: [String: Any] = ["id": id, "ok": true, "text": heard, "recording": path]
+      if let recognitionError { reply["recognitionError"] = recognitionError }
+      send(reply)
+    }
   }
 
   func cancel() {

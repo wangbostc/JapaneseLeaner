@@ -73,6 +73,7 @@ describe('audio helper client', () => {
     procs[0].die()
     await expect(hanging).rejects.toThrow('audio helper exited')
     expect(await audio.status()).toEqual({ canScore: true, onDevice: false })
+    // Not asked yet still counts as scorable (the first attempt asks); a refusal doesn't.
     expect(spawned).toBe(2)
   })
 
@@ -100,5 +101,15 @@ describe('audio helper client', () => {
     const proc = fakeProcess((m, send) => m.cmd === 'listen' && send({ id: m.id, ok: false, error: 'microphone permission denied' }))
     const listening = helperAudio(new Helper(() => proc), () => '/tmp/r.caf').listen(() => {})
     await expect(listening.started).rejects.toThrow('microphone permission denied')
+  })
+
+  it('can score until speech recognition is refused (not asked yet: the first attempt asks)', async () => {
+    const statusOf = async (speech: string) => {
+      const proc = fakeProcess((m, send) => send({ id: m.id, ok: true, speech, recognizer: true, onDevice: true }))
+      return (await helperAudio(new Helper(() => proc), () => '').status()).canScore
+    }
+    expect(await statusOf('notDetermined')).toBe(true)
+    expect(await statusOf('authorized')).toBe(true)
+    expect(await statusOf('denied')).toBe(false)
   })
 })

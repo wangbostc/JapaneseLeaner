@@ -53,6 +53,8 @@ export function useAttempt() {
       listening.current = null
       stopping.current = null
       if (!alive.current) return
+      // The first attempt asked for permission: scoring is now known to be on or off.
+      audio.status().then((s) => alive.current && setCanScore(s.canScore), () => {})
       setRecording(heard.recording)
       setTranscript(heard.text)
       setPhase('done')
