@@ -42,6 +42,9 @@ func utterance(_ text: String, _ rate: Double, volume: Double = 1) -> AVSpeechUt
 final class Speaker: NSObject, AVSpeechSynthesizerDelegate {
   let synth = AVSpeechSynthesizer()
   var ids: [ObjectIdentifier: Int] = [:]
+  /** Calls asked to stop: reported as stopped whichever delegate call ends them (a stop before
+   *  any sound can arrive as didFinish). */
+  var stopping: Set<Int> = []
   override init() {
     super.init()
     synth.delegate = self
@@ -50,13 +53,14 @@ final class Speaker: NSObject, AVSpeechSynthesizerDelegate {
     let u = utterance(text, rate, volume: volume)
     ids[ObjectIdentifier(u)] = id
     running[id] = { [weak self] _ in
+      self?.stopping.insert(id)
       self?.synth.stopSpeaking(at: .immediate)
     }
     synth.speak(u)
   }
   private func finished(_ u: AVSpeechUtterance, stopped: Bool) {
     guard let id = ids.removeValue(forKey: ObjectIdentifier(u)), running.removeValue(forKey: id) != nil else { return }
-    send(["id": id, "ok": true, "stopped": stopped])
+    send(["id": id, "ok": true, "stopped": stopped || stopping.remove(id) != nil])
   }
   func speechSynthesizer(_ s: AVSpeechSynthesizer, didFinish u: AVSpeechUtterance) { finished(u, stopped: false) }
   func speechSynthesizer(_ s: AVSpeechSynthesizer, didCancel u: AVSpeechUtterance) { finished(u, stopped: true) }
