@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "KIKITORI_DATA_DIR=${KIKITORI_DATA_DIR:-.dev-data} bun --hot src/main.tsx",
     "test": "vitest run",
-    "build": "sh scripts/build-app.sh"
+    "build": "sh scripts/build-app.sh",
+    "helper": "mkdir -p build && swiftc -O -swift-version 5 -o build/kikitori-audio helper/main.swift -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker helper/Info.plist",
+    "helper:smoke": "bun scripts/helper-smoke.ts"
   },
   "dependencies": {
     "@gpuix/native": "0.10.0",

@@ -1,6 +1,6 @@
 // The macOS app's entry: the only file that knows about the machine (paths, files, the window).
 import { homedir } from 'node:os'
-import { mkdirSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { render } from '@gpuix/react'
 import { createDictionary, type DictData } from '@kikitori/core/jmdict'
@@ -10,6 +10,8 @@ import { createStore } from '@kikitori/core/store'
 import { loadAnalyzer } from '@kikitori/core/tokenizer'
 import { openBunDatabase } from '@kikitori/sqlite/bun'
 import { App } from './App'
+import { fakeAudio, helperAudio, type Audio } from './audio/audio'
+import { Helper, spawnHelper } from './audio/helper'
 import { keyEvents } from './keys'
 import { filePrefs } from './platform/prefs'
 import { readSettings } from './settings'
@@ -21,6 +23,7 @@ const resources = {
   dict: bundled ? join(dirname(process.execPath), '../Resources/dict') : join(dirname(Bun.resolveSync('kuromoji/package.json', import.meta.dir)), 'dict'),
   jmdict: bundled ? join(dirname(process.execPath), '../Resources/jmdict/common.json') : join(repo, 'public/jmdict/common.json'),
   accents: bundled ? join(dirname(process.execPath), '../Resources/pitch/accents.json') : join(repo, 'public/pitch/accents.json'),
+  helper: bundled ? join(dirname(process.execPath), 'kikitori-audio') : join(import.meta.dir, '../build/kikitori-audio'),
 }
 
 // KIKITORI_DATA_DIR keeps dev runs and automation away from the learner's real data.
@@ -41,6 +44,47 @@ const optionalJson = <T,>(path: string, make: (data: never) => T) =>
   })
 
 const db = openBunDatabase(join(dataDir, 'kikitori.db'))
+
+// Audio files of lessons (for the helper to play), named by uid; recordings of attempts.
+const mediaDir = join(dataDir, 'media')
+const recordingsDir = join(dataDir, 'recordings')
+mkdirSync(mediaDir, { recursive: true })
+rmSync(recordingsDir, { recursive: true, force: true }) // last session's attempts
+mkdirSync(recordingsDir, { recursive: true })
+const EXTENSIONS: Record<string, string> = { 'audio/mpeg': 'mp3', 'audio/mp4': 'm4a', 'audio/x-m4a': 'm4a', 'audio/aac': 'aac', 'audio/wav': 'wav', 'audio/x-wav': 'wav', 'audio/wave': 'wav', 'audio/aiff': 'aiff', 'audio/x-aiff': 'aiff', 'audio/flac': 'flac', 'video/mp4': 'mp4' }
+const mediaPath = async (lesson: { mediaId?: number }) => {
+  const media = lesson.mediaId ? await db.media.get(lesson.mediaId) : undefined
+  if (!media?.uid) return null
+  // AVAudioPlayer goes by the extension; unknown types fall back to the original file name's.
+  const ext = EXTENSIONS[media.blob.type] ?? media.name.split('.').pop() ?? 'audio'
+  const path = join(mediaDir, `${media.uid}.${ext}`)
+  if (!existsSync(path)) writeFileSync(path, new Uint8Array(await media.blob.arrayBuffer()))
+  return path
+}
+// Files of audio that's no longer in the database (its lesson was deleted).
+const keep = new Set((await db.media.all()).map((m) => m.uid))
+for (const file of readdirSync(mediaDir)) if (!keep.has(file.replace(/\.[^.]+$/, ''))) rmSync(join(mediaDir, file))
+
+// The real microphone and speech recognition only in the app bundle (or when asked for): asking
+// for them from a terminal run would be attributed to the terminal, which can't grant them.
+// KIKITORI_FAKE_AUDIO=1 keeps automation silent and permission-free, even in the bundle.
+let recording = 0
+const real = (bundled || process.env.KIKITORI_REAL_AUDIO === '1') && process.env.KIKITORI_FAKE_AUDIO !== '1'
+const baseAudio: Audio = real
+  ? helperAudio(new Helper(() => spawnHelper(resources.helper)), () => join(recordingsDir, `attempt-${++recording}.caf`))
+  : fakeAudio(['私は毎朝六時に起きます。'])
+// KIKITORI_LOG=1: what the recogniser heard, on stdout (to check a real session afterwards).
+const audio: Audio =
+  process.env.KIKITORI_LOG === '1'
+    ? {
+        ...baseAudio,
+        status: () => baseAudio.status().then((s) => (console.log(`[audio] ${JSON.stringify(s)}`), s)),
+        listen(onInterim) {
+          const listening = baseAudio.listen(onInterim)
+          return { ...listening, stop: () => listening.stop().then((h) => (console.log(`[heard] ${JSON.stringify(h)}`), h)) }
+        },
+      }
+    : baseAudio
 const prefs = filePrefs(join(dataDir, 'prefs.json'))
 const store = createStore(db)
 await seedOnce(store, () => prefs)
@@ -58,6 +102,8 @@ render(
       accents: optionalJson(resources.accents, (data: { accents: Record<string, string> }) => createAccentTable(data)),
       settings: readSettings(prefs, locale),
       keys,
+      audio,
+      mediaPath,
     }}
   />,
   {

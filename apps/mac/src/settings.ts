@@ -8,11 +8,13 @@ export interface MacSettings {
   translation: boolean
   /** Gaps between 文節 phrases. */
   chunks: boolean
+  /** Speaking and playback speed (Slow is 0.7 of it). */
+  rate: number
 }
 
 const KEY = 'kikitori.settings'
 
-export const defaultSettings = (locale: string): MacSettings => ({ lang: locale.startsWith('zh') ? 'zh' : 'en', furigana: true, translation: true, chunks: false })
+export const defaultSettings = (locale: string): MacSettings => ({ lang: locale.startsWith('zh') ? 'zh' : 'en', furigana: true, translation: true, chunks: false, rate: 1 })
 
 /** Saved settings over the defaults; a malformed field falls back to its default. */
 export function readSettings(prefs: KeyValueStore, locale: string): MacSettings {
@@ -28,5 +30,6 @@ export function readSettings(prefs: KeyValueStore, locale: string): MacSettings 
     furigana: typeof saved.furigana === 'boolean' ? saved.furigana : base.furigana,
     translation: typeof saved.translation === 'boolean' ? saved.translation : base.translation,
     chunks: typeof saved.chunks === 'boolean' ? saved.chunks : base.chunks,
+    rate: typeof saved.rate === 'number' && saved.rate >= 0.5 && saved.rate <= 2 ? saved.rate : base.rate,
   }
 }

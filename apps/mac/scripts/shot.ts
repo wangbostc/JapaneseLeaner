@@ -10,7 +10,7 @@ const [command = 'bun', ...args] = process.argv.length > 2 ? process.argv.slice(
 const out = 'screenshots'
 mkdirSync(out, { recursive: true })
 const data = mkdtempSync(join(tmpdir(), 'kikitori-shot-'))
-const app = await launch({ command, args, env: { GPUIX_BACKGROUND: '1', KIKITORI_DATA_DIR: data } })
+const app = await launch({ command, args, env: { GPUIX_BACKGROUND: '1', KIKITORI_DATA_DIR: data, KIKITORI_FAKE_AUDIO: '1' } })
 try {
   await app.getByTestId('due').waitFor({ timeoutMs: 60_000 })
   await app.screenshot({ path: `${out}/today.png` })
@@ -21,6 +21,10 @@ try {
   await app.getByTestId('word-sheet').waitFor({ timeoutMs: 10_000 })
   await app.getByTestId('meanings').waitFor({ timeoutMs: 20_000 })
   await app.screenshot({ path: `${out}/word.png` })
+  await app.getByTestId('close-sheet').click()
+  await app.getByTestId('start').click()
+  await app.getByTestId('conceal').waitFor({ timeoutMs: 10_000 })
+  await app.screenshot({ path: `${out}/study.png` })
   console.log(`screenshots in ${out}/ (data: ${data})`)
 } finally {
   await app.close()
