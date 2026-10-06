@@ -80,3 +80,23 @@ describe('retell', () => {
     expect(r.coverage).toBe(33)
   })
 })
+
+describe('numbers written as digits', () => {
+  it('writes them as kanji the way they are read', async () => {
+    const { digitsToKanji, kanjiNumber } = await import('./kana')
+    expect([0n, 6n, 10n, 12n, 30n, 100n, 111n, 1500n, 2026n, 10000n, 30000n, 120000000n].map(kanjiNumber)).toEqual([
+      '零', '六', '十', '十二', '三十', '百', '百十一', '千五百', '二千二十六', '一万', '三万', '一億二千万',
+    ])
+    expect(digitsToKanji('6時に起きて、1,500円と１０分')).toBe('六時に起きて、千五百円と十分')
+  })
+
+  it('scores a transcript with digits like the script it heard (6時 for 六時)', async () => {
+    const a = await testAnalyzer()
+    // The pair from the macOS spike: Apple's recognizer wrote 六時 as 6時, and it scored 88.
+    expect(scoreShadowing(readingOf(a, '私は毎朝六時に起きます。'), readingOf(a, '私は毎朝6時に起きます')).score).toBe(100)
+    expect(readingOf(a, '7時半')).toBe(readingOf(a, '七時半'))
+    // Ambiguous: 10分 becomes 十分, which kuromoji reads じゅうふん (neither じっぷん nor じゅうぶん).
+    // Harmless for scoring: the script and the transcript go through the same reading.
+    expect(readingOf(a, '10分')).toBe(readingOf(a, '十分'))
+  })
+})
