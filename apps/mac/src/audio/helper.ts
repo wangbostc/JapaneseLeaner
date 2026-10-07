@@ -97,7 +97,8 @@ export class Helper {
 export function spawnHelper(path: string, args: string[] = []): HelperProcess {
   const proc = Bun.spawn([path, ...args], { stdin: 'pipe', stdout: 'pipe', stderr: 'inherit' })
   const lineListeners: ((line: string) => void)[] = []
-  ;(async () => {
+  // Read to the end; exit listeners wait for it, so a reply sent just before exiting still lands.
+  const drained = (async () => {
     const reader = proc.stdout.pipeThrough(new TextDecoderStream()).getReader()
     let buf = ''
     for (;;) {
@@ -111,14 +112,14 @@ export function spawnHelper(path: string, args: string[] = []): HelperProcess {
         for (const l of lineListeners) l(line)
       }
     }
-  })()
+  })().catch(() => {}) // a broken pipe ends the helper like an exit
   return {
     send(line) {
       proc.stdin.write(line)
       proc.stdin.flush()
     },
     onLine: (l) => void lineListeners.push(l),
-    onExit: (l) => void proc.exited.then(l),
+    onExit: (l) => void Promise.all([proc.exited, drained]).then(([code]) => l(code)),
     kill: () => proc.kill(),
   }
 }

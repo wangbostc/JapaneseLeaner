@@ -145,6 +145,26 @@ for (const backend of BACKENDS) {
       expect(titles).toEqual(sampleLessons().map((l) => sampleUid(l.title)).filter((uid) => uid !== sampleUid('私の朝')).sort())
     })
 
+    it('keeps a sample deleted elsewhere deleted on a device that only adds it later', async () => {
+      // Device B syncs (on a release without the sample) before it seeds: the deletion arrives
+      // for a lesson it doesn't have yet, and must still stop the sample being added afterwards.
+      const env = await server()
+      const { seedOnce } = await import('@kikitori/core/seed')
+      const a = await device(env, 'a')
+      await seedOnce(a.store, () => undefined)
+      await a.sync()
+      await a.store.deleteLesson((await byTitle(a.db, '私の朝'))!.id!)
+      await a.sync()
+      const b = await device(env, 'b')
+      await b.sync()
+      await seedOnce(b.store, () => undefined)
+      await b.sync()
+      await a.sync()
+      await b.sync()
+      expect(await byTitle(b.db, '私の朝')).toBeUndefined()
+      expect(await byTitle(a.db, '私の朝')).toBeUndefined()
+    })
+
     it('keeps the most recently reviewed version of a card', async () => {
       const env = await server()
       const a = await device(env, 'a')
