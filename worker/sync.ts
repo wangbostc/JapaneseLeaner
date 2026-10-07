@@ -1,5 +1,5 @@
-import { mergeCard, mergeLesson, survivesDeletion } from '../src/lib/merge'
-import type { SyncBatch, SyncRequest, SyncResponse, WireCard, WireDeletion, WireLesson } from '../src/lib/syncWire'
+import { mergeCard, mergeLesson, survivesDeletion } from '@kikitori/core/merge'
+import type { SyncBatch, SyncRequest, SyncResponse, WireCard, WireDeletion, WireLesson } from '@kikitori/core/syncWire'
 import type { Env } from './env'
 
 type Kind = 'lessons' | 'cards' | 'logs' | 'media'

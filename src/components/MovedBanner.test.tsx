@@ -1,6 +1,6 @@
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { STRINGS } from '../app/i18n'
+import { STRINGS } from '@kikitori/core/i18n'
 import { SettingsContext, type Settings } from '../app/useSettings'
 import { MovedBanner } from './MovedBanner'
 

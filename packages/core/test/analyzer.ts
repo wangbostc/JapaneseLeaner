@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
-import { loadAnalyzer, type Analyzer } from '../lib/tokenizer'
+import { loadAnalyzer, type Analyzer } from '../src/tokenizer'
 
 const require = createRequire(import.meta.url)
 const dictDir = join(dirname(require.resolve('kuromoji/package.json')), 'dict')

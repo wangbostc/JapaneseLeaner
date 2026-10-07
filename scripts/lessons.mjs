@@ -1,10 +1,10 @@
 // The built-in lessons live in MongoDB (database `kikitori`, collection `lessons`) and are
-// exported into src/content/samples.json, which is committed: the app is a static bundle, and
+// exported into packages/core/src/samples.json, which is committed: the app is a static bundle, and
 // each browser adds samples it hasn't had yet on startup (src/lib/seed.ts). Run by hand after
 // editing lessons in MongoDB:
 //
-//   node scripts/lessons.mjs export   # MongoDB → src/content/samples.json
-//   node scripts/lessons.mjs import   # src/content/samples.json → MongoDB: adds the lessons it lacks
+//   node scripts/lessons.mjs export   # MongoDB → packages/core/src/samples.json
+//   node scripts/lessons.mjs import   # packages/core/src/samples.json → MongoDB: adds the lessons it lacks
 //
 // MONGO_URL defaults to the local server. A lesson document:
 //
@@ -18,7 +18,7 @@ import { join } from 'node:path'
 import { MongoClient } from 'mongodb'
 
 const LEVELS = ['N5', 'N4', 'N3', 'N2', 'N1']
-const FILE = join(import.meta.dirname, '..', 'src/content/samples.json')
+const FILE = join(import.meta.dirname, '..', 'packages/core/src/samples.json')
 const MONGO_URL = process.env.MONGO_URL ?? 'mongodb://127.0.0.1:27017'
 
 /** Throws listing every problem, so one run shows all that needs fixing. */
@@ -52,7 +52,7 @@ async function exportLessons(lessons) {
   const out = docs.map(plain).sort((a, b) => LEVELS.indexOf(a.level) - LEVELS.indexOf(b.level))
   check(out)
   writeFileSync(FILE, JSON.stringify(out, null, 2) + '\n')
-  console.log(`wrote ${out.length} lessons (${perLevel(out)}) to src/content/samples.json`)
+  console.log(`wrote ${out.length} lessons (${perLevel(out)}) to packages/core/src/samples.json`)
 }
 
 async function importLessons(lessons) {

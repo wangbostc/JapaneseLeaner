@@ -1,6 +1,6 @@
-import type { UiLang } from '../lib/db'
-import type { AiErrorCode } from '../lib/ai'
-import type { Step } from '../lib/schedule'
+import type { UiLang } from './model'
+import type { AiErrorCode } from './ai'
+import type { Step } from './schedule'
 
 const en = {
   appName: 'Kikitori',

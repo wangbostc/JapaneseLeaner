@@ -1,9 +1,9 @@
-import type { Lesson } from '../lib/db'
-import { buildIcs } from '../lib/ics'
+import type { Lesson } from '@kikitori/core/model'
+import { buildIcs } from '@kikitori/core/ics'
 import { db } from '../lib/db'
-import { REMINDER_TAG, reminderNotification, summarizeDue } from '../lib/reminders'
-import { dueAt, nextRound } from '../lib/schedule'
-import type { Api } from '../lib/sync'
+import { REMINDER_TAG, reminderNotification, summarizeDue } from '@kikitori/core/reminders'
+import { dueAt, nextRound } from '@kikitori/core/schedule'
+import type { Api } from '@kikitori/core/sync'
 import { deviceApi } from './sync'
 
 type PeriodicSyncManager = { register(tag: string, opts: { minInterval: number }): Promise<void>; getTags(): Promise<string[]> }

@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSettings } from '../app/useSettings'
-import type { Sentence } from '../lib/db'
+import type { Sentence } from '@kikitori/core/model'
 import { store } from '../lib/store'
-import { parseTranscript } from '../lib/subtitles'
+import { parseTranscript } from '@kikitori/core/subtitles'
 import { TranscribeError, WHISPER_MODELS, type WhisperModelId } from '../lib/transcribe'
 import { transcribeToSrt, type TranscribeProgress } from '../lib/transcriber'
 

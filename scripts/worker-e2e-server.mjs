@@ -2,13 +2,17 @@
 // It waits for the preview server, whose command builds dist/, so the two never build at once.
 import { spawn } from 'node:child_process'
 import { setTimeout as sleep } from 'node:timers/promises'
+import { fileURLToPath } from 'node:url'
+
+// The project's own wrangler, run directly: works under any package manager, and a kill reaches it.
+const WRANGLER = fileURLToPath(new URL('../node_modules/.bin/wrangler', import.meta.url))
 
 const previewPort = Number(process.env.E2E_PORT ?? 4173)
 const port = Number(process.env.E2E_WORKER_PORT ?? 8789)
 while (!(await fetch(`http://localhost:${previewPort}/`).then((r) => r.ok, () => false))) await sleep(500)
 
 const sh = (cmd, args) => new Promise((ok, fail) => spawn(cmd, args, { stdio: 'inherit' }).on('exit', (c) => (c === 0 ? ok() : fail(new Error(`${cmd} ${args[0]} failed`)))))
-await sh('pnpm', ['exec', 'wrangler', 'd1', 'migrations', 'apply', 'kikitori', '--local', '--persist-to', '.wrangler/e2e'])
+await sh(WRANGLER, ['d1', 'migrations', 'apply', 'kikitori', '--local', '--persist-to', '.wrangler/e2e'])
 // A fake Anthropic API, so AI routes run end to end without real calls or cost.
 const { createServer } = await import('node:http')
 const fakeAnthropic = createServer((req, res) => {
@@ -85,9 +89,9 @@ const pair = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256
 const vapidPublic = Buffer.from(await crypto.subtle.exportKey('raw', pair.publicKey)).toString('base64url')
 const vapidPrivate = JSON.stringify(await crypto.subtle.exportKey('jwk', pair.privateKey))
 const dev = spawn(
-  'pnpm',
+  WRANGLER,
   [
-    'exec', 'wrangler', 'dev', '--port', String(port), '--persist-to', '.wrangler/e2e',
+    'dev', '--port', String(port), '--persist-to', '.wrangler/e2e',
     '--var', 'SETUP_CODE:e2e-sync-setup-code', '--var', `VAPID_PUBLIC_KEY:${vapidPublic}`, '--var', `VAPID_PRIVATE_KEY:${vapidPrivate}`,
     '--var', 'ANTHROPIC_API_KEY:e2e-fake-key', '--var', `ANTHROPIC_BASE_URL:${anthropicUrl}`,
     '--var', 'AZURE_SPEECH_KEY:e2e-fake-key', '--var', 'AZURE_SPEECH_REGION:e2e', '--var', `AZURE_SPEECH_ENDPOINT:${azureUrl}`,

@@ -1,4 +1,4 @@
-import { engineOf, isEngineVoiceId, isNeuralVoiceId, MAX_TTS_CHARS, NEURAL_VOICES, type EngineVoice } from '../src/lib/voices'
+import { engineOf, isEngineVoiceId, isNeuralVoiceId, MAX_TTS_CHARS, NEURAL_VOICES, type EngineVoice } from '@kikitori/core/voices'
 import type { Env } from './env'
 
 /**

@@ -1,4 +1,4 @@
-import { STRINGS } from './i18n'
+import { STRINGS } from '@kikitori/core/i18n'
 import type { Settings } from './useSettings'
 
 /**

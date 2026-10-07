@@ -1,37 +1,33 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { BackupError, exportBackup, parseBackup, restoreBackup } from './backup'
-import { KikitoriDB } from './db'
-import { Rating } from './srs'
-import { createStore } from './store'
+import { BackupError, exportBackup, parseBackup, restoreBackup } from '../../src/backup'
+import { Rating } from '../../src/srs'
+import { createStore } from '../../src/store'
+import type { Backend } from './backend'
 
 const T0 = Date.UTC(2026, 0, 10, 9)
-const dbs: KikitoriDB[] = []
-const fresh = (name: string) => {
-  const d = new KikitoriDB(`backup-${name}-${dbs.length}`)
-  dbs.push(d)
-  return d
-}
-afterEach(async () => {
-  await Promise.all(dbs.splice(0).map((d) => d.delete()))
-})
 
-describe('backup', () => {
+/** Backup export and restore, which every storage backend must reproduce. */
+export function backupContract(backend: Backend) {
+  const fresh = (_name: string) => backend.open()
+  afterEach(() => backend.cleanup())
+
+  describe(`backup (${backend.name})`, () => {
   it('keeps sync identity through a round trip, and marks restored data as newest', async () => {
     const src = createStore(fresh('uid-src'))
     const id = await src.createLesson({ title: 't', sentences: [], media: { blob: new Blob(['x'], { type: 'audio/wav' }), name: 'a.wav' } }, T0)
     const cardId = await src.addCard({ lessonId: id, kind: 'word', front: '雨', reading: 'あめ', context: '雨' }, T0)
     await src.removeCard(cardId, T0 + 1)
-    const [lesson] = await src.db.lessons.toArray()
-    const [media] = await src.db.media.toArray()
+    const [lesson] = await src.db.lessons.all()
+    const [media] = await src.db.media.all()
 
     const dst = fresh('uid-dst')
     const restoredAt = T0 + 1000
     await restoreBackup(dst, parseBackup(await (await exportBackup(src.db, undefined, T0)).text()), restoredAt)
-    const [l] = await dst.lessons.toArray()
+    const [l] = await dst.lessons.all()
     expect(l.uid).toBe(lesson.uid)
     expect(l.updatedAt).toBe(restoredAt)
-    expect((await dst.media.toArray())[0].uid).toBe(media.uid)
-    expect((await dst.deletions.toArray()).map((d) => d.table)).toEqual(['cards'])
+    expect((await dst.media.all())[0].uid).toBe(media.uid)
+    expect((await dst.deletions.all()).map((d) => d.table)).toEqual(['cards'])
   })
 
   it('restores a v1 backup, assigning uids', async () => {
@@ -50,12 +46,12 @@ describe('backup', () => {
     })
     const dst = fresh('v1')
     await restoreBackup(dst, parseBackup(v1), T0 + 5)
-    const [l, sample] = await dst.lessons.orderBy('id').toArray()
+    const [l, sample] = await dst.lessons.all()
     expect(l.uid).toMatch(/^[0-9a-f-]{36}$/)
     expect(l).toMatchObject({ title: 'old', progress: { roundsDone: 2 }, updatedAt: T0 + 5 })
     expect(sample.uid).toBe('sample:私の朝') // not a random uid that would duplicate it on other devices
-    expect((await dst.logs.toArray())[0].lessonUid).toBe(l.uid)
-    expect((await dst.cards.toArray())[0].uid).toMatch(/^[0-9a-f-]{36}$/)
+    expect((await dst.logs.all())[0].lessonUid).toBe(l.uid)
+    expect((await dst.cards.all())[0].uid).toMatch(/^[0-9a-f-]{36}$/)
   })
 
   it('round-trips lessons, audio, cards, logs and words through JSON', async () => {
@@ -80,7 +76,7 @@ describe('backup', () => {
     expect(parsed.settings).toEqual({ lang: 'zh' })
     await restoreBackup(dstDb, parsed)
 
-    const lessons = await dstDb.lessons.toArray()
+    const lessons = await dstDb.lessons.all()
     expect(lessons.map((l) => l.title)).toEqual(['散歩'])
     expect(lessons[0]).toMatchObject({ hard: [0], progress: { roundsDone: 1, lastCompletedAt: T0 } })
     const media = await dstDb.media.get(lessons[0].mediaId!)
@@ -88,7 +84,7 @@ describe('backup', () => {
     expect([...new Uint8Array(await media!.blob.arrayBuffer())]).toEqual([0, 1, 2, 250, 255])
 
     // Card dates come back as Dates, so the due index still answers queries.
-    const [c] = await dstDb.cards.toArray()
+    const [c] = await dstDb.cards.all()
     expect(c.card.due).toBeInstanceOf(Date)
     expect(c.card.last_review).toBeInstanceOf(Date)
     expect(await dst.dueCards(T0)).toEqual([])
@@ -118,3 +114,4 @@ describe('backup', () => {
     expect(parseBackup(await (await exportBackup(empty, undefined, T0)).text()).media).toEqual([])
   })
 })
+}

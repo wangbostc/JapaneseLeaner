@@ -1,22 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { KikitoriDB } from './db'
-import { Rating } from './srs'
-import { createStore, type Store } from './store'
+import { Rating } from '../../src/srs'
+import { createStore, type Store } from '../../src/store'
+import type { Backend } from './backend'
 
 const H = 3_600_000
 const D = 24 * H
 const T0 = Date.UTC(2026, 0, 10, 9)
-let s: Store
-let n = 0
 
-beforeEach(() => {
-  s = createStore(new KikitoriDB(`test-${n++}`))
-})
-afterEach(() => s.db.delete())
+/** The store's behaviour, which every storage backend must reproduce. */
+export function storeContract(backend: Backend) {
+  let s: Store
+  beforeEach(() => {
+    s = createStore(backend.open())
+  })
+  afterEach(() => backend.cleanup())
 
-const lesson = (title: string, now = T0) => s.createLesson({ title, sentences: [{ start: null, end: null, text: 'こんにちは。' }] }, now)
+  const lesson = (title: string, now = T0) => s.createLesson({ title, sentences: [{ start: null, end: null, text: 'こんにちは。' }] }, now)
 
-describe('store', () => {
+  describe(`store (${backend.name})`, () => {
   it('moves a lesson from due to upcoming as rounds complete', async () => {
     const id = await lesson('a')
     expect((await s.agenda(T0)).due.map((l) => l.title)).toEqual(['a'])
@@ -121,3 +122,4 @@ describe('store', () => {
     ])
   })
 })
+}

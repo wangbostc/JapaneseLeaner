@@ -5,6 +5,10 @@
 import { execFileSync } from 'node:child_process'
 import { readdirSync, statSync, writeFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+// The project's own wrangler, run directly: works under any package manager.
+const WRANGLER = fileURLToPath(new URL('../node_modules/.bin/wrangler', import.meta.url))
 
 const LIMIT = 25 * 1024 * 1024
 const dist = join(import.meta.dirname, '..', 'dist')
@@ -30,7 +34,7 @@ if (cmd === 'list') {
 } else if (cmd === 'upload') {
   if (where !== '--local' && where !== '--remote') throw new Error('usage: large-assets.mjs upload --local|--remote')
   for (const file of large) {
-    execFileSync('pnpm', ['exec', 'wrangler', 'r2', 'object', 'put', `${BUCKET}/${file}`, '--file', join(dist, file), where, '--content-type', 'application/wasm'], {
+    execFileSync(WRANGLER, ['r2', 'object', 'put', `${BUCKET}/${file}`, '--file', join(dist, file), where, '--content-type', 'application/wasm'], {
       stdio: 'inherit',
     })
   }

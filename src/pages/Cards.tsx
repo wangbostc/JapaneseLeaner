@@ -5,9 +5,10 @@ import { useSettings } from '../app/useSettings'
 import { Icon } from '../components/Icon'
 import { Meanings } from '../components/Meanings'
 import { PitchAccent } from '../components/PitchAccent'
-import { db, type Flashcard } from '../lib/db'
+import { type Flashcard } from '@kikitori/core/model'
+import { db } from '../lib/db'
 import { speak } from '../lib/speech'
-import { previewIntervals, Rating, type Grade } from '../lib/srs'
+import { previewIntervals, Rating, type Grade } from '@kikitori/core/srs'
 import { store } from '../lib/store'
 
 const fmtDays = (d: number) => (d < 1 / 24 ? `${Math.max(1, Math.round(d * 1440))}m` : d < 1 ? `${Math.round(d * 24)}h` : `${Math.round(d)}d`)

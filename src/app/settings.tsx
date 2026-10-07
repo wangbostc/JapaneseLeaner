@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { STRINGS } from './i18n'
+import { STRINGS } from '@kikitori/core/i18n'
 import { sanitizeSettings } from './sanitizeSettings'
 import { SettingsContext, type Settings } from './useSettings'
 

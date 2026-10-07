@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { formatDuration } from '../app/i18n'
+import { formatDuration } from '@kikitori/core/i18n'
 import { useSettings } from '../app/useSettings'
 import { store } from '../lib/store'
 

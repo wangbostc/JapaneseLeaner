@@ -1,4 +1,4 @@
-import type { Sentence } from './db'
+import type { Sentence } from '@kikitori/core/model'
 import { prefetchSpeech, speak } from './speech'
 
 /** Plays a lesson's sentences from its audio file, or with TTS when it has none. */

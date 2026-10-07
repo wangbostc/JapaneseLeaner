@@ -1,5 +1,5 @@
-import type { Cue } from './subtitles'
-import { splitSentences } from './subtitles'
+import type { Cue } from '@kikitori/core/subtitles'
+import { splitSentences } from '@kikitori/core/subtitles'
 
 /** Whisper models offered for transcription, smallest first. Sizes are the q8 download. */
 export const WHISPER_MODELS = [

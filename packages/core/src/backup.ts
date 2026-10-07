@@ -1,4 +1,5 @@
-import type { Deletion, Flashcard, KikitoriDB, KnownWord, Lesson, PracticeLog } from './db'
+import type { Database } from './database'
+import type { Deletion, Flashcard, KnownWord, Lesson, PracticeLog } from './model'
 
 export const BACKUP_FORMAT = 'kikitori-backup'
 /** v2 adds sync identity (uid, updatedAt) and tombstones; v1 files still restore. */
@@ -48,20 +49,20 @@ function base64ToBlob(base64: string, type: string): Blob {
  * from Blob parts, one per audio file, so no single string holds the whole
  * library (a JS string tops out around 500M characters).
  */
-export async function exportBackup(db: KikitoriDB, settings?: unknown, now = Date.now()): Promise<Blob> {
+export async function exportBackup(db: Database, settings?: unknown, now = Date.now()): Promise<Blob> {
   const rest = {
     format: BACKUP_FORMAT,
     version: BACKUP_VERSION,
     exportedAt: now,
-    lessons: await db.lessons.toArray(),
-    cards: await db.cards.toArray(),
-    logs: await db.logs.toArray(),
-    words: await db.words.toArray(),
-    deletions: await db.deletions.toArray(),
+    lessons: await db.lessons.all(),
+    cards: await db.cards.all(),
+    logs: await db.logs.all(),
+    words: await db.words.all(),
+    deletions: await db.deletions.all(),
     settings,
   }
-  const parts: BlobPart[] = [JSON.stringify(rest).slice(0, -1), ',"media":[']
-  const media = await db.media.toArray()
+  const parts: (string | Blob)[] = [JSON.stringify(rest).slice(0, -1), ',"media":[']
+  const media = await db.media.all()
   for (const [i, m] of media.entries()) {
     const dump: MediaDump = { id: m.id!, uid: m.uid, name: m.name, type: m.blob.type, base64: await blobToBase64(m.blob) }
     parts.push(i ? ',' : '', JSON.stringify(dump))
@@ -115,16 +116,16 @@ export function parseBackup(json: string): Backup {
  * updatedAt, so sync treats the restore as the newest change rather than letting older copies
  * elsewhere win. v1 backups have no uids; the database hooks assign them.
  */
-export async function restoreBackup(db: KikitoriDB, backup: Backup, now = Date.now()): Promise<void> {
+export async function restoreBackup(db: Database, backup: Backup, now = Date.now()): Promise<void> {
   const touch = <T extends object>(rows: T[]) => rows.map((r) => ({ ...r, updatedAt: now }))
   const media = backup.media.map((m) => ({ id: m.id, uid: m.uid, updatedAt: now, name: m.name, blob: base64ToBlob(m.base64, m.type) }))
-  await db.transaction('rw', [db.lessons, db.media, db.cards, db.logs, db.words, db.deletions], async () => {
+  await db.transaction(async () => {
     await Promise.all([db.lessons.clear(), db.media.clear(), db.cards.clear(), db.logs.clear(), db.words.clear(), db.deletions.clear()])
     await db.media.bulkAdd(media)
     await db.lessons.bulkAdd(touch(backup.lessons))
     await db.cards.bulkAdd(touch(backup.cards.map(reviveCard)))
     // v1 logs predate lessonUid; name their lessons from the restored rows (ids are preserved).
-    const uidById = new Map((await db.lessons.toArray()).map((l) => [l.id!, l.uid!]))
+    const uidById = new Map((await db.lessons.all()).map((l) => [l.id!, l.uid!]))
     await db.logs.bulkAdd(backup.logs.map((l) => ({ ...l, lessonUid: l.lessonUid !== undefined ? l.lessonUid : (uidById.get(l.lessonId) ?? null) })))
     await db.words.bulkAdd(backup.words)
     if (backup.deletions?.length) await db.deletions.bulkAdd(backup.deletions)

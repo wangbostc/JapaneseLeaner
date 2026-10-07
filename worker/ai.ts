@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
-import { aiErrorCode, explainSentence, translateSentences } from '../src/lib/ai'
+import { aiErrorCode, explainSentence, translateSentences } from '@kikitori/core/ai'
 import type { Env } from './env'
 
 /** Limits on what a device may send, to bound cost. */

@@ -1,6 +1,6 @@
 import { nextReviewEvent, saveIcs } from '../app/reminders'
 import { useSettings } from '../app/useSettings'
-import type { Lesson } from '../lib/db'
+import type { Lesson } from '@kikitori/core/model'
 import { Icon } from './Icon'
 
 /** Saves the lesson's next review as a calendar event with an alarm; hidden when none is scheduled. */

@@ -28,12 +28,13 @@ jobs:
       - if: steps.gate.outputs.ready == 'true'
         uses: actions/checkout@v4
       - if: steps.gate.outputs.ready == 'true'
-        uses: pnpm/action-setup@v4
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
       - if: steps.gate.outputs.ready == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
       - if: steps.gate.outputs.ready == 'true'
         name: Check the D1 database id is set
         run: |
@@ -42,12 +43,12 @@ jobs:
             exit 1
           fi
       - if: steps.gate.outputs.ready == 'true'
-        run: pnpm install --frozen-lockfile
+        run: bun install --frozen-lockfile
       - if: steps.gate.outputs.ready == 'true'
-        run: pnpm build
+        run: bun run build
       - if: steps.gate.outputs.ready == 'true'
-        run: pnpm exec wrangler d1 migrations apply kikitori --remote
+        run: bunx wrangler d1 migrations apply kikitori --remote
       - if: steps.gate.outputs.ready == 'true'
         run: node scripts/large-assets.mjs upload --remote
       - if: steps.gate.outputs.ready == 'true'
-        run: pnpm exec wrangler deploy
+        run: bunx wrangler deploy

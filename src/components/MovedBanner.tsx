@@ -1,8 +1,8 @@
 import { useId, useState } from 'react'
 import { downloadBackup } from '../app/backupFile'
 import { useSettings } from '../app/useSettings'
-import { db } from '../lib/db'
-import { movedTarget } from '../lib/movedTarget'
+import { database } from '../lib/store'
+import { movedTarget } from '@kikitori/core/movedTarget'
 
 /**
  * Shown by the old static (GitHub Pages) build once the app has a new home. Browser storage
@@ -22,7 +22,7 @@ export function MovedBanner({ to = MOVED_TO }: { to?: string }) {
     setBusy(true)
     setError(null)
     try {
-      await downloadBackup(db, settings)
+      await downloadBackup(database, settings)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {

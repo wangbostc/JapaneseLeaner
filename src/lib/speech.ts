@@ -7,7 +7,7 @@
  * where there is no microphone and no voice.
  */
 
-import { DEFAULT_NEURAL_VOICE, naturalVoiceOf, type NaturalVoiceId } from './voices'
+import { DEFAULT_NEURAL_VOICE, naturalVoiceOf, type NaturalVoiceId } from '@kikitori/core/voices'
 
 interface FakeSpeech {
   /** What the "recogniser" hears for each attempt. */

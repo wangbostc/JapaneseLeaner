@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { getAnalyzer, type Analyzer } from '../lib/tokenizer'
+import { type Analyzer } from '@kikitori/core/tokenizer'
+import { getAnalyzer } from '../lib/tokenizer'
 
 export type AnalyzerState = { status: 'loading' } | { status: 'ready'; analyzer: Analyzer } | { status: 'error'; error: Error }
 

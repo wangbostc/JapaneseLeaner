@@ -4,7 +4,7 @@ import { useSyncStatus } from '../app/sync'
 import { useSettings } from '../app/useSettings'
 import { DEFAULT_URLS, engineUrls, setEnginesOn } from '../app/engines'
 import { neuralChoice, speak } from '../lib/speech'
-import { ENGINE_NAMES, ENGINES, engineOf, isEngineVoiceId, NEURAL_PREFIX, type EngineKind, type NaturalVoiceId } from '../lib/voices'
+import { ENGINE_NAMES, ENGINES, engineOf, isEngineVoiceId, NEURAL_PREFIX, type EngineKind, type NaturalVoiceId } from '@kikitori/core/voices'
 import { VoiceCredit } from './VoiceCredit'
 
 /** The setting value for a natural voice: Azure voices are prefixed, VOICEVOX ids already are. */

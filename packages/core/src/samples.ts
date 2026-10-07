@@ -1,4 +1,4 @@
-import type { Sentence } from '../lib/db'
+import type { Sentence } from './model'
 import samples from './samples.json'
 
 /**

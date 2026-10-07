@@ -9,7 +9,7 @@ import { NavigationRoute, registerRoute } from 'workbox-routing'
 import { CacheFirst } from 'workbox-strategies'
 import jmdictRelease from '../scripts/jmdict-release.json' with { type: 'json' }
 import { KikitoriDB } from './lib/db'
-import { REMINDER_TAG, reminderNotification, summarizeDue } from './lib/reminders'
+import { REMINDER_TAG, reminderNotification, summarizeDue } from '@kikitori/core/reminders'
 
 declare const self: ServiceWorkerGlobalScope & { __WB_MANIFEST: (string | { url: string; revision: string | null })[] }
 
