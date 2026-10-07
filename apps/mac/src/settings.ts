@@ -16,20 +16,35 @@ const KEY = 'kikitori.settings'
 
 export const defaultSettings = (locale: string): MacSettings => ({ lang: locale.startsWith('zh') ? 'zh' : 'en', furigana: true, translation: true, chunks: false, rate: 1 })
 
-/** Saved settings over the defaults; a malformed field falls back to its default. */
+/** Speeds offered in Settings (Slow plays at 0.7 of the chosen one). */
+export const RATES = [0.8, 1, 1.2] as const
+
+/**
+ * `saved` over `base`, field by field: a missing or malformed field keeps `base`'s. Used for the
+ * prefs file and for a restored backup's settings (a web backup's extra fields are ignored).
+ */
+export function sanitizeSettings(saved: unknown, base: MacSettings): MacSettings {
+  const s = (saved && typeof saved === 'object' ? saved : {}) as Record<string, unknown>
+  return {
+    lang: s.lang === 'en' || s.lang === 'zh' ? s.lang : base.lang,
+    furigana: typeof s.furigana === 'boolean' ? s.furigana : base.furigana,
+    translation: typeof s.translation === 'boolean' ? s.translation : base.translation,
+    chunks: typeof s.chunks === 'boolean' ? s.chunks : base.chunks,
+    rate: typeof s.rate === 'number' && s.rate >= 0.5 && s.rate <= 2 ? s.rate : base.rate,
+  }
+}
+
+/** Saved settings over the defaults. */
 export function readSettings(prefs: KeyValueStore, locale: string): MacSettings {
-  const base = defaultSettings(locale)
-  let saved: Record<string, unknown> = {}
+  let saved: unknown = {}
   try {
     saved = JSON.parse(prefs.getItem(KEY) ?? '{}')
   } catch {
     // keep the defaults
   }
-  return {
-    lang: saved.lang === 'en' || saved.lang === 'zh' ? saved.lang : base.lang,
-    furigana: typeof saved.furigana === 'boolean' ? saved.furigana : base.furigana,
-    translation: typeof saved.translation === 'boolean' ? saved.translation : base.translation,
-    chunks: typeof saved.chunks === 'boolean' ? saved.chunks : base.chunks,
-    rate: typeof saved.rate === 'number' && saved.rate >= 0.5 && saved.rate <= 2 ? saved.rate : base.rate,
-  }
+  return sanitizeSettings(saved, defaultSettings(locale))
+}
+
+export function writeSettings(prefs: KeyValueStore, settings: MacSettings) {
+  prefs.setItem(KEY, JSON.stringify(settings))
 }

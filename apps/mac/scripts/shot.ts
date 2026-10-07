@@ -25,6 +25,20 @@ try {
   await app.getByTestId('start').click()
   await app.getByTestId('conceal').waitFor({ timeoutMs: 10_000 })
   await app.screenshot({ path: `${out}/study.png` })
+  // The other screens (never a file dialog: a native one would block automation).
+  for (const [tab, wait, name] of [
+    ['tab-cards', 'cards-empty', 'cards'],
+    ['tab-stats', 'week', 'stats'],
+    ['tab-settings', 'export', 'settings'],
+    ['tab-library', 'import', 'library'],
+  ] as const) {
+    await app.getByTestId(tab).click()
+    await app.getByTestId(wait).waitFor({ timeoutMs: 10_000 })
+    await app.screenshot({ path: `${out}/${name}.png` })
+  }
+  await app.getByTestId('import').click()
+  await app.getByTestId('transcript').waitFor({ timeoutMs: 10_000 })
+  await app.screenshot({ path: `${out}/import.png` })
   console.log(`screenshots in ${out}/ (data: ${data})`)
 } finally {
   await app.close()

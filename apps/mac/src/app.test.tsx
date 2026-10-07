@@ -1,84 +1,7 @@
-import { DatabaseSync } from 'node:sqlite'
-import { connectTest } from '@gpuix/react/automation'
-import { createTestRoot, hasNativeTestRenderer } from '@gpuix/react/testing'
-import { createDictionary, type DictData } from '@kikitori/core/jmdict'
-import { createAccentTable } from '@kikitori/core/pitch'
-import { seedOnce } from '@kikitori/core/seed'
-import { createStore } from '@kikitori/core/store'
-import { testAnalyzer } from '@kikitori/core/test/analyzer'
-import { sqliteDatabase, type SqlDriver } from '@kikitori/sqlite'
+import { hasNativeTestRenderer } from '@gpuix/react/testing'
 import { describe, expect, it } from 'vitest'
-import { App } from './App'
-import { fakeAudio } from './audio/audio'
-import type { AppDeps } from './context'
-import { keyEvents } from './keys'
-import { memoryPrefs } from './platform/prefs'
-
-const DICT: DictData = {
-  version: 'test',
-  dictDate: '2026-01-01',
-  tags: { n: 'noun', adv: 'adverb' },
-  entries: [[['毎朝'], ['まいあさ'], [[['n', 'adv'], ['every morning']]]]],
-}
-
-/** The whole app on an in-memory database with the real starter lessons, in a tall test window. */
-async function open(transcripts: string[] = []) {
-  const db = sqliteDatabase(new DatabaseSync(':memory:') as unknown as SqlDriver)
-  const store = createStore(db)
-  const prefs = memoryPrefs()
-  await seedOnce(store, () => prefs)
-  const deps: AppDeps = {
-    db,
-    store,
-    analyzer: await testAnalyzer(),
-    dictionary: async () => createDictionary(DICT),
-    accents: async () => createAccentTable({ accents: { '毎朝|まいあさ': '0' } }),
-    settings: { lang: 'en', furigana: true, translation: true, chunks: false, rate: 1 },
-    keys: keyEvents(),
-    audio: fakeAudio(transcripts),
-    mediaPath: async () => null,
-  }
-  // The test window is capped at the screen's height, so clicks scroll their target into the
-  // window first (getPaintedText does see the whole scrolled content).
-  const { render, renderer } = createTestRoot({ width: 1000, height: 900 })
-  render(<App deps={deps} />)
-  const app = await connectTest(renderer)
-  const painted = () => {
-    renderer.flush()
-    return renderer.getPaintedText()
-  }
-  /** Waits for the database queries behind the screen to land. */
-  const shows = (text: string) => expect.poll(painted, { timeout: 5000 }).toContain(text)
-  const hides = (text: string) => expect.poll(painted, { timeout: 5000 }).not.toContain(text)
-  const lessonId = async (title: string) => (await db.lessons.all()).find((l) => l.title === title)!.id!
-  /** Waits for an element to appear (after a click, a state change lands a frame later). */
-  const appears = (testId: string) =>
-    expect
-      .poll(async () => {
-        renderer.flush()
-        return app.getByTestId(testId).count()
-      }, { timeout: 5000 })
-      .toBeGreaterThan(0)
-  /** Clicks an element once it's there, first scrolling the page so it's inside the window. */
-  const click = async (testId: string) => {
-    await appears(testId)
-    const target = app.getByTestId(testId)
-    const box = await target.bounds()
-    const { height } = renderer.getWindowSize()
-    if (box.y + box.height > height) {
-      // scrollIntoView doesn't move this test renderer's scroll areas; scrollTo does.
-      const page = (await app.getByTestId('scroll').element()).id
-      const [x, y] = renderer.getScrollOffset(page) ?? [0, 0]
-      renderer.scrollTo(page, x, y - (box.y + box.height - height + 40))
-      // A scroll applies on the next frame: let time pass and paint before clicking.
-      renderer.flush()
-      renderer.advanceTime(50)
-      renderer.flush()
-    }
-    await target.click()
-  }
-  return { db, store, deps, app, painted, shows, hides, lessonId, click, appears }
-}
+import type { fakeAudio } from './audio/audio'
+import { open } from './testing'
 
 describe.runIf(hasNativeTestRenderer)('macOS app', () => {
   it('opens on Today with every starter lesson due', async () => {
@@ -169,7 +92,7 @@ describe.runIf(hasNativeTestRenderer)('macOS app', () => {
     }
 
     it('runs a whole first round, then schedules the first review', { timeout: 60000 }, async () => {
-      const o = await open([...SENTENCES, SENTENCES.join('')])
+      const o = await open({ transcripts: [...SENTENCES, SENTENCES.join('')] })
       const { click, shows, appears, db, deps, lessonId } = o
       await startLesson(o)
       await shows('Intensive listening')
@@ -236,7 +159,7 @@ describe.runIf(hasNativeTestRenderer)('macOS app', () => {
     })
 
     it('scores 6時 heard for 六時 as a perfect attempt', { timeout: 30000 }, async () => {
-      const o = await open(['私は毎朝6時に起きます'])
+      const o = await open({ transcripts: ['私は毎朝6時に起きます'] })
       const { click, shows, appears } = o
       await shows('私の朝')
       await click(`lesson-${await o.lessonId('私の朝')}`)
@@ -249,7 +172,7 @@ describe.runIf(hasNativeTestRenderer)('macOS app', () => {
     })
 
     it('free practice leaves the schedule alone, but a weak attempt still marks the sentence hard', { timeout: 30000 }, async () => {
-      const o = await open(['ぜんぜんちがう'])
+      const o = await open({ transcripts: ['ぜんぜんちがう'] })
       const { click, shows, appears, db, lessonId } = o
       const id = await lessonId('私の朝')
       await shows('私の朝')
@@ -265,7 +188,7 @@ describe.runIf(hasNativeTestRenderer)('macOS app', () => {
     })
 
     it('takes a sentence out of the hard set once the drill scores it 75 or more', { timeout: 30000 }, async () => {
-      const o = await open([SENTENCES[2]])
+      const o = await open({ transcripts: [SENTENCES[2]] })
       const { click, shows, appears, db, store, lessonId } = o
       const id = await lessonId('私の朝')
       await store.setHard(id, 2, true)

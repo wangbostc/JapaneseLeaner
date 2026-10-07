@@ -3,15 +3,16 @@ import { summarizeDue } from '@kikitori/core/reminders'
 import { useEffect, useState } from 'react'
 import { useApp, useQuery } from '../context'
 import { LessonRow } from '../ui/LessonRow'
-import { Col, Row, Text } from '../ui/primitives'
+import { Col, Pressable, Row, Text } from '../ui/primitives'
 import { C } from '../ui/theme'
 
 export function Today() {
-  const { t, store, db } = useApp()
+  const { t, store, db, navigate } = useApp()
   const [now, setNow] = useState(() => Date.now())
   const agenda = useQuery(() => store.agenda(now), [now])
   const lessons = useQuery(() => db.lessons.all(), [])
   const stats = useQuery(() => store.stats(), [])
+  const cardsDue = useQuery(async () => (await store.dueCards()).length, [now])
   // A review that comes due while Today is open moves to "Due now" on its own.
   const nextDue = lessons ? summarizeDue(lessons, now).nextDue : null
   useEffect(() => {
@@ -47,6 +48,19 @@ export function Today() {
           </Row>
         )}
       </Col>
+      {!!cardsDue && (
+        <Pressable
+          testId="cards-banner"
+          onPress={() => navigate({ name: 'cards' })}
+          style={{ justifyContent: 'space-between', padding: 14, borderRadius: 10, backgroundColor: '#1f3358' }}
+          hover={{ backgroundColor: '#26406b' }}
+        >
+          <Text color={C.ruby} weight={600}>
+            {t.cardsDue(cardsDue)}
+          </Text>
+          <Text color={C.ruby}>{`${t.reviewCards} ›`}</Text>
+        </Pressable>
+      )}
       <Text size={12} color={C.dim} weight={600} style={{ marginTop: 10 }}>
         {t.dueNow.toUpperCase()}
       </Text>

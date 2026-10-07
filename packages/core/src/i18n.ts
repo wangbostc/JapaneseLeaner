@@ -275,6 +275,22 @@ const en = {
   crashTitle: 'Something went wrong',
   crashBody: 'Your progress is saved on this device. Reload to continue.',
   reload: 'Reload',
+  // The macOS app
+  macChooseAudio: 'Choose audio…',
+  macChooseFile: 'Load file…',
+  macDropHint: 'or drop a file here',
+  macNotAudio: 'That file isn’t audio Kikitori can play (MP3, M4A, WAV, AAC, AIFF, FLAC, MP4).',
+  macRemove: 'Remove',
+  macNoRecognition: 'Speech recognition is off for Kikitori (System Settings → Privacy & Security → Speech Recognition). Rate yourself instead:',
+  macRecognitionOn: (onDevice: boolean): string => (onDevice ? 'On, on this Mac' : 'On, through Apple’s servers'),
+  macRecognitionOff: 'Off: allow it in System Settings → Privacy & Security → Speech Recognition',
+  macDictationHint: 'Install Japanese dictation (System Settings → Keyboard → Dictation) to recognise speech on this Mac, offline.',
+  macBackupHint: 'A backup holds every lesson (with its audio), card and practice log, in the same format as the web app’s: restore one from the browser here to move your library over.',
+  macExportTo: 'Choose a folder for the backup',
+  macExported: (path: string) => `Saved to ${path}`,
+  macRestorePick: 'Choose a backup to restore',
+  macRestoreFrom: (name: string, n: number) => `${name}: ${n} lesson${n === 1 ? '' : 's'}.`,
+  macCancel: 'Cancel',
 }
 
 export type Strings = typeof en
@@ -542,6 +558,21 @@ const zh: Strings = {
   crashTitle: '出错了',
   crashBody: '你的进度已保存在本设备上。刷新即可继续。',
   reload: '刷新',
+  macChooseAudio: '选择音频…',
+  macChooseFile: '载入文件…',
+  macDropHint: '或把文件拖到这里',
+  macNotAudio: '这个文件不是 Kikitori 能播放的音频（MP3、M4A、WAV、AAC、AIFF、FLAC、MP4）。',
+  macRemove: '移除',
+  macNoRecognition: 'Kikitori 的语音识别已关闭（系统设置 → 隐私与安全性 → 语音识别）。请自己评分：',
+  macRecognitionOn: (onDevice: boolean) => (onDevice ? '已开启，在本机识别' : '已开启，通过 Apple 服务器识别'),
+  macRecognitionOff: '已关闭：请在 系统设置 → 隐私与安全性 → 语音识别 中允许',
+  macDictationHint: '安装日语听写（系统设置 → 键盘 → 听写）后，可在本机离线识别语音。',
+  macBackupHint: '备份包含所有课程（含音频）、卡片和练习记录，格式与网页版相同：在这里恢复浏览器导出的备份，即可把课程库搬过来。',
+  macExportTo: '选择保存备份的文件夹',
+  macExported: (path: string) => `已保存到 ${path}`,
+  macRestorePick: '选择要恢复的备份',
+  macRestoreFrom: (name: string, n: number) => `${name}：${n} 个课程。`,
+  macCancel: '取消',
 }
 
 export const STRINGS: Record<UiLang, Strings> = { en, zh }

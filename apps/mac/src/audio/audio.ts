@@ -117,18 +117,24 @@ export function helperAudio(helper: Helper, recordingPath: () => string): Audio 
  * A stand-in for tests and dev runs: speaking and playing finish on the next tick, and each
  * attempt "hears" the next scripted transcript.
  */
-export function fakeAudio(transcripts: string[] = [], status: AudioStatus = { canScore: true, onDevice: true }): Audio & { spoken: string[] } {
+export function fakeAudio(
+  transcripts: string[] = [],
+  status: AudioStatus = { canScore: true, onDevice: true },
+): Audio & { spoken: string[]; played: { path: string; start: number; end: number | null }[] } {
   const spoken: string[] = []
+  const played: { path: string; start: number; end: number | null }[] = []
   const tick = () => new Promise<void>((r) => setTimeout(r, 0))
   return {
     spoken,
+    played,
     status: async () => status,
     async speak(text, _rate, signal) {
       if (!signal?.aborted) spoken.push(text)
       await tick()
     },
-    async playFile(_path, start, end, _rate, signal, onTime) {
+    async playFile(path, start, end, _rate, signal, onTime) {
       if (signal?.aborted) return
+      played.push({ path, start, end })
       onTime?.(start)
       if (end !== null) onTime?.(end)
       await tick()

@@ -1,16 +1,26 @@
 import { STRINGS } from '@kikitori/core/i18n'
 import { useCallback, useMemo, useState } from 'react'
 import { AppContext, type App as AppValue, type AppDeps, type Route, type WordPick } from './context'
+import { Cards } from './screens/Cards'
+import { Import } from './screens/Import'
 import { Library } from './screens/Library'
 import { Lesson } from './screens/Lesson'
+import { Settings } from './screens/Settings'
+import { Stats } from './screens/Stats'
 import { Study } from './screens/Study'
 import { Today } from './screens/Today'
+import { writeSettings, type MacSettings } from './settings'
 import { Col, Pressable, Row, Text } from './ui/primitives'
 import { C } from './ui/theme'
 import { WordSheet } from './ui/WordSheet'
 
-function TabBar({ route, navigate, labels }: { route: Route; navigate: (r: Route) => void; labels: [Route['name'], string][] }) {
-  const current = route.name === 'lesson' || route.name === 'study' ? 'library' : route.name
+type Tab = 'today' | 'library' | 'cards' | 'stats' | 'settings'
+
+/** The tab a route belongs to (a lesson, its study and Import live under Library). */
+const tabOf = (route: Route): Tab => (route.name === 'lesson' || route.name === 'study' || route.name === 'import' ? 'library' : route.name)
+
+function TabBar({ route, navigate, labels }: { route: Route; navigate: (r: Route) => void; labels: [Tab, string][] }) {
+  const current = tabOf(route)
   return (
     <Row style={{ alignItems: 'center', gap: 6, paddingLeft: 20, paddingRight: 20, height: 52, backgroundColor: C.panel, borderBottomWidth: 1, borderColor: C.line }}>
       <Text size={17} ja weight={700} style={{ marginRight: 18 }}>
@@ -20,7 +30,7 @@ function TabBar({ route, navigate, labels }: { route: Route; navigate: (r: Route
         <Pressable
           key={name}
           testId={`tab-${name}`}
-          onPress={() => navigate({ name } as Route)}
+          onPress={() => navigate({ name })}
           style={{ paddingLeft: 12, paddingRight: 12, paddingTop: 6, paddingBottom: 6, borderRadius: 7, ...(current === name ? { backgroundColor: C.raised } : {}) }}
           hover={{ backgroundColor: C.hover }}
         >
@@ -33,15 +43,51 @@ function TabBar({ route, navigate, labels }: { route: Route; navigate: (r: Route
   )
 }
 
+function Screen({ route }: { route: Route }) {
+  switch (route.name) {
+    case 'today':
+      return <Today />
+    case 'library':
+      return <Library />
+    case 'import':
+      return <Import />
+    case 'cards':
+      return <Cards />
+    case 'stats':
+      return <Stats />
+    case 'settings':
+      return <Settings />
+    case 'lesson':
+      return <Lesson id={route.id} />
+    case 'study':
+      return <Study id={route.id} free={route.free} />
+  }
+}
+
+const routeKey = (route: Route) => (route.name === 'lesson' || route.name === 'study' ? `${route.name}-${route.id}-${'free' in route ? route.free : ''}` : route.name)
+
 export function App({ deps, initialRoute = { name: 'today' } }: { deps: AppDeps; initialRoute?: Route }) {
   const [route, setRoute] = useState<Route>(initialRoute)
   const [word, setWord] = useState<WordPick | null>(null)
+  const [settings, setSettings] = useState<MacSettings>(deps.settings)
   const navigate = useCallback((r: Route) => {
     setWord(null)
     setRoute(r)
   }, [])
+  const updateSettings = useCallback(
+    (patch: Partial<MacSettings>) =>
+      setSettings((current) => {
+        const next = { ...current, ...patch }
+        writeSettings(deps.prefs, next)
+        return next
+      }),
+    [deps.prefs],
+  )
   const close = useCallback(() => setWord(null), [])
-  const app: AppValue = useMemo(() => ({ ...deps, t: STRINGS[deps.settings.lang], route, navigate, showWord: setWord }), [deps, route, navigate])
+  const app: AppValue = useMemo(
+    () => ({ ...deps, settings, updateSettings, t: STRINGS[settings.lang], route, navigate, showWord: setWord }),
+    [deps, settings, updateSettings, route, navigate],
+  )
   const { t } = app
   return (
     <AppContext.Provider value={app}>
@@ -52,13 +98,16 @@ export function App({ deps, initialRoute = { name: 'today' } }: { deps: AppDeps;
           labels={[
             ['today', t.navToday],
             ['library', t.navLibrary],
+            ['cards', t.navCards],
+            ['stats', t.navStats],
+            ['settings', t.navSettings],
           ]}
         />
         {/* One scroll area per screen: the key resets the scroll position on navigation. minHeight 0
             lets it shrink below its content (unlike CSS, the layout engine doesn't imply it). */}
-        <Col testId="scroll" key={route.name === 'lesson' || route.name === 'study' ? `${route.name}-${route.id}-${'free' in route ? route.free : ''}` : route.name} style={{ flexGrow: 1, flexBasis: 0, minHeight: 0, overflowY: 'scroll' }}>
+        <Col testId="scroll" key={routeKey(route)} style={{ flexGrow: 1, flexBasis: 0, minHeight: 0, overflowY: 'scroll' }}>
           <Col style={{ padding: 28, paddingBottom: 60, maxWidth: 860, width: '100%' }}>
-            {route.name === 'today' ? <Today /> : route.name === 'library' ? <Library /> : route.name === 'lesson' ? <Lesson id={route.id} /> : <Study id={route.id} free={route.free} />}
+            <Screen route={route} />
           </Col>
         </Col>
         {word && <WordSheet pick={word} onClose={close} />}

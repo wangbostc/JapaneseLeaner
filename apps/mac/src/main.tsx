@@ -1,6 +1,6 @@
 // The macOS app's entry: the only file that knows about the machine (paths, files, the window).
 import { homedir } from 'node:os'
-import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { appendFileSync, mkdirSync, rmSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { render } from '@gpuix/react'
 import { createDictionary, type DictData } from '@kikitori/core/jmdict'
@@ -13,7 +13,11 @@ import { App } from './App'
 import { fakeAudio, helperAudio, type Audio } from './audio/audio'
 import { Helper, spawnHelper } from './audio/helper'
 import { keyEvents } from './keys'
+import { nodeFiles } from './platform/files'
+import { mediaCache } from './platform/media'
 import { filePrefs } from './platform/prefs'
+import { promptForPaths } from './platform/dialog'
+import { WindowBridge } from './platform/window'
 import { readSettings } from './settings'
 
 // Inside Kikitori.app, resources sit in Contents/Resources; from source, in the repo.
@@ -46,24 +50,14 @@ const optionalJson = <T,>(path: string, make: (data: never) => T) =>
 const db = openBunDatabase(join(dataDir, 'kikitori.db'))
 
 // Audio files of lessons (for the helper to play), named by uid; recordings of attempts.
-const mediaDir = join(dataDir, 'media')
+const media = mediaCache(db, join(dataDir, 'media'))
+await media.prune()
 const recordingsDir = join(dataDir, 'recordings')
-mkdirSync(mediaDir, { recursive: true })
 rmSync(recordingsDir, { recursive: true, force: true }) // last session's attempts
 mkdirSync(recordingsDir, { recursive: true })
-const EXTENSIONS: Record<string, string> = { 'audio/mpeg': 'mp3', 'audio/mp4': 'm4a', 'audio/x-m4a': 'm4a', 'audio/aac': 'aac', 'audio/wav': 'wav', 'audio/x-wav': 'wav', 'audio/wave': 'wav', 'audio/aiff': 'aiff', 'audio/x-aiff': 'aiff', 'audio/flac': 'flac', 'video/mp4': 'mp4' }
-const mediaPath = async (lesson: { mediaId?: number }) => {
-  const media = lesson.mediaId ? await db.media.get(lesson.mediaId) : undefined
-  if (!media?.uid) return null
-  // AVAudioPlayer goes by the extension; unknown types fall back to the original file name's.
-  const ext = EXTENSIONS[media.blob.type] ?? media.name.split('.').pop() ?? 'audio'
-  const path = join(mediaDir, `${media.uid}.${ext}`)
-  if (!existsSync(path)) writeFileSync(path, new Uint8Array(await media.blob.arrayBuffer()))
-  return path
-}
-// Files of audio that's no longer in the database (its lesson was deleted).
-const keep = new Set((await db.media.all()).map((m) => m.uid))
-for (const file of readdirSync(mediaDir)) if (!keep.has(file.replace(/\.[^.]+$/, ''))) rmSync(join(mediaDir, file))
+
+// The open dialog belongs to the window: <WindowBridge> hands it over once rendered.
+const files = nodeFiles((options) => promptForPaths({ files: !options?.directories, directories: options?.directories, prompt: options?.prompt }))
 
 // The real microphone and speech recognition only in the app bundle (or when asked for): asking
 // for them from a terminal run would be attributed to the terminal, which can't grant them.
@@ -93,24 +87,37 @@ const keys = keyEvents()
 const locale = Intl.DateTimeFormat().resolvedOptions().locale
 
 render(
-  <App
-    deps={{
-      db,
-      store,
-      analyzer,
-      dictionary: optionalJson(resources.jmdict, (data: DictData) => createDictionary(data)),
-      accents: optionalJson(resources.accents, (data: { accents: Record<string, string> }) => createAccentTable(data)),
-      settings: readSettings(prefs, locale),
-      keys,
-      audio,
-      mediaPath,
-    }}
-  />,
+  <WindowBridge>
+    <App
+      deps={{
+        db,
+        store,
+        analyzer,
+        dictionary: optionalJson(resources.jmdict, (data: DictData) => createDictionary(data)),
+        accents: optionalJson(resources.accents, (data: { accents: Record<string, string> }) => createAccentTable(data)),
+        settings: readSettings(prefs, locale),
+        prefs,
+        keys,
+        audio,
+        files,
+        mediaPath: media.path,
+      }}
+    />
+  </WindowBridge>,
   {
     title: 'Kikitori',
     width: 980,
     height: 760,
     onKeyDown: (event) => keys.emit(event.key ?? ''),
+    // KIKITORI_CLICK_LOG=<file>: every press and click, where it landed and on what (to debug input).
+    ...(process.env.KIKITORI_CLICK_LOG
+      ? {
+          onEvent: (event: { eventType: string; elementId: number; x?: number; y?: number }) => {
+            if (event.eventType === 'mouseDown' || event.eventType === 'click')
+              appendFileSync(process.env.KIKITORI_CLICK_LOG!, JSON.stringify({ at: Date.now(), type: event.eventType, x: event.x, y: event.y, element: event.elementId }) + '\n')
+          },
+        }
+      : {}),
     // Automation and screenshots run in the background, without taking the keyboard.
     focus: process.env.GPUIX_BACKGROUND !== '1',
   },

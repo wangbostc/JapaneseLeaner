@@ -8,7 +8,9 @@ import type { Lesson } from '@kikitori/core/model'
 import type { Step } from '@kikitori/core/schedule'
 import type { WatchedDatabase } from '@kikitori/sqlite'
 import type { Audio } from './audio/audio'
+import type { KeyValueStore } from '@kikitori/core/seed'
 import type { KeyEvents } from './keys'
+import type { Files } from './platform/files'
 import type { MacSettings } from './settings'
 
 /** Everything the app needs from the machine, handed in by main.tsx (or a test). */
@@ -19,9 +21,12 @@ export interface AppDeps {
   /** JMdict and the pitch-accent table, loaded on first use; null when unavailable. */
   dictionary: () => Promise<Dictionary | null>
   accents: () => Promise<AccentTable | null>
+  /** Settings at start; they change through `updateSettings`, saved in `prefs`. */
   settings: MacSettings
+  prefs: KeyValueStore
   keys: KeyEvents
   audio: Audio
+  files: Files
   /** A file holding the lesson's audio (for the helper to play); null for lessons read aloud. */
   mediaPath: (lesson: Lesson) => Promise<string | null>
 }
@@ -29,6 +34,10 @@ export interface AppDeps {
 export type Route =
   | { name: 'today' }
   | { name: 'library' }
+  | { name: 'import' }
+  | { name: 'cards' }
+  | { name: 'stats' }
+  | { name: 'settings' }
   | { name: 'lesson'; id: number }
   /** A round of study, or with `free`, one step practised outside the schedule. */
   | { name: 'study'; id: number; free?: Step }
@@ -43,6 +52,7 @@ export interface WordPick {
 
 export interface App extends AppDeps {
   t: Strings
+  updateSettings(patch: Partial<MacSettings>): void
   route: Route
   navigate(route: Route): void
   showWord(pick: WordPick | null): void
