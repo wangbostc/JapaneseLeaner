@@ -1,6 +1,6 @@
 // The macOS app's entry: the only file that knows about the machine (paths, files, the window).
 import { homedir } from 'node:os'
-import { mkdirSync, rmSync } from 'node:fs'
+import { appendFileSync, mkdirSync, rmSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { render } from '@gpuix/react'
 import { createDictionary, type DictData } from '@kikitori/core/jmdict'
@@ -109,6 +109,15 @@ render(
     width: 980,
     height: 760,
     onKeyDown: (event) => keys.emit(event.key ?? ''),
+    // KIKITORI_CLICK_LOG=<file>: every press and click, where it landed and on what (to debug input).
+    ...(process.env.KIKITORI_CLICK_LOG
+      ? {
+          onEvent: (event: { eventType: string; elementId: number; x?: number; y?: number }) => {
+            if (event.eventType === 'mouseDown' || event.eventType === 'click')
+              appendFileSync(process.env.KIKITORI_CLICK_LOG!, JSON.stringify({ at: Date.now(), type: event.eventType, x: event.x, y: event.y, element: event.elementId }) + '\n')
+          },
+        }
+      : {}),
     // Automation and screenshots run in the background, without taking the keyboard.
     focus: process.env.GPUIX_BACKGROUND !== '1',
   },
