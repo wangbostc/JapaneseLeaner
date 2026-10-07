@@ -90,6 +90,17 @@ const LAYOUTS = {
 
 interface TxContext {
   syncApply: boolean
+  /** Whether anything was written, so listeners hear about it once the transaction commits. */
+  wrote: boolean
+}
+
+/** A Database whose writes can be watched, for live views. */
+export interface WatchedDatabase extends Database {
+  /**
+   * Calls `listener` after data changes: once a transaction commits, or after a write made
+   * outside one. Never in the middle of a transaction. Returns an unsubscribe function.
+   */
+  onChange(listener: () => void): () => void
 }
 
 /**
@@ -97,7 +108,7 @@ interface TxContext {
  * One connection, one writer: transactions (and standalone calls) take turns, and a call made
  * inside a transaction, however deeply awaited, joins it.
  */
-export function sqliteDatabase(driver: SqlDriver, newUid: () => string = () => crypto.randomUUID()): Database {
+export function sqliteDatabase(driver: SqlDriver, newUid: () => string = () => crypto.randomUUID()): WatchedDatabase {
   const version = (driver.prepare('PRAGMA user_version').get() as { user_version: number }).user_version
   if (version === 0) driver.exec(`BEGIN; ${SCHEMA} PRAGMA user_version = ${SCHEMA_VERSION}; COMMIT;`)
   else if (version > SCHEMA_VERSION) throw new Error(`database schema ${version} is newer than this app (${SCHEMA_VERSION})`)
@@ -113,6 +124,20 @@ export function sqliteDatabase(driver: SqlDriver, newUid: () => string = () => c
 
   /** A standalone call joins the current transaction, or waits its turn and runs on its own. */
   const step = <R>(fn: () => R | Promise<R>): Promise<R> => (tx.getStore() ? Promise.resolve().then(fn) : exclusive(async () => fn()))
+
+  const listeners = new Set<() => void>()
+  const notify = () => {
+    for (const listener of listeners) listener()
+  }
+  /** A step that writes: inside a transaction it's announced at commit, otherwise right after. */
+  const writeStep = <R>(fn: () => R): Promise<R> => {
+    const ctx = tx.getStore()
+    if (ctx) {
+      ctx.wrote = true
+      return step(fn)
+    }
+    return step(fn).then((r) => (notify(), r))
+  }
 
   function table<T extends object, K extends number | string>(layout: Layout<T>): Table<T, K> & { changedSince(ms: number): Promise<T[]>; query(condition: string, ...params: SqlValue[]): Promise<T[]> } {
     const { name, key, columns } = layout
@@ -167,7 +192,7 @@ export function sqliteDatabase(driver: SqlDriver, newUid: () => string = () => c
       // Only audio waits to read its bytes: anything else takes its turn at once, so calls made
       // one after another (add, then count) run in that order, as in IndexedDB.
       const bytes = isMedia ? await bytesOf(copy) : undefined
-      return step(() => {
+      return writeStep(() => {
         stampForWrite(copy, undefined)
         return write(copy, bytes)
       })
@@ -194,7 +219,7 @@ export function sqliteDatabase(driver: SqlDriver, newUid: () => string = () => c
       async put(row) {
         const copy = { ...row }
         const bytes = isMedia ? await bytesOf(copy) : undefined
-        return step(() => {
+        return writeStep(() => {
           const k = (copy as Record<string, unknown>)[key] as K | undefined
           const existing = k === undefined ? undefined : getRow(k)
           stampForWrite(copy, existing)
@@ -204,7 +229,7 @@ export function sqliteDatabase(driver: SqlDriver, newUid: () => string = () => c
       async update(k, changes) {
         const blob = (changes as Partial<Media>).blob
         const bytes = isMedia && blob ? new Uint8Array(await blob.arrayBuffer()) : undefined
-        return step(() => {
+        return writeStep(() => {
           const existing = getRow(k)
           if (!existing) return
           const next = { ...existing, ...changes } as T
@@ -218,11 +243,11 @@ export function sqliteDatabase(driver: SqlDriver, newUid: () => string = () => c
         })
       },
       delete: (keys) =>
-        step(() => {
+        writeStep(() => {
           const list = (Array.isArray(keys) ? keys : [keys]) as SqlValue[]
           if (list.length) driver.prepare(`DELETE FROM ${name} WHERE ${key} IN (${list.map(() => '?').join(', ')})`).run(...list)
         }),
-      clear: () => step(() => void driver.prepare(`DELETE FROM ${name}`).run()),
+      clear: () => writeStep(() => void driver.prepare(`DELETE FROM ${name}`).run()),
       changedSince: (ms) => step(() => readAll(`${select} WHERE updatedAt > ? ORDER BY ${key}`, ms)),
       /** Rows matching a SQL condition on this table's columns, in key order. */
       query: (condition: string, ...params: SqlValue[]) => step(() => readAll(`${select} WHERE ${condition} ORDER BY ${key}`, ...params)),
@@ -242,20 +267,29 @@ export function sqliteDatabase(driver: SqlDriver, newUid: () => string = () => c
     transaction<R>(fn: () => Promise<R>, options?: TransactionOptions): Promise<R> {
       const outer = tx.getStore()
       if (outer) {
-        // Joining: a nested call inherits sync-apply, and may also ask for it.
-        return options?.syncApply && !outer.syncApply ? tx.run({ syncApply: true }, fn) : fn()
+        // Joining: a nested call inherits sync-apply, and may also ask for it (sharing `wrote`).
+        if (!options?.syncApply || outer.syncApply) return fn()
+        const inner: TxContext = { syncApply: true, wrote: false }
+        return tx.run(inner, fn).finally(() => (outer.wrote ||= inner.wrote))
       }
       return exclusive(async () => {
+        const ctx: TxContext = { syncApply: options?.syncApply ?? false, wrote: false }
         driver.exec('BEGIN IMMEDIATE')
+        let result: R
         try {
-          const result = await tx.run({ syncApply: options?.syncApply ?? false }, fn)
+          result = await tx.run(ctx, fn)
           driver.exec('COMMIT')
-          return result
         } catch (e) {
           driver.exec('ROLLBACK')
           throw e
         }
+        if (ctx.wrote) notify()
+        return result
       })
+    },
+    onChange(listener) {
+      listeners.add(listener)
+      return () => void listeners.delete(listener)
     },
   }
 }

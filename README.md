@@ -211,6 +211,7 @@ Code layout:
   app (`bun:sqlite`). It runs every contract on `node:sqlite` in `bun run test`, and on
   `bun:sqlite` in `bun run test:bun`. The integration sync tests run each device on both
   backends, and also sync a SQLite Mac with an IndexedDB phone.
+- `apps/mac/` (`@kikitori/mac`): the macOS app (see below).
 - `src/lib/`: the browser side, including the Dexie database (`db.ts`, and
   `dexieDatabase.ts` for the shared interface) and `speech` / `player`.
 - `src/components/steps/`: one component per study step.
@@ -218,6 +219,25 @@ Code layout:
 
 The mic and speech recognition can't run headless, so the e2e tests swap them
 out through `window.__kikitoriFake`. Real-device speech needs checking by hand.
+
+### The macOS app (`apps/mac`)
+
+React rendered natively by [gpuix](https://github.com/remorses/gpuix), Zed's GPU UI
+framework, with no browser or web view. It runs on Bun and stores data in SQLite
+(`@kikitori/sqlite`). So far it has Today, Library and the lesson page, with furigana, word
+lookups (JMdict meanings and pitch accent) and saving words as cards. Studying, audio and
+the other screens come in later phases.
+
+```bash
+bun run --cwd apps/mac dev      # from source, with data in apps/mac/.dev-data
+bun run test:mac                # UI tests in gpuix's test renderer (macOS)
+bun run --cwd apps/mac build    # apps/mac/build/Kikitori.app (ad-hoc signed)
+bun apps/mac/scripts/shot.ts    # run it in the background and save screenshots
+```
+
+The built app keeps its data in `~/Library/Application Support/Kikitori`. Set
+`KIKITORI_DATA_DIR` to use another folder. The app isn't notarised, so the first time,
+open it with right-click → Open.
 
 ### Starter lessons (MongoDB)
 

@@ -4,7 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "apps/*"
   ],
   "scripts": {
     "dev": "vite",
@@ -12,6 +13,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:bun": "bunx --bun vitest run packages/sqlite/src/bun.test.ts",
+    "test:mac": "bun run --cwd apps/mac test",
     "typecheck": "tsc -b",
     "lint": "oxlint",
     "postinstall": "node scripts/copy-dict.mjs && node scripts/build-jmdict.mjs",

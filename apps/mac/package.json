@@ -1,0 +1,21 @@
+{
+  "name": "@kikitori/mac",
+  "private": true,
+  "type": "module",
+  "description": "Kikitori as a native macOS app: React rendered by gpuix (Zed's GPUI), SQLite storage, on Bun.",
+  "scripts": {
+    "dev": "KIKITORI_DATA_DIR=${KIKITORI_DATA_DIR:-.dev-data} bun --hot src/main.tsx",
+    "test": "vitest run",
+    "build": "sh scripts/build-app.sh"
+  },
+  "dependencies": {
+    "@gpuix/native": "0.10.0",
+    "@gpuix/react": "0.10.0",
+    "@kikitori/core": "workspace:*",
+    "@kikitori/sqlite": "workspace:*",
+    "react": "^19.3.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0"
+  }
+}

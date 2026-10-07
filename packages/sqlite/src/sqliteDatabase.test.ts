@@ -58,6 +58,26 @@ describe('SQLite storage', () => {
     expect((await db.words.all()).map((w) => w.lemma)).toEqual(['雨'])
   })
 
+  it('announces changes once a transaction commits, or after a standalone write, never mid-way', async () => {
+    const db = sqliteDatabase(new DatabaseSync(':memory:') as unknown as SqlDriver)
+    let heard = 0
+    const stop = db.onChange(() => heard++)
+    await db.words.add({ lemma: '雨', firstSeen: 1 })
+    expect(heard).toBe(1)
+    await db.transaction(async () => {
+      await db.words.add({ lemma: '風', firstSeen: 2 })
+      await db.words.put({ lemma: '雪', firstSeen: 3 })
+      expect(heard).toBe(1) // not yet: the transaction hasn't committed
+    })
+    expect(heard).toBe(2) // once for the whole transaction
+    await db.transaction(async () => void (await db.words.count())) // reads only
+    await expect(db.transaction(async () => (await db.words.clear(), Promise.reject(new Error('no'))))).rejects.toThrow('no')
+    expect(heard).toBe(2) // nothing written, or rolled back
+    stop()
+    await db.words.clear()
+    expect(heard).toBe(2)
+  })
+
   it('runs calls in the order they were made', async () => {
     const db = sqliteDatabase(new DatabaseSync(':memory:') as unknown as SqlDriver)
     const added = db.words.add({ lemma: '雨', firstSeen: 1 })
