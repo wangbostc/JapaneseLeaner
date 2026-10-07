@@ -3,6 +3,7 @@ import { basename, join } from 'node:path'
 import { useEffect, useState } from 'react'
 import type { AudioStatus } from '../audio/audio'
 import { useApp } from '../context'
+import { NEW_WORDS_PER_DAY } from '@kikitori/core/coreWords'
 import { RATES, sanitizeSettings } from '../settings'
 import { Choice, Field, Toggle } from '../ui/form'
 import { Button, Col, Row, Text } from '../ui/primitives'
@@ -88,6 +89,14 @@ export function Settings() {
       </Col>
       <Field label={t.settingsRate}>
         <Choice testId="rate" value={settings.rate} onChange={(rate) => updateSettings({ rate })} options={RATES.map((r): [number, string] => [r, `${r}×`])} />
+      </Field>
+      <Field label={t.settingsNewWords} hint={t.settingsNewWordsHint}>
+        <Choice
+          testId="new-words"
+          value={settings.newWordsPerDay}
+          onChange={(newWordsPerDay) => updateSettings({ newWordsPerDay })}
+          options={NEW_WORDS_PER_DAY.map((n): [number, string] => [n, n === 0 ? t.newWordsOff : String(n)])}
+        />
       </Field>
       <Field label={t.speechRec}>
         {speech && (

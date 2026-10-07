@@ -52,6 +52,7 @@ export interface Media extends Partial<Synced> {
 
 export interface Flashcard extends Partial<Synced> {
   id?: number
+  /** The lesson it was saved from; 0 for a card of no lesson (a core word, uid core:<word>). */
   lessonId: number
   kind: 'word' | 'sentence'
   /** The word (dictionary form) or the whole sentence. */

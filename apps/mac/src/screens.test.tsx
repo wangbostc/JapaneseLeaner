@@ -127,4 +127,21 @@ describe.runIf(hasNativeTestRenderer)('import, cards, stats and settings', () =>
     await hides('Restoring replaces everything on this device. Tap again to confirm.')
     expect(await db.lessons.count()).toBe(15)
   })
+
+  it('introduces the day’s core words in Cards, most frequent first, and the setting turns them off', { timeout: 30000 }, async () => {
+    const o = await open({ newWordsPerDay: 10 })
+    const { click, shows, appears, db, prefs } = o
+    await shows('私の朝')
+    await click('tab-cards')
+    await appears('flashcard')
+    await shows('Core 3,500 · #1')
+    await shows('1 of 10')
+    await click('show-answer')
+    await click('grade-3')
+    await shows('Core 3,500 · #2')
+    expect((await db.cards.all()).filter((c) => c.uid?.startsWith('core:'))).toHaveLength(10)
+    await click('tab-settings')
+    await click('new-words-0')
+    expect(JSON.parse(prefs.getItem('kikitori.settings')!)).toMatchObject({ newWordsPerDay: 0 })
+  })
 })

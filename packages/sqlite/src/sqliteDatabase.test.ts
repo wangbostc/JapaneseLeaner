@@ -1,6 +1,7 @@
 import { DatabaseSync } from 'node:sqlite'
 import type { Backend } from '@kikitori/core/test/contracts/backend'
 import { backupContract } from '@kikitori/core/test/contracts/backup'
+import { coreWordsContract } from '@kikitori/core/test/contracts/coreWords'
 import { databaseContract } from '@kikitori/core/test/contracts/database'
 import { seedContract } from '@kikitori/core/test/contracts/seed'
 import { storeContract } from '@kikitori/core/test/contracts/store'
@@ -19,6 +20,7 @@ databaseContract(sqlite)
 storeContract(sqlite)
 seedContract(sqlite)
 backupContract(sqlite)
+coreWordsContract(sqlite)
 
 describe('SQLite storage', () => {
   it('keeps its data across reopening the file, and refuses a newer schema', () => {

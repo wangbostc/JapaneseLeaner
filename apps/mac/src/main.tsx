@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path'
 import { render } from '@gpuix/react'
 import { createDictionary, type DictData } from '@kikitori/core/jmdict'
 import { createAccentTable } from '@kikitori/core/pitch'
+import { introduceCoreWords } from '@kikitori/core/coreWords'
 import { seedOnce } from '@kikitori/core/seed'
 import { createStore } from '@kikitori/core/store'
 import { loadAnalyzer } from '@kikitori/core/tokenizer'
@@ -82,9 +83,11 @@ const audio: Audio =
 const prefs = filePrefs(join(dataDir, 'prefs.json'))
 const store = createStore(db)
 await seedOnce(store, () => prefs)
+const settings = readSettings(prefs, Intl.DateTimeFormat().resolvedOptions().locale)
+// Today's new core words, so Today counts them (Cards adds them too, if the day turns meanwhile).
+await introduceCoreWords(db, settings.newWordsPerDay)
 const analyzer = await loadAnalyzer((file) => Bun.file(join(resources.dict, file)).arrayBuffer())
 const keys = keyEvents()
-const locale = Intl.DateTimeFormat().resolvedOptions().locale
 
 render(
   <WindowBridge>
@@ -95,7 +98,7 @@ render(
         analyzer,
         dictionary: optionalJson(resources.jmdict, (data: DictData) => createDictionary(data)),
         accents: optionalJson(resources.accents, (data: { accents: Record<string, string> }) => createAccentTable(data)),
-        settings: readSettings(prefs, locale),
+        settings,
         prefs,
         keys,
         audio,

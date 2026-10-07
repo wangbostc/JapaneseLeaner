@@ -54,6 +54,14 @@ describe('mergeCard', () => {
   it('falls back to updatedAt when neither was reviewed', () => {
     expect(mergeCard(card(undefined, 5, 0), card(undefined, 1, 0)).updatedAt).toBe(5)
   })
+  it('keeps the longer history of a core word, which two devices can each have introduced', () => {
+    const core = (last: string, reps: number) => ({ ...card(last, 1, reps), uid: 'core:雨', lessonUid: null })
+    // Months of reviews on one device beat a day-old copy reviewed more recently on another.
+    expect(mergeCard(core('2026-01-02T00:00:00Z', 30), core('2026-03-01T00:00:00Z', 1)).card.reps).toBe(30)
+    expect(mergeCard(core('2026-03-01T00:00:00Z', 1), core('2026-01-02T00:00:00Z', 30)).card.reps).toBe(30)
+    // The same history (one device reviewing on): the latest review still wins.
+    expect(mergeCard(core('2026-01-02T00:00:00Z', 5), core('2026-01-03T00:00:00Z', 5)).card.last_review).toBe('2026-01-03T00:00:00Z')
+  })
 })
 
 describe('survivesDeletion', () => {

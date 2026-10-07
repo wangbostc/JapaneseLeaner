@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test'
 // What the previous release left in the browser: Dexie schema version 1 is IndexedDB version 10.
 test('upgrades an existing v1 database in place: data kept, sync ids assigned', async ({ page }) => {
   await page.addInitScript(() => {
-    localStorage.setItem('kikitori.settings', JSON.stringify({ lang: 'en' }))
+    localStorage.setItem('kikitori.settings', JSON.stringify({ lang: 'en', newWordsPerDay: 0 })) // only the lesson's cards
     localStorage.setItem('kikitori.seeded', '1') // an existing user: the first three samples were added before
   })
   // A same-origin page that doesn't run the app, so nothing else holds the database open.

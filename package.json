@@ -41,6 +41,7 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260924.1",
     "@kikitori/sqlite": "workspace:*",
+    "@msgpack/msgpack": "^3.1.3",
     "@playwright/test": "^1.63.0",
     "@testing-library/react": "^16.3.3",
     "@types/bun": "^1.4.2",

@@ -16,7 +16,7 @@ async function fakeSpeech(page: Page) {
     const w = window as unknown as { __next: string; __kikitoriFake: { transcript: () => string } }
     w.__next = ''
     w.__kikitoriFake = { transcript: () => w.__next }
-    localStorage.setItem('kikitori.settings', JSON.stringify({ lang: 'en' }))
+    localStorage.setItem('kikitori.settings', JSON.stringify({ lang: 'en', newWordsPerDay: 0 })) // only the lesson's cards
   })
 }
 

@@ -8,6 +8,7 @@ import { sanitizeSettings } from '../app/sanitizeSettings'
 import { Link } from 'react-router-dom'
 import { useSettings } from '../app/useSettings'
 import { parseBackup, restoreBackup, type Backup } from '@kikitori/core/backup'
+import { NEW_WORDS_PER_DAY } from '@kikitori/core/coreWords'
 import { downloadBackup } from '../app/backupFile'
 import { database } from '../lib/store'
 import { japaneseVoices, recognitionSupported, recordingSupported, ttsSupported } from '../lib/speech'
@@ -122,6 +123,17 @@ export function SettingsPage() {
       <label>
         {t.settingsRate}: {settings.rate.toFixed(2)}×
         <input type="range" min={0.6} max={1.4} step={0.05} value={settings.rate} onChange={(e) => update({ rate: Number(e.target.value) })} />
+      </label>
+      <label>
+        {t.settingsNewWords}
+        <select data-testid="new-words" value={settings.newWordsPerDay} onChange={(e) => update({ newWordsPerDay: Number(e.target.value) })}>
+          {NEW_WORDS_PER_DAY.map((n) => (
+            <option key={n} value={n}>
+              {n === 0 ? t.newWordsOff : n}
+            </option>
+          ))}
+        </select>
+        <small className="muted">{t.settingsNewWordsHint}</small>
       </label>
       <VoiceSettings voices={voices} />
 

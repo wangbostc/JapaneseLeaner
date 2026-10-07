@@ -1,0 +1,15 @@
+coreWords.json: the 3,500 most frequent Japanese words (dictionary forms), used for the
+"core words" flashcards. Built by scripts/build-core-words.ts.
+
+It is derived from wordfreq v3.2 (https://github.com/rspeer/wordfreq) by Robyn Speer, whose
+word-frequency data is licensed under the Creative Commons Attribution-ShareAlike 4.0 license
+(https://creativecommons.org/licenses/by-sa/4.0/). This derived list is licensed the same way.
+
+wordfreq's Japanese data draws on Wikipedia, OPUS OpenSubtitles 2018 (data from the
+OpenSubtitles project, http://www.opensubtitles.org/), web text, Twitter and Reddit. wordfreq
+also contains data from the SUBTLEX word lists by Marc Brysbaert et al., which are freely
+available data (http://crr.ugent.be/programs-data/subtitle-frequencies), and from Google Books
+Ngrams, the Leeds Internet Corpus and ParaCrawl.
+
+Words are kept only if they are common entries in JMdict (© the Electronic Dictionary Research
+and Development Group, CC BY-SA 4.0), whose readings they use.

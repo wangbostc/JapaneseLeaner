@@ -51,6 +51,14 @@ review pushes every later one back. Due reviews are listed before new lessons.
 - **Stats:** practice time, the listening/speaking split, unique words met, and
   your day streak.
 
+## Core words
+
+Besides the cards you save while studying, Cards brings in the 3,500 most frequent Japanese
+words (ranked by [wordfreq](https://github.com/rspeer/wordfreq)'s modern corpus, folded to
+dictionary forms and kept to common JMdict words), a few a day, most frequent first: 10 by
+default, set under Settings (Off, 5, 10, 20, 30). Words you've already saved are skipped, a
+deleted one stays deleted, and progress syncs between devices.
+
 ## Lessons
 
 Fifteen original starter lessons, three for each JLPT level from N5 to N1, with
@@ -110,6 +118,10 @@ your browser supports.
   (`public/pitch/UNIDIC-LICENSE.txt`). `public/pitch/accents.json` is derived from it by
   `scripts/build-accents.mjs`; that file's header explains how to regenerate it (the lexicon is a 555 MB download).
 - **ts-fsrs** (MIT).
+- **wordfreq** by Robyn Speer, CC BY-SA 4.0 (drawing on Wikipedia, OpenSubtitles, web text,
+  Twitter and Reddit; see `packages/core/src/coreWords-LICENSE.txt`). `packages/core/src/coreWords.json`,
+  the 3,500 core words, is derived from it by `scripts/build-core-words.ts` (run by hand; the
+  output is committed).
 - The app lists these under **Settings → About & sources**.
 
 ### Updating JMdict

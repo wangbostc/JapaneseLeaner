@@ -20,9 +20,15 @@ import { SettingsPage } from './pages/SettingsPage'
 import { Stats } from './pages/Stats'
 import { Study } from './pages/Study'
 import { Today } from './pages/Today'
+import { introduceCoreWords } from '@kikitori/core/coreWords'
+import { database } from './lib/store'
 
 function Shell() {
-  const { t } = useSettings()
+  const { t, settings } = useSettings()
+  // Today's new core words (idempotent: at most the day's limit, however often it runs).
+  useEffect(() => {
+    void introduceCoreWords(database, settings.newWordsPerDay)
+  }, [settings.newWordsPerDay])
   const { pathname } = useLocation()
   const studying = pathname.endsWith('/study') || pathname.includes('/practice/')
   // Turns natural voices on for every page once this device is connected to a server that has them.

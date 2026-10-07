@@ -57,7 +57,8 @@ export interface WireLesson {
 export interface WireCard {
   uid: string
   updatedAt: number
-  lessonUid: string
+  /** null for a card that belongs to no lesson (a core word). Older clients skip those. */
+  lessonUid: string | null
   kind: 'word' | 'sentence'
   front: string
   reading: string

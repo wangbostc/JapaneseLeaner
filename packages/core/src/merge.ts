@@ -23,8 +23,14 @@ function aheadProgress(x: WireLesson['progress'], y: WireLesson['progress']): Wi
   return (x.lastCompletedAt ?? 0) >= (y.lastCompletedAt ?? 0) ? x : y
 }
 
-/** The card reviewed most recently wins (its schedule reflects every review); ties fall back to updatedAt. */
+/**
+ * The card reviewed most recently wins (its schedule reflects every review); ties fall back to
+ * updatedAt. Except core words: every device introduces them under the same uid, so two copies
+ * can carry separate histories (a device used offline for a while, then connected), and the one
+ * with more reviews wins, or a day's beginner schedule would overwrite months of reviews.
+ */
 export function mergeCard(a: WireCard, b: WireCard): WireCard {
+  if (a.uid.startsWith('core:') && a.card.reps !== b.card.reps) return a.card.reps > b.card.reps ? a : b
   const ra = a.card.last_review ? Date.parse(a.card.last_review) : 0
   const rb = b.card.last_review ? Date.parse(b.card.last_review) : 0
   if (ra !== rb) return ra > rb ? a : b

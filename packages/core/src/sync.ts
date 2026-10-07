@@ -24,8 +24,8 @@ export interface SyncResult {
   state: SyncState
 }
 
-/** Records every device adds on its own, with the same uid: the starter lessons. */
-const isBuiltIn = (uid: string) => uid.startsWith('sample:')
+/** Records every device adds on its own, with the same uid: the starter lessons and core words. */
+const isBuiltIn = (uid: string) => uid.startsWith('sample:') || uid.startsWith('core:')
 
 /** Records per kind per request, under the server's limit. */
 const CHUNK = 1000
@@ -49,7 +49,7 @@ function toWireLesson(l: Lesson, mediaUidById: Map<number, string>): WireLesson 
   }
 }
 
-function toWireCard(c: Flashcard, lessonUid: string): WireCard {
+function toWireCard(c: Flashcard, lessonUid: string | null): WireCard {
   return {
     uid: c.uid!,
     updatedAt: c.updatedAt!,
@@ -80,8 +80,9 @@ async function gatherChanges(db: Database, state: SyncState): Promise<SyncBatch>
   batch.lessons = lessons.filter(unsynced).map((l) => toWireLesson(l, mediaUidById))
   batch.cards = (await db.cards.changedSince(since))
     .filter(unsynced)
-    .filter((c) => lessonUid.has(c.lessonId))
-    .map((c) => toWireCard(c, lessonUid.get(c.lessonId)!))
+    // A card of no lesson (lessonId 0) travels with lessonUid null; one whose lesson is gone doesn't.
+    .filter((c) => c.lessonId === 0 || lessonUid.has(c.lessonId))
+    .map((c) => toWireCard(c, c.lessonId === 0 ? null : lessonUid.get(c.lessonId)!))
   batch.logs = (await db.logs.changedSince(since)).map(
     (l): WireLog => ({ uid: l.uid!, updatedAt: l.updatedAt!, lessonUid: l.lessonUid ?? null, step: l.step, mode: l.mode, ms: l.ms, at: l.at }),
   )
@@ -158,7 +159,7 @@ async function applyChanges(db: Database, changes: SyncBatch, editedSince: (row:
 
     const lessonId = new Map((await db.lessons.all()).map((l) => [l.uid!, l.id!]))
     for (const w of changes.cards) {
-      const id = lessonId.get(w.lessonUid)
+      const id = w.lessonUid === null ? 0 : lessonId.get(w.lessonUid)
       if (id === undefined) continue // its lesson is gone here
       const t = tombstone(w)
       if (t === 'stands') continue
