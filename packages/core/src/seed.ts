@@ -32,6 +32,19 @@ function claim(uids: string[], storage: () => KeyValueStore | undefined): string
   }
 }
 
+/** Takes `uids` back out of the ledger (their seeding failed). */
+function unclaim(uids: string[], storage: () => KeyValueStore | undefined) {
+  try {
+    const kv = storage()
+    const raw = kv?.getItem(SEEDED_KEY)
+    if (!kv || !raw) return
+    const drop = new Set(uids)
+    kv.setItem(SEEDED_KEY, JSON.stringify((JSON.parse(raw) as string[]).filter((u) => !drop.has(u))))
+  } catch {
+    // storage unavailable: nothing was recorded either
+  }
+}
+
 /**
  * Adds the starter lessons this device hasn't had yet: all of them on first run, and any that
  * a later release brings. Each is added at most once, so deleting one sticks.
@@ -42,6 +55,16 @@ export async function seedOnce(store: Store, storage: () => KeyValueStore | unde
   const claimed = claim(samples.map((s) => s.uid), storage)
   const wanted = claimed ? samples.filter((s) => claimed.includes(s.uid)) : samples
   if (!wanted.length) return
+  try {
+    await addSamples(store, wanted)
+  } catch (e) {
+    // Not added after all: let the next start try again.
+    if (claimed) unclaim(claimed, storage)
+    throw e
+  }
+}
+
+async function addSamples(store: Store, wanted: (ReturnType<typeof sampleLessons>[number] & { uid: string })[]) {
   const { db } = store
   await db.transaction(async () => {
     // Already here (synced from a device that added it first), or deleted here: leave it be.

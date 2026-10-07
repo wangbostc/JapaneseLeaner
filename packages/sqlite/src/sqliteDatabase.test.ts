@@ -77,4 +77,12 @@ describe('SQLite storage', () => {
     await db.words.clear()
     expect(heard).toBe(2)
   })
+
+  it('runs calls in the order they were made', async () => {
+    const db = sqliteDatabase(new DatabaseSync(':memory:') as unknown as SqlDriver)
+    const added = db.words.add({ lemma: '雨', firstSeen: 1 })
+    const counted = db.words.count() // not awaited between: still sees the add
+    await added
+    expect(await counted).toBe(1)
+  })
 })
