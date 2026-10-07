@@ -110,7 +110,7 @@ const used = new Set<string>()
 /** Fronts and readings already in, to skip a kana spelling of a word that's already there. */
 const fronts = new Set<string>()
 const readings = new Set<string>()
-const dropped: Record<string, number> = { notCommon: 0, grammar: 0, vulgar: 0, short: 0, duplicate: 0 }
+const dropped: Record<string, number> = { notCommon: 0, grammar: 0, vulgar: 0, short: 0, duplicate: 0, fragment: 0 }
 for (const [lemma] of [...frequency].sort((a, b) => b[1] - a[1])) {
   if (words.length >= COUNT) break
   if (/^[\p{Script=Hiragana}]$/u.test(lemma) || SKIP.has(lemma)) {
@@ -118,7 +118,18 @@ for (const [lemma] of [...frequency].sort((a, b) => b[1] - a[1])) {
     continue
   }
   const reading = toHiragana(analyzer.tokenize(lemma).map((t) => t.reading).join(''))
-  const candidates = (bySpelling.get(lemma) ?? []).filter((e) => [...e.kanji, ...e.kana].some((s) => s.text === lemma && s.common))
+  let candidates = (bySpelling.get(lemma) ?? []).filter((e) => [...e.kanji, ...e.kana].some((s) => s.text === lemma && s.common))
+  // A kana lemma means a word written in kana: only an entry that's kana-only or "usually kana"
+  // fits (いる is 居る, not 要る or 射る). With none, it's mostly a tokenizer fragment from inside a
+  // longer word (たつ, ちる, ける), not a word of its own.
+  if (!/\p{Script=Han}/u.test(lemma) && candidates.length) {
+    const kanaWords = candidates.filter((e) => e.kanji.length === 0 || e.sense.some((s) => s.misc.includes('uk')))
+    if (!kanaWords.length) {
+      dropped.fragment++
+      continue
+    }
+    candidates = kanaWords
+  }
   // The entry whose reading kuromoji gives, else the first common one.
   const entry = candidates.find((e) => e.kana.some((k) => toHiragana(k.text) === reading)) ?? candidates[0]
   if (!entry) {
@@ -140,10 +151,11 @@ for (const [lemma] of [...frequency].sort((a, b) => b[1] - a[1])) {
   // The entry's spelling of the reading kuromoji gives (else its first common kana).
   const kana = entry.kana.find((k) => k.common) ?? entry.kana[0]
   const entryReading = entry.kana.find((k) => toHiragana(k.text) === reading)?.text ?? kana.text
-  // Written as people usually write it: in kana when JMdict says so ("usually kana"), as that
-  // same reading, so the front and the reading never disagree (みな, not みな(みんな)).
-  const usuallyKana = entry.sense[0]?.misc.includes('uk') && /\p{Script=Han}/u.test(lemma)
-  const front = usuallyKana ? entryReading : lemma
+  // Written as people usually write it: by the main (first) sense, in kana when JMdict says
+  // "usually kana" (こと), else in kanji even if the text had it in kana (ひと → 人). A kana front
+  // is that same reading, so the front and the reading never disagree (みな, not みな(みんな)).
+  const kanjiSpelling = /\p{Script=Han}/u.test(lemma) ? lemma : (entry.kanji.find((k) => k.common) ?? entry.kanji[0])?.text
+  const front = !kanjiSpelling || entry.sense[0]?.misc.includes('uk') ? entryReading : kanjiSpelling
   // A kana spelling of a word already in (みる after 見る, くる after 来る: verbs that are mostly
   // auxiliaries in text), or a front already used, adds nothing.
   const kanaOnly = !/\p{Script=Han}/u.test(front)
