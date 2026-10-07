@@ -91,5 +91,14 @@ export function seedContract(backend: Backend) {
     await seedOnce(s)
     expect(new Set((await s.db.lessons.all()).map((l) => l.updatedAt))).toEqual(new Set([0]))
   })
+
+  it('lets the next start try again when adding the samples fails', async () => {
+    const storage = memoryStorage()
+    const failing = { ...s, db: { ...s.db, transaction: async () => Promise.reject(new Error('quota')) } }
+    await expect(seedOnce(failing)).rejects.toThrow('quota')
+    expect(JSON.parse(storage.get('kikitori.seededSamples') ?? '[]')).toEqual([])
+    await seedOnce(s)
+    expect(await uids()).toEqual([...ALL].sort())
+  })
 })
 }
