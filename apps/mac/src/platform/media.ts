@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { extname, join } from 'node:path'
 import type { Lesson } from '@kikitori/core/model'
 import type { Database } from '@kikitori/core/database'
@@ -43,12 +43,18 @@ export function mediaCache(db: Database, dir: string) {
       if (!media?.uid) return null
       const ext = EXTENSION_OF[media.blob.type] ?? (extname(media.name).slice(1).toLowerCase() || 'audio')
       const path = join(dir, `${media.uid}.${ext}`)
-      if (!existsSync(path)) writeFileSync(path, new Uint8Array(await media.blob.arrayBuffer()))
+      if (!existsSync(path)) {
+        // Written aside, then renamed: a crash mid-write never leaves a truncated file in place.
+        const partial = `${path}.partial`
+        writeFileSync(partial, new Uint8Array(await media.blob.arrayBuffer()))
+        renameSync(partial, path)
+      }
       return path
     },
     async prune() {
       const keep = new Set((await db.media.all()).map((m) => m.uid))
-      for (const file of readdirSync(dir)) if (!keep.has(file.replace(/\.[^.]+$/, ''))) rmSync(join(dir, file))
+      // (A leftover .partial has no uid of its own and goes too.)
+      for (const file of readdirSync(dir)) if (file.endsWith('.partial') || !keep.has(file.replace(/\.[^.]+$/, ''))) rmSync(join(dir, file))
     },
   }
 }
