@@ -189,7 +189,9 @@ export function sqliteDatabase(driver: SqlDriver, newUid: () => string = () => c
 
     async function add(row: T): Promise<K> {
       const copy = { ...row }
-      const bytes = await bytesOf(copy)
+      // Only audio waits to read its bytes: anything else takes its turn at once, so calls made
+      // one after another (add, then count) run in that order, as in IndexedDB.
+      const bytes = isMedia ? await bytesOf(copy) : undefined
       return writeStep(() => {
         stampForWrite(copy, undefined)
         return write(copy, bytes)
@@ -216,7 +218,7 @@ export function sqliteDatabase(driver: SqlDriver, newUid: () => string = () => c
       },
       async put(row) {
         const copy = { ...row }
-        const bytes = await bytesOf(copy)
+        const bytes = isMedia ? await bytesOf(copy) : undefined
         return writeStep(() => {
           const k = (copy as Record<string, unknown>)[key] as K | undefined
           const existing = k === undefined ? undefined : getRow(k)
