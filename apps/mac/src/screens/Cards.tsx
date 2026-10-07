@@ -1,3 +1,4 @@
+import { coreRank, introduceCoreWords, isCoreCard } from '@kikitori/core/coreWords'
 import type { Flashcard } from '@kikitori/core/model'
 import { previewIntervals, Rating, type Grade } from '@kikitori/core/srs'
 import { useEffect, useMemo, useState } from 'react'
@@ -11,6 +12,13 @@ const fmtDays = (d: number) => (d < 1 / 24 ? `${Math.max(1, Math.round(d * 1440)
 
 /** The saved word inside its sentence, when it appears as written. */
 function Context({ card }: { card: Flashcard }) {
+  const { t } = useApp()
+  if (isCoreCard(card))
+    return (
+      <Text testId="core-label" color={C.dim}>
+        {t.coreWordLabel(coreRank(card))}
+      </Text>
+    )
   if (card.kind === 'sentence') return null
   const at = card.context.indexOf(card.front)
   if (at < 0)
@@ -40,7 +48,12 @@ export function Cards() {
   // drop them mid-session and throw off the counter.
   const [queue, setQueue] = useState<Flashcard[] | null>(null)
   useEffect(() => {
-    store.dueCards().then(setQueue)
+    // Today's new core words first (a new day may have begun since start-up).
+    introduceCoreWords(db, settings.newWordsPerDay)
+      .then(() => store.dueCards())
+      .then(setQueue)
+    // Loaded once: see above.
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [store])
   const [done, setDone] = useState<Set<number>>(new Set())
   const [busy, setBusy] = useState(false)

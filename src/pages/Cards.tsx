@@ -9,12 +9,15 @@ import { type Flashcard } from '@kikitori/core/model'
 import { db } from '../lib/db'
 import { speak } from '../lib/speech'
 import { previewIntervals, Rating, type Grade } from '@kikitori/core/srs'
-import { store } from '../lib/store'
+import { database, store } from '../lib/store'
+import { coreRank, introduceCoreWords, isCoreCard } from '@kikitori/core/coreWords'
 
 const fmtDays = (d: number) => (d < 1 / 24 ? `${Math.max(1, Math.round(d * 1440))}m` : d < 1 ? `${Math.round(d * 24)}h` : `${Math.round(d)}d`)
 
 /** Highlights the saved word inside its context sentence (if it appears as written). */
 function Context({ card }: { card: Flashcard }) {
+  const { t } = useSettings()
+  if (isCoreCard(card)) return <p className="card-context muted" data-testid="core-label">{t.coreWordLabel(coreRank(card))}</p>
   if (card.kind === 'sentence') return null
   const at = card.context.indexOf(card.front)
   if (at < 0) return <p className="card-context" lang="ja">{card.context}</p>
@@ -33,7 +36,10 @@ export function Cards() {
   // query would drop them mid-session and throw off the counter.
   const [queue, setQueue] = useState<Flashcard[] | null>(null)
   useEffect(() => {
-    store.dueCards().then(setQueue)
+    // Today's new core words first (a new day may have begun since start-up).
+    introduceCoreWords(database, settings.newWordsPerDay).then(() => store.dueCards()).then(setQueue)
+    // Loaded once: see above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const [done, setDone] = useState<Set<number>>(new Set())
   const [busy, setBusy] = useState(false)

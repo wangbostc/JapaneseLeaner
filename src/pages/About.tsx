@@ -32,6 +32,7 @@ const SOURCES: { name: string; use: string; licence: string; href: string }[] = 
   { name: 'AivisSpeech', use: 'aivis', licence: 'LGPL-3.0; voices ACML 1.0', href: 'https://github.com/Aivis-Project/AivisSpeech-Engine' },
   { name: 'VOICEVOX', use: 'voicevox', licence: 'Free, with credit (per-voice terms)', href: 'https://voicevox.hiroshiba.jp/term/' },
   { name: 'ts-fsrs', use: 'fsrs', licence: 'MIT', href: 'https://github.com/open-spaced-repetition/ts-fsrs' },
+  { name: 'wordfreq', use: 'wordfreq', licence: 'CC BY-SA 4.0', href: 'https://github.com/rspeer/wordfreq' },
   {
     name: 'Echo Loop',
     use: 'echoLoop',

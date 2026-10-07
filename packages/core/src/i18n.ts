@@ -175,6 +175,7 @@ const en = {
     kuromoji: 'Japanese tokenizer (readings, dictionary forms, furigana).',
     ipadic: 'Tokenizer dictionary bundled with kuromoji. © NAIST.',
     fsrs: 'Flashcard scheduling (FSRS).',
+    wordfreq: 'Word frequencies for the 3,500 core words (Wikipedia, OpenSubtitles, web text, Twitter, Reddit), by Robyn Speer.',
     unidic: 'Dictionary-form pitch accent (aType), © The UniDic Consortium.',
     echoLoop: 'Inspiration for the training method. No code or assets are used.',
     whisper: 'Speech recognition model for transcribing imported audio, run on your device.',
@@ -291,6 +292,12 @@ const en = {
   macRestorePick: 'Choose a backup to restore',
   macRestoreFrom: (name: string, n: number) => `${name}: ${n} lesson${n === 1 ? '' : 's'}.`,
   macCancel: 'Cancel',
+  // Core words
+  settingsNewWords: 'New core words per day',
+  settingsNewWordsHint: 'Flashcards for the 3,500 most frequent Japanese words, most frequent first. Words you’ve already saved are skipped.',
+  newWordsOff: 'Off',
+  coreWordLabel: (rank: number): string => `Core 3,500 · #${rank}`,
+  coreWordsCredit: 'Core words: frequencies from wordfreq by Robyn Speer (Wikipedia, OpenSubtitles, web text, Twitter, Reddit), CC BY-SA 4.0.',
 }
 
 export type Strings = typeof en
@@ -458,6 +465,7 @@ const zh: Strings = {
     kuromoji: '日语分词（读音、原形、假名注音）。',
     ipadic: 'kuromoji 附带的分词词典。© NAIST。',
     fsrs: '闪卡复习调度（FSRS）。',
+    wordfreq: '3500 个核心词的词频（维基百科、OpenSubtitles、网页、Twitter、Reddit），作者 Robyn Speer。',
     unidic: '单词原形的音调（aType），© The UniDic Consortium。',
     echoLoop: '训练方法的灵感来源，未使用其任何代码或素材。',
     whisper: '用于转写导入音频的语音识别模型，在本设备上运行。',
@@ -573,6 +581,11 @@ const zh: Strings = {
   macRestorePick: '选择要恢复的备份',
   macRestoreFrom: (name: string, n: number) => `${name}：${n} 个课程。`,
   macCancel: '取消',
+  settingsNewWords: '每天新增核心词',
+  settingsNewWordsHint: '3500 个最常用日语词的单词卡，按使用频率从高到低。已经保存过的词会跳过。',
+  newWordsOff: '关闭',
+  coreWordLabel: (rank: number): string => `核心 3500 · 第 ${rank} 位`,
+  coreWordsCredit: '核心词：词频来自 Robyn Speer 的 wordfreq（维基百科、OpenSubtitles、网页、Twitter、Reddit），CC BY-SA 4.0。',
 }
 
 export const STRINGS: Record<UiLang, Strings> = { en, zh }

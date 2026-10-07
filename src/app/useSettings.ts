@@ -10,6 +10,8 @@ export interface Settings {
   chunks: boolean
   rate: number
   voiceURI?: string
+  /** Core-word cards added a day (0: off). */
+  newWordsPerDay: number
 }
 
 export interface SettingsCtx {

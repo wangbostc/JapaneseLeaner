@@ -33,9 +33,11 @@ export interface OpenOptions {
   transcripts?: string[]
   /** What each file dialog "chooses", in order (null: cancelled). */
   picks?: (string[] | null)[]
+  /** Core words a day (off unless a test is about them, so card counts stay put). */
+  newWordsPerDay?: number
 }
 
-export async function open({ transcripts = [], picks = [] }: OpenOptions = {}) {
+export async function open({ transcripts = [], picks = [], newWordsPerDay = 0 }: OpenOptions = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'kikitori-test-'))
   const db = sqliteDatabase(new DatabaseSync(':memory:') as unknown as SqlDriver)
   const store = createStore(db)
@@ -49,7 +51,7 @@ export async function open({ transcripts = [], picks = [] }: OpenOptions = {}) {
     analyzer: await testAnalyzer(),
     dictionary: async () => createDictionary(DICT),
     accents: async () => createAccentTable({ accents: { '毎朝|まいあさ': '0' } }),
-    settings: { lang: 'en', furigana: true, translation: true, chunks: false, rate: 1 },
+    settings: { lang: 'en', furigana: true, translation: true, chunks: false, rate: 1, newWordsPerDay },
     prefs,
     keys: keyEvents(),
     audio,

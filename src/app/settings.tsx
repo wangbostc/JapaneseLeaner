@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
+import { DEFAULT_NEW_WORDS_PER_DAY } from '@kikitori/core/coreWords'
 import { STRINGS } from '@kikitori/core/i18n'
 import { sanitizeSettings } from './sanitizeSettings'
 import { SettingsContext, type Settings } from './useSettings'
@@ -11,6 +12,7 @@ const defaults = (): Settings => ({
   translation: true,
   chunks: true,
   rate: 1,
+  newWordsPerDay: DEFAULT_NEW_WORDS_PER_DAY,
 })
 
 function load(): Settings {
