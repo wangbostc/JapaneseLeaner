@@ -24,6 +24,9 @@ export interface SyncResult {
   state: SyncState
 }
 
+/** Records every device adds on its own, with the same uid: the starter lessons. */
+const isBuiltIn = (uid: string) => uid.startsWith('sample:')
+
 /** Records per kind per request, under the server's limit. */
 const CHUNK = 1000
 
@@ -182,7 +185,12 @@ async function applyChanges(db: Database, changes: SyncBatch, editedSince: (row:
     for (const d of changes.deletions) {
       const table = db[d.table] as SyncedTable<{ id?: number; uid?: string; updatedAt?: number }>
       const [local] = await table.where('uid', [d.uid])
-      if (!local || local.updatedAt! > d.at) continue
+      if (local && local.updatedAt! > d.at) continue // edited here since: it comes back
+      // A built-in record deleted elsewhere is remembered here, even before this device has it:
+      // otherwise a later release (or day) adds it here again, and the server never resends the
+      // old tombstone.
+      if (isBuiltIn(d.uid) && !(await db.deletions.where('uid', [d.uid])).length) await db.deletions.add({ uid: d.uid, table: d.table, at: d.at })
+      if (!local) continue
       if (d.table === 'lessons') await db.cards.delete((await db.cards.where('lessonId', [local.id!])).map((c) => c.id!))
       await table.delete(local.id!)
     }
