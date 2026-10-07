@@ -207,6 +207,10 @@ Code layout:
   sync, backup, i18n and the starter lessons. `store`, `seed`, `sync` and `backup`
   run on the `Database` interface (`database.ts`). Every storage backend runs the
   contract tests in `packages/core/test/contracts`.
+- `packages/sqlite/` (`@kikitori/sqlite`): the same `Database` on SQLite, for the macOS
+  app (`bun:sqlite`). It runs every contract on `node:sqlite` in `bun run test`, and on
+  `bun:sqlite` in `bun run test:bun`. The integration sync tests run each device on both
+  backends, and also sync a SQLite Mac with an IndexedDB phone.
 - `src/lib/`: the browser side, including the Dexie database (`db.ts`, and
   `dexieDatabase.ts` for the shared interface) and `speech` / `player`.
 - `src/components/steps/`: one component per study step.

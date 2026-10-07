@@ -1,0 +1,13 @@
+{
+  "name": "@kikitori/sqlite",
+  "private": true,
+  "type": "module",
+  "description": "Kikitori's storage on SQLite, for the macOS app (bun:sqlite). Runs the same contract tests as the web app's Dexie storage, under node:sqlite.",
+  "exports": {
+    ".": "./src/sqliteDatabase.ts",
+    "./bun": "./src/bun.ts"
+  },
+  "dependencies": {
+    "@kikitori/core": "workspace:*"
+  }
+}

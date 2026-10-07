@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable, type Transaction } from 'dexie'
-import { stampEdit, stampNew, type SyncedTableName } from '@kikitori/core/database'
+import { sameValue, stampEdit, stampNew, type SyncedTableName } from '@kikitori/core/database'
 import { sampleUid, type Deletion, type Flashcard, type KnownWord, type Lesson, type Media, type PracticeLog, type Synced } from '@kikitori/core/model'
 
 const newUid = () => crypto.randomUUID()
@@ -11,19 +11,6 @@ export function markSyncApply(trans: Transaction) {
   ;(trans as unknown as Record<symbol, boolean>)[SYNC_APPLY] = true
 }
 export const isSyncApply = (trans: Transaction) => (trans as unknown as Record<symbol, boolean>)[SYNC_APPLY] === true
-
-/** Equal by value: arrays, plain objects and Dates compared deeply, anything else by identity. */
-function sameValue(a: unknown, b: unknown): boolean {
-  if (a === b) return true
-  if (a instanceof Date && b instanceof Date) return a.getTime() === b.getTime()
-  if (Array.isArray(a) && Array.isArray(b)) return a.length === b.length && a.every((x, i) => sameValue(x, b[i]))
-  const plain = (x: unknown): x is Record<string, unknown> => !!x && Object.getPrototypeOf(x) === Object.prototype
-  if (plain(a) && plain(b)) {
-    const keys = Object.keys(a)
-    return keys.length === Object.keys(b).length && keys.every((k) => sameValue(a[k], b[k]))
-  }
-  return false
-}
 
 /**
  * The fields an update really changes. Dexie's `mods` (a diff of the row) compares arrays and
