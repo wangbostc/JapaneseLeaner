@@ -4,7 +4,10 @@ import type { AccentTable } from '@kikitori/core/pitch'
 import type { Dictionary } from '@kikitori/core/jmdict'
 import type { Store } from '@kikitori/core/store'
 import type { Analyzer, Token } from '@kikitori/core/tokenizer'
+import type { Lesson } from '@kikitori/core/model'
+import type { Step } from '@kikitori/core/schedule'
 import type { WatchedDatabase } from '@kikitori/sqlite'
+import type { Audio } from './audio/audio'
 import type { KeyEvents } from './keys'
 import type { MacSettings } from './settings'
 
@@ -18,9 +21,17 @@ export interface AppDeps {
   accents: () => Promise<AccentTable | null>
   settings: MacSettings
   keys: KeyEvents
+  audio: Audio
+  /** A file holding the lesson's audio (for the helper to play); null for lessons read aloud. */
+  mediaPath: (lesson: Lesson) => Promise<string | null>
 }
 
-export type Route = { name: 'today' } | { name: 'library' } | { name: 'lesson'; id: number }
+export type Route =
+  | { name: 'today' }
+  | { name: 'library' }
+  | { name: 'lesson'; id: number }
+  /** A round of study, or with `free`, one step practised outside the schedule. */
+  | { name: 'study'; id: number; free?: Step }
 
 /** A tapped word, shown in the word sheet. */
 export interface WordPick {

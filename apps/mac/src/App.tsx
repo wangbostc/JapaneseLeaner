@@ -3,13 +3,14 @@ import { useCallback, useMemo, useState } from 'react'
 import { AppContext, type App as AppValue, type AppDeps, type Route, type WordPick } from './context'
 import { Library } from './screens/Library'
 import { Lesson } from './screens/Lesson'
+import { Study } from './screens/Study'
 import { Today } from './screens/Today'
 import { Col, Pressable, Row, Text } from './ui/primitives'
 import { C } from './ui/theme'
 import { WordSheet } from './ui/WordSheet'
 
 function TabBar({ route, navigate, labels }: { route: Route; navigate: (r: Route) => void; labels: [Route['name'], string][] }) {
-  const current = route.name === 'lesson' ? 'library' : route.name
+  const current = route.name === 'lesson' || route.name === 'study' ? 'library' : route.name
   return (
     <Row style={{ alignItems: 'center', gap: 6, paddingLeft: 20, paddingRight: 20, height: 52, backgroundColor: C.panel, borderBottomWidth: 1, borderColor: C.line }}>
       <Text size={17} ja weight={700} style={{ marginRight: 18 }}>
@@ -55,9 +56,9 @@ export function App({ deps, initialRoute = { name: 'today' } }: { deps: AppDeps;
         />
         {/* One scroll area per screen: the key resets the scroll position on navigation. minHeight 0
             lets it shrink below its content (unlike CSS, the layout engine doesn't imply it). */}
-        <Col testId="scroll" key={route.name === 'lesson' ? `lesson-${route.id}` : route.name} style={{ flexGrow: 1, flexBasis: 0, minHeight: 0, overflowY: 'scroll' }}>
+        <Col testId="scroll" key={route.name === 'lesson' || route.name === 'study' ? `${route.name}-${route.id}-${'free' in route ? route.free : ''}` : route.name} style={{ flexGrow: 1, flexBasis: 0, minHeight: 0, overflowY: 'scroll' }}>
           <Col style={{ padding: 28, paddingBottom: 60, maxWidth: 860, width: '100%' }}>
-            {route.name === 'today' ? <Today /> : route.name === 'library' ? <Library /> : <Lesson id={route.id} />}
+            {route.name === 'today' ? <Today /> : route.name === 'library' ? <Library /> : route.name === 'lesson' ? <Lesson id={route.id} /> : <Study id={route.id} free={route.free} />}
           </Col>
         </Col>
         {word && <WordSheet pick={word} onClose={close} />}

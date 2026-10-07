@@ -1,5 +1,5 @@
 import { relativeTime } from '@kikitori/core/i18n'
-import { dueAt, isGraduated, ROUNDS } from '@kikitori/core/schedule'
+import { dueAt, isGraduated, ROUNDS, type Step } from '@kikitori/core/schedule'
 import { useState } from 'react'
 import { useApp, useQuery } from '../context'
 import { JapaneseText } from '../ui/JapaneseText'
@@ -48,10 +48,28 @@ export function Lesson({ id }: { id: number }) {
                 {t.dueIn(relativeTime(settings.lang, due, now))}
               </Text>
             )}
+            <Row style={{ marginTop: 10 }}>
+              <Button testId="start" variant="primary" label={`▶ ${lesson.resume?.round === lesson.progress.roundsDone ? t.continue : t.start}`} onPress={() => navigate({ name: 'study', id })} />
+            </Row>
           </>
         ) : (
           <Text>{isGraduated(lesson.progress) ? t.mastered : ''}</Text>
         )}
+      </Col>
+      <Col style={{ gap: 8 }}>
+        <Text size={12} color={C.dim} weight={600}>
+          {t.freePractice.toUpperCase()}
+        </Text>
+        <Text size={12} color={C.dim}>
+          {t.freePracticeHint}
+        </Text>
+        <Row style={{ gap: 8, flexWrap: 'wrap' }}>
+          {(['intensive', 'shadowing', 'blind', 'retell', 'hardSentences'] as Step[])
+            .filter((s) => s !== 'hardSentences' || lesson.hard.length > 0)
+            .map((s) => (
+              <Button key={s} testId={`practice-${s}`} label={t.steps[s]} onPress={() => navigate({ name: 'study', id, free: s })} />
+            ))}
+        </Row>
       </Col>
       <Col testId="transcript" style={{ gap: 18 }}>
         {lesson.sentences.map((s, i) => (

@@ -224,9 +224,16 @@ out through `window.__kikitoriFake`. Real-device speech needs checking by hand.
 
 React rendered natively by [gpuix](https://github.com/remorses/gpuix), Zed's GPU UI
 framework, with no browser or web view. It runs on Bun and stores data in SQLite
-(`@kikitori/sqlite`). So far it has Today, Library and the lesson page, with furigana, word
-lookups (JMdict meanings and pitch accent) and saving words as cards. Studying, audio and
-the other screens come in later phases.
+(`@kikitori/sqlite`). It has Today, Library, the lesson page (furigana, word lookups with
+JMdict meanings and pitch accent, saving cards), and studying: every step of a round,
+free practice and the hard-sentence drill. Import, Cards, Stats, Settings and sync come in
+later phases.
+
+Sound goes through a small Swift helper (`apps/mac/helper`), which the app runs as a child
+process and talks to in JSON lines. It reads text aloud (the system's Japanese voice),
+plays parts of audio files, and recognises speech live while recording. Recognition runs on
+this Mac when Japanese dictation is installed (System Settings → Keyboard → Dictation), and
+on Apple's servers otherwise.
 
 ```bash
 bun run --cwd apps/mac dev      # from source, with data in apps/mac/.dev-data
@@ -236,7 +243,11 @@ bun apps/mac/scripts/shot.ts    # run it in the background and save screenshots
 ```
 
 The built app keeps its data in `~/Library/Application Support/Kikitori`. Set
-`KIKITORI_DATA_DIR` to use another folder. The app isn't notarised, so the first time,
+`KIKITORI_DATA_DIR` to use another folder. The microphone and speech recognition are used
+only by the built app: macOS grants them to an app bundle, not to a terminal. Runs from
+source use a stand-in (`KIKITORI_REAL_AUDIO=1` uses the real helper anyway, and
+`KIKITORI_FAKE_AUDIO=1` uses the stand-in even in the bundle). `KIKITORI_LOG=1` prints what
+was heard. `bun run --cwd apps/mac helper:smoke` checks the helper without a microphone. The app isn't notarised, so the first time,
 open it with right-click → Open.
 
 ### Starter lessons (MongoDB)

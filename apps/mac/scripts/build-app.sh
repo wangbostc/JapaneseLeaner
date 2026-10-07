@@ -11,6 +11,9 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources/pitch" "$APP/Contents/Resources/jmdict" "$APP/Contents/Frameworks"
 
 bun build --compile src/entry.ts --outfile "$APP/Contents/MacOS/kikitori"
+# The audio helper: speech, playback, and the microphone recognised live.
+swiftc -O -swift-version 5 -o "$APP/Contents/MacOS/kikitori-audio" helper/main.swift 2>&1 | grep -v "warning:" || true
+test -x "$APP/Contents/MacOS/kikitori-audio"
 # bun --compile doesn't embed the renderer; entry.ts points the loader at this copy.
 # (It's a dependency of @gpuix/native, so resolve it from there.)
 NATIVE=$(bun -e "const p = require('path'); const n = p.dirname(Bun.resolveSync('@gpuix/native/package.json', process.cwd())); console.log(p.dirname(Bun.resolveSync('@gpuix/native-darwin-arm64/package.json', n)))")
@@ -33,10 +36,12 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleVersion</key><string>1</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>NSHighResolutionCapable</key><true/>
+  <key>NSMicrophoneUsageDescription</key><string>Kikitori records you shadowing a sentence so it can play it back and score it.</string>
+  <key>NSSpeechRecognitionUsageDescription</key><string>Kikitori turns your shadowing into text to score your pronunciation.</string>
 </dict>
 </plist>
 PLIST
 
-codesign --force --sign - "$APP/Contents/Frameworks/gpuix-native.darwin-arm64.node"
+codesign --force --sign - "$APP/Contents/Frameworks/gpuix-native.darwin-arm64.node" "$APP/Contents/MacOS/kikitori-audio"
 codesign --force --sign - "$APP"
 du -sh "$APP"

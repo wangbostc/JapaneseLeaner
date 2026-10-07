@@ -8,7 +8,7 @@ import { C } from './theme'
 
 /** A tapped word over the page: its reading, pitch and meanings, and a button to save it as a card. */
 export function WordSheet({ pick, onClose }: { pick: WordPick; onClose: () => void }) {
-  const { t, store, analyzer, keys } = useApp()
+  const { t, store, analyzer, keys, audio, settings } = useApp()
   const [saved, setSaved] = useState(false)
   const { token, lessonId, context } = pick
   const reading = readingOf(analyzer, token.lemma)
@@ -37,6 +37,7 @@ export function WordSheet({ pick, onClose }: { pick: WordPick; onClose: () => vo
         <PitchAccent word={token.lemma} reading={reading} pos={token.pos} />
         <Meanings word={token.lemma} reading={reading} />
         <Row style={{ gap: 10 }}>
+          <Button testId="play-word" label={t.play} onPress={() => void audio.speak(token.lemma, settings.rate)} />
           <Button testId="save-word" label={saved ? t.saved : t.saveWord} variant="primary" onPress={save} disabled={saved} />
           <Button testId="close-sheet" label={t.back} variant="ghost" onPress={onClose} />
         </Row>

@@ -43,3 +43,6 @@ jobs:
           node-version: 22
       - run: bun install --frozen-lockfile
       - run: bun run test:mac
+      # The Swift audio helper: builds, and runs every command that needs no microphone (silently).
+      - run: bun run --cwd apps/mac helper
+      - run: bun run --cwd apps/mac helper:smoke

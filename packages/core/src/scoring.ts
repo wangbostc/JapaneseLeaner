@@ -1,9 +1,12 @@
-import { normalizeReading } from './kana'
+import { digitsToKanji, normalizeReading } from './kana'
 import type { Analyzer, Token } from './tokenizer'
 
-/** Hiragana reading of a whole utterance, punctuation and spaces removed. */
+/**
+ * Hiragana reading of a whole utterance, punctuation and spaces removed. Digits are read as
+ * numbers first, so a transcript's 6時 and a script's 六時 sound the same.
+ */
 export const readingOf = (analyzer: Analyzer, text: string) =>
-  normalizeReading(analyzer.tokenize(text).map((t) => t.reading).join(''))
+  normalizeReading(analyzer.tokenize(digitsToKanji(text)).map((t) => t.reading).join(''))
 
 export interface CharMark {
   char: string
