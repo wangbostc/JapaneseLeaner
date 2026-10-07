@@ -7,6 +7,7 @@ import { sampleUid } from '@kikitori/core/model'
 import { Rating } from '@kikitori/core/srs'
 import type { Database } from '@kikitori/core/database'
 import { createStore } from '@kikitori/core/store'
+import { CORE_WORDS, coreUid, introduceCoreWords } from '@kikitori/core/coreWords'
 import { initialSyncState, syncOnce, type Api, type SyncState } from '@kikitori/core/sync'
 import { handleApi } from '../worker/index'
 import { testEnv } from '../worker/testEnv'
@@ -386,5 +387,45 @@ describe('sync between a Mac (SQLite) and a phone (IndexedDB)', () => {
     await mac.sync()
     expect(await mac.db.lessons.count()).toBe(0)
     expect(await mac.db.cards.count()).toBe(0)
+  })
+})
+
+describe('core words between a Mac (SQLite) and a phone (IndexedDB)', () => {
+  it('carries a reviewed core card, which belongs to no lesson, across', async () => {
+    const env = await server()
+    const mac = await device(env, 'mac', sqliteBackend)
+    const phone = await device(env, 'phone', BACKENDS[0])
+    await introduceCoreWords(mac.db, 3)
+    const [first] = await mac.store.dueCards()
+    await mac.store.gradeCard(first.id!, Rating.Good)
+    await mac.sync()
+    await phone.sync()
+    const cards = await phone.db.cards.all()
+    expect(cards.map((c) => [c.uid, c.lessonId])).toEqual([[first.uid, 0]]) // only the reviewed one has synced
+    expect(cards[0].card.due.getTime()).toBe((await mac.db.cards.get(first.id!))!.card.due.getTime())
+  })
+
+  it('keeps a core word deleted on one device deleted when the other introduces it', async () => {
+    const env = await server()
+    const mac = await device(env, 'mac', sqliteBackend)
+    const phone = await device(env, 'phone', BACKENDS[0])
+    await introduceCoreWords(mac.db, 1)
+    const [card] = await mac.db.cards.all()
+    await mac.store.gradeCard(card.id!, Rating.Good) // reviewed, so it syncs
+    await mac.sync()
+    await phone.sync()
+    await phone.store.removeCard((await phone.db.cards.all())[0].id!)
+    await phone.sync()
+    await mac.sync()
+    expect(await mac.db.cards.count()).toBe(0)
+    // A third device starting today introduces the same word fresh; the deletion still wins.
+    const laptop = await device(env, 'laptop', sqliteBackend)
+    await introduceCoreWords(laptop.db, 1)
+    expect((await laptop.db.cards.all())[0].uid).toBe(coreUid(CORE_WORDS[0][0]))
+    await laptop.sync()
+    expect(await laptop.db.cards.where('uid', [coreUid(CORE_WORDS[0][0])])).toEqual([])
+    // ...and doesn't come back on the next introduction (or the day's count would let it).
+    await introduceCoreWords(laptop.db, 1)
+    expect((await laptop.db.cards.all()).map((c) => c.uid)).toEqual([coreUid(CORE_WORDS[1][0])])
   })
 })
