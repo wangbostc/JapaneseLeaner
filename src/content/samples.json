@@ -1,0 +1,542 @@
+[
+  {
+    "title": "私の朝",
+    "level": "N5",
+    "lines": [
+      {
+        "ja": "私は毎朝六時に起きます。",
+        "en": "I get up at six every morning.",
+        "zh": "我每天早上六点起床。"
+      },
+      {
+        "ja": "まず、窓を開けて、コーヒーを飲みます。",
+        "en": "First, I open the window and drink coffee.",
+        "zh": "首先，我打开窗户，喝咖啡。"
+      },
+      {
+        "ja": "朝ごはんはパンと卵です。",
+        "en": "Breakfast is bread and eggs.",
+        "zh": "早饭是面包和鸡蛋。"
+      },
+      {
+        "ja": "七時半に家を出て、駅まで歩きます。",
+        "en": "At seven thirty I leave home and walk to the station.",
+        "zh": "七点半出门，走到车站。"
+      },
+      {
+        "ja": "電車の中で、日本語のポッドキャストを聞きます。",
+        "en": "On the train, I listen to a Japanese podcast.",
+        "zh": "在电车上，我听日语播客。"
+      },
+      {
+        "ja": "短い時間ですが、毎日続けています。",
+        "en": "It's only a short time, but I keep it up every day.",
+        "zh": "虽然时间很短，但我每天都在坚持。"
+      }
+    ]
+  },
+  {
+    "title": "私の家族",
+    "level": "N5",
+    "lines": [
+      {
+        "ja": "私の家族を紹介します。",
+        "en": "Let me introduce my family.",
+        "zh": "我来介绍一下我的家人。"
+      },
+      {
+        "ja": "家族は父と母と弟と私です。",
+        "en": "My family is my father, my mother, my younger brother, and me.",
+        "zh": "我家有爸爸、妈妈、弟弟和我。"
+      },
+      {
+        "ja": "父は会社員で、毎日とても忙しいです。",
+        "en": "My father is an office worker and is very busy every day.",
+        "zh": "爸爸是公司职员，每天都很忙。"
+      },
+      {
+        "ja": "母は料理が上手で、私は母のカレーが大好きです。",
+        "en": "My mother is a good cook, and I love her curry.",
+        "zh": "妈妈很会做饭，我最喜欢妈妈做的咖喱。"
+      },
+      {
+        "ja": "弟は高校生で、サッカーが好きです。",
+        "en": "My younger brother is in high school and likes soccer.",
+        "zh": "弟弟是高中生，喜欢足球。"
+      },
+      {
+        "ja": "日曜日の夜は、みんなでいっしょに晩ごはんを食べます。",
+        "en": "On Sunday evenings, we all eat dinner together.",
+        "zh": "星期天晚上，全家人一起吃晚饭。"
+      }
+    ]
+  },
+  {
+    "title": "スーパーで買い物",
+    "level": "N5",
+    "lines": [
+      {
+        "ja": "今日は仕事のあとで、スーパーに行きました。",
+        "en": "Today I went to the supermarket after work.",
+        "zh": "今天下班后，我去了超市。"
+      },
+      {
+        "ja": "野菜と果物と牛乳を買いました。",
+        "en": "I bought vegetables, fruit, and milk.",
+        "zh": "我买了蔬菜、水果和牛奶。"
+      },
+      {
+        "ja": "りんごは一つ百円でした。",
+        "en": "The apples were 100 yen each.",
+        "zh": "苹果一个一百日元。"
+      },
+      {
+        "ja": "魚も買いたかったですが、高かったです。",
+        "en": "I wanted to buy fish too, but it was expensive.",
+        "zh": "我也想买鱼，但是太贵了。"
+      },
+      {
+        "ja": "レジで、店の人が「袋はいりますか」と聞きました。",
+        "en": "At the register, the clerk asked, \"Do you need a bag?\"",
+        "zh": "在收银台，店员问：\"需要袋子吗？\""
+      },
+      {
+        "ja": "私は「いいえ、大丈夫です」と答えました。",
+        "en": "I answered, \"No, I'm fine.\"",
+        "zh": "我回答说：\"不用了，谢谢。\""
+      },
+      {
+        "ja": "家に帰って、晩ごはんを作りました。",
+        "en": "I went home and made dinner.",
+        "zh": "回到家，我做了晚饭。"
+      }
+    ]
+  },
+  {
+    "title": "週末のカフェ",
+    "level": "N4",
+    "lines": [
+      {
+        "ja": "先週の土曜日、友達と新しいカフェに行きました。",
+        "en": "Last Saturday I went to a new café with a friend.",
+        "zh": "上周六，我和朋友去了一家新开的咖啡馆。"
+      },
+      {
+        "ja": "駅から少し遠かったけど、店はとても静かでした。",
+        "en": "It was a little far from the station, but the café was very quiet.",
+        "zh": "虽然离车站有点远，但店里很安静。"
+      },
+      {
+        "ja": "私は抹茶ラテを、友達はチーズケーキを頼みました。",
+        "en": "I ordered a matcha latte, and my friend ordered cheesecake.",
+        "zh": "我点了抹茶拿铁，朋友点了芝士蛋糕。"
+      },
+      {
+        "ja": "店員さんが「ごゆっくりどうぞ」と言ってくれました。",
+        "en": "The server told us, \"Please take your time.\"",
+        "zh": "店员对我们说：\"请慢用。\""
+      },
+      {
+        "ja": "気がついたら、三時間も話していました。",
+        "en": "Before we knew it, we had been talking for three hours.",
+        "zh": "不知不觉，我们聊了整整三个小时。"
+      },
+      {
+        "ja": "来月また行こうと約束しました。",
+        "en": "We promised to go again next month.",
+        "zh": "我们约好下个月再去。"
+      }
+    ]
+  },
+  {
+    "title": "初めてのひとり旅",
+    "level": "N4",
+    "lines": [
+      {
+        "ja": "去年の夏、初めてひとりで京都へ旅行しました。",
+        "en": "Last summer, I traveled to Kyoto on my own for the first time.",
+        "zh": "去年夏天，我第一次一个人去京都旅行。"
+      },
+      {
+        "ja": "出発する前は、少し不安でした。",
+        "en": "Before I left, I was a little nervous.",
+        "zh": "出发之前，我有点不安。"
+      },
+      {
+        "ja": "でも、着いてみると、町の人たちはとても親切でした。",
+        "en": "But once I got there, the people in town were very kind.",
+        "zh": "但是到了以后，我发现当地人都非常亲切。"
+      },
+      {
+        "ja": "道に迷ったとき、知らないおばあさんがお寺まで連れていってくれました。",
+        "en": "When I got lost, an elderly woman I didn't know took me all the way to the temple.",
+        "zh": "我迷路的时候，一位素不相识的老奶奶把我带到了寺庙。"
+      },
+      {
+        "ja": "夜は旅館に泊まって、温泉に入りました。",
+        "en": "At night, I stayed at a traditional inn and soaked in the hot spring.",
+        "zh": "晚上我住在日式旅馆，泡了温泉。"
+      },
+      {
+        "ja": "ひとり旅は自由で楽しかったので、また行きたいと思っています。",
+        "en": "Traveling alone was freeing and fun, so I'd like to go again.",
+        "zh": "一个人旅行既自由又开心，所以我还想再去。"
+      }
+    ]
+  },
+  {
+    "title": "風邪をひいた日",
+    "level": "N4",
+    "lines": [
+      {
+        "ja": "昨日の朝から、のどが痛くて、熱もありました。",
+        "en": "Starting yesterday morning, I had a sore throat and a fever.",
+        "zh": "从昨天早上开始，我嗓子疼，还发烧了。"
+      },
+      {
+        "ja": "会社に電話して、休むことにしました。",
+        "en": "I called work and decided to take the day off.",
+        "zh": "我给公司打了电话，决定请假休息。"
+      },
+      {
+        "ja": "近くの病院に行ったら、医者に「風邪ですね」と言われました。",
+        "en": "When I went to a nearby clinic, the doctor told me, \"It's a cold.\"",
+        "zh": "我去了附近的医院，医生对我说：\"是感冒。\""
+      },
+      {
+        "ja": "薬をもらって、家に帰ってすぐに寝ました。",
+        "en": "I got some medicine, went home, and went straight to bed.",
+        "zh": "拿了药以后，我回到家马上就睡了。"
+      },
+      {
+        "ja": "夕方、友達がおかゆとスポーツドリンクを持ってきてくれました。",
+        "en": "In the evening, a friend brought me rice porridge and a sports drink.",
+        "zh": "傍晚，朋友给我送来了粥和运动饮料。"
+      },
+      {
+        "ja": "今朝はだいぶよくなったので、明日から仕事に戻れそうです。",
+        "en": "I'm much better this morning, so I should be able to go back to work tomorrow.",
+        "zh": "今天早上好多了，看样子明天就能回去上班了。"
+      }
+    ]
+  },
+  {
+    "title": "雨の日の過ごし方",
+    "level": "N3",
+    "lines": [
+      {
+        "ja": "梅雨の時期になると、外に出るのが面倒になります。",
+        "en": "When the rainy season comes, going out becomes a chore.",
+        "zh": "一到梅雨季节，出门就变得很麻烦。"
+      },
+      {
+        "ja": "でも、雨の日には雨の日なりの楽しみ方があると思います。",
+        "en": "But I think rainy days have their own kind of fun.",
+        "zh": "不过我觉得，雨天也有雨天的乐趣。"
+      },
+      {
+        "ja": "例えば、ずっと読みたかった本を一気に読んだり、部屋を片付けたりします。",
+        "en": "For example, I read a book I've long wanted to read in one sitting, or tidy my room.",
+        "zh": "比如，一口气读完一直想读的书，或者收拾房间。"
+      },
+      {
+        "ja": "窓の外の雨の音を聞きながら料理をするのも、意外と落ち着きます。",
+        "en": "Cooking while listening to the rain outside is surprisingly calming, too.",
+        "zh": "一边听着窗外的雨声一边做饭，也意外地让人平静。"
+      },
+      {
+        "ja": "天気に気分を左右されないように、自分なりの過ごし方を見つけておくといいでしょう。",
+        "en": "It's worth finding your own way to spend the day, so the weather doesn't decide your mood.",
+        "zh": "为了不让天气左右心情，最好找到属于自己的度过方式。"
+      }
+    ]
+  },
+  {
+    "title": "引っ越しの準備",
+    "level": "N3",
+    "lines": [
+      {
+        "ja": "来月、会社の近くのアパートに引っ越すことになりました。",
+        "en": "Next month, I'm moving to an apartment near my office.",
+        "zh": "下个月，我要搬到公司附近的公寓了。"
+      },
+      {
+        "ja": "今の部屋には五年も住んでいるので、物がずいぶん増えてしまいました。",
+        "en": "I've lived in my current place for five whole years, so my things have really piled up.",
+        "zh": "现在的房间我住了整整五年，东西攒了不少。"
+      },
+      {
+        "ja": "使わない服や本は、思い切って処分することにしました。",
+        "en": "I've decided to be bold and get rid of the clothes and books I don't use.",
+        "zh": "不用的衣服和书，我决定狠下心处理掉。"
+      },
+      {
+        "ja": "段ボールに荷物を詰めていると、懐かしい写真が何枚も出てきました。",
+        "en": "As I was packing things into boxes, lots of old photos turned up.",
+        "zh": "往纸箱里装东西的时候，翻出了好多令人怀念的老照片。"
+      },
+      {
+        "ja": "そのたびに手が止まってしまい、なかなか作業が進みません。",
+        "en": "Every time, I stop to look, and the packing hardly moves forward.",
+        "zh": "每次都会停下手来，进度怎么也快不起来。"
+      },
+      {
+        "ja": "引っ越しは大変ですが、新しい生活が始まるのが楽しみです。",
+        "en": "Moving is hard work, but I'm looking forward to starting a new life.",
+        "zh": "搬家虽然辛苦，但我很期待新生活的开始。"
+      }
+    ]
+  },
+  {
+    "title": "スマホとの付き合い方",
+    "level": "N3",
+    "lines": [
+      {
+        "ja": "最近、スマホを見る時間が長すぎると感じるようになりました。",
+        "en": "Lately, I've started to feel that I spend too much time on my phone.",
+        "zh": "最近，我开始觉得自己看手机的时间太长了。"
+      },
+      {
+        "ja": "気がつくと、寝る前に一時間以上スマホで動画を見ていることもあります。",
+        "en": "Sometimes, before I know it, I've spent over an hour watching videos on my phone before bed.",
+        "zh": "有时一不留神，睡前就用手机看了一个多小时的视频。"
+      },
+      {
+        "ja": "そこで、夜十時以降はスマホを別の部屋に置くことにしました。",
+        "en": "So I decided to leave my phone in another room after 10 p.m.",
+        "zh": "于是，我决定晚上十点以后把手机放到别的房间。"
+      },
+      {
+        "ja": "初めのうちは落ち着きませんでしたが、だんだん慣れてきました。",
+        "en": "At first I felt restless, but I've gradually gotten used to it.",
+        "zh": "一开始心里不踏实，但慢慢就习惯了。"
+      },
+      {
+        "ja": "その代わりに本を読むようになり、前よりよく眠れるようになった気がします。",
+        "en": "I've started reading books instead, and I feel like I sleep better than before.",
+        "zh": "取而代之，我开始看书了，感觉睡得比以前好了。"
+      },
+      {
+        "ja": "便利な道具だからこそ、どう使うかを自分で決めることが大切だと思います。",
+        "en": "Precisely because it's such a handy tool, I think it's important to decide for yourself how to use it.",
+        "zh": "正因为是方便的工具，我觉得自己决定怎么使用它才更重要。"
+      }
+    ]
+  },
+  {
+    "title": "在宅勤務の光と影",
+    "level": "N2",
+    "lines": [
+      {
+        "ja": "在宅勤務が広まってから、働き方に対する考え方は大きく変わりました。",
+        "en": "Since working from home became widespread, attitudes toward work have changed a great deal.",
+        "zh": "自从居家办公普及以来，人们对工作方式的看法发生了很大变化。"
+      },
+      {
+        "ja": "通勤がなくなった分、朝の時間を有効に使えるようになったという人は少なくありません。",
+        "en": "Quite a few people say that, without a commute, they can now make good use of their mornings.",
+        "zh": "不少人表示，省去了通勤，早上的时间能够得到有效利用了。"
+      },
+      {
+        "ja": "一方で、同僚に気軽に相談できず、孤独を感じるという声も聞かれます。",
+        "en": "On the other hand, some say they feel isolated because they can't casually ask colleagues for advice.",
+        "zh": "另一方面，也有人表示，因为无法随时找同事商量，感到很孤独。"
+      },
+      {
+        "ja": "また、仕事と私生活の境目があいまいになり、かえって長時間働いてしまうケースもあるようです。",
+        "en": "There also seem to be cases where the line between work and private life blurs, and people end up working even longer hours.",
+        "zh": "此外，似乎也有工作和私生活界限变得模糊，反而导致工作时间更长的情况。"
+      },
+      {
+        "ja": "結局のところ、どちらが良いかは、仕事の内容や個人の性格によって異なるでしょう。",
+        "en": "In the end, which is better will probably depend on the nature of the work and the person's personality.",
+        "zh": "归根结底，哪种方式更好，恐怕要因工作内容和个人性格而异。"
+      },
+      {
+        "ja": "大切なのは、一人ひとりが自分に合った働き方を選べる環境を整えることではないでしょうか。",
+        "en": "Surely what matters is creating an environment where each person can choose the way of working that suits them.",
+        "zh": "重要的，难道不是营造一个让每个人都能选择适合自己工作方式的环境吗？"
+      }
+    ]
+  },
+  {
+    "title": "増え続ける空き家",
+    "level": "N2",
+    "lines": [
+      {
+        "ja": "日本の地方では、人が住まなくなった空き家が年々増えています。",
+        "en": "In rural Japan, the number of houses left empty is rising year after year.",
+        "zh": "在日本的地方，无人居住的空置房屋逐年增加。"
+      },
+      {
+        "ja": "若い世代が仕事を求めて都会へ出ていき、親の家を継ぐ人がいないことが主な原因です。",
+        "en": "The main cause is that younger people move to the cities for work, leaving no one to take over their parents' homes.",
+        "zh": "主要原因是年轻一代为了找工作去了城市，没有人继承父母的房子。"
+      },
+      {
+        "ja": "管理されないまま放置された家は、倒壊や火事の危険があるだけでなく、町の景観も損ないます。",
+        "en": "Houses left neglected not only risk collapsing or catching fire, but also spoil the look of the town.",
+        "zh": "无人管理、被弃置的房屋，不仅有倒塌和火灾的危险，还会破坏城镇的景观。"
+      },
+      {
+        "ja": "そこで、空き家を安く貸し出して、移住を希望する人を呼び込もうとする自治体も出てきました。",
+        "en": "So some local governments have begun renting out empty houses cheaply to attract people who want to relocate.",
+        "zh": "因此，一些地方政府开始低价出租空置房屋，以吸引希望移居的人。"
+      },
+      {
+        "ja": "古い家をカフェや宿に改装し、地域に新たなにぎわいを生み出した例もあります。",
+        "en": "There are also cases where old houses have been turned into cafés or inns, bringing new life to the area.",
+        "zh": "也有把老房子改造成咖啡馆或民宿，为当地带来新活力的例子。"
+      },
+      {
+        "ja": "空き家を「お荷物」ではなく「資源」としてとらえ直すことが、これからの課題だと言えるでしょう。",
+        "en": "The challenge ahead, one could say, is to rethink empty houses not as a \"burden\" but as a \"resource.\"",
+        "zh": "可以说，今后的课题是不再把空置房屋看作\"包袱\"，而是重新视为\"资源\"。"
+      }
+    ]
+  },
+  {
+    "title": "食品ロスを減らすために",
+    "level": "N2",
+    "lines": [
+      {
+        "ja": "日本では、まだ食べられるのに捨てられてしまう食品が、年間数百万トンにも上ると言われています。",
+        "en": "In Japan, food that is thrown away while still edible is said to reach several million tons a year.",
+        "zh": "据说在日本，明明还能吃却被扔掉的食品，每年多达数百万吨。"
+      },
+      {
+        "ja": "その原因は、家庭での食べ残しや店での売れ残りなど、さまざまです。",
+        "en": "The causes vary, from leftovers at home to unsold goods in shops.",
+        "zh": "原因多种多样，比如家里吃剩的饭菜、商店里卖不掉的商品等。"
+      },
+      {
+        "ja": "特に、賞味期限が近いというだけで、品質に問題のない商品が捨てられるケースは少なくありません。",
+        "en": "In particular, it's not unusual for perfectly good products to be thrown out just because their best-before date is near.",
+        "zh": "尤其是，仅仅因为临近保质期，品质毫无问题的商品就被丢弃，这种情况并不少见。"
+      },
+      {
+        "ja": "こうした状況を受けて、期限の近い商品を値引きして売るスーパーが増えてきました。",
+        "en": "In response, more and more supermarkets have started selling items near their date at a discount.",
+        "zh": "针对这种情况，越来越多的超市开始打折出售临期商品。"
+      },
+      {
+        "ja": "私たち一人ひとりにも、買いすぎない、作りすぎないといった身近な工夫が求められています。",
+        "en": "Each of us is also asked to make small everyday efforts, like not buying too much and not cooking too much.",
+        "zh": "我们每个人也需要在日常生活中下功夫，比如不买太多、不做太多。"
+      },
+      {
+        "ja": "小さな心がけの積み重ねが、やがて大きな変化につながるのではないでしょうか。",
+        "en": "Perhaps it is small, mindful habits, built up over time, that eventually lead to great change.",
+        "zh": "点滴用心的积累，或许终将带来巨大的改变。"
+      }
+    ]
+  },
+  {
+    "title": "「間」の文化",
+    "level": "N1",
+    "lines": [
+      {
+        "ja": "日本語には、「間」という、ほかの言語に訳しにくい言葉がある。",
+        "en": "Japanese has a word, ma, that is hard to translate into other languages.",
+        "zh": "日语中有一个很难译成其他语言的词——\"间\"。"
+      },
+      {
+        "ja": "それは単なる空白ではなく、意味を持った沈黙や余白を指している。",
+        "en": "It refers not to mere emptiness, but to silence and space that carry meaning.",
+        "zh": "它指的不是单纯的空白，而是富有意义的沉默与留白。"
+      },
+      {
+        "ja": "落語家が話の途中であえて黙るのも、観客の想像力に委ねるための間にほかならない。",
+        "en": "When a rakugo storyteller deliberately falls silent mid-story, that too is ma, leaving the rest to the audience's imagination.",
+        "zh": "落语家在讲述途中刻意沉默，也正是为了把想象留给观众的\"间\"。"
+      },
+      {
+        "ja": "会話においても、相手の言葉を受け止めてから返すまでのわずかな間が、思いやりの表れとされることが多い。",
+        "en": "In conversation too, the brief pause between taking in what someone has said and replying is often seen as a sign of consideration.",
+        "zh": "在对话中，接住对方的话之后、作出回应之前那短暂的停顿，也常被视为体贴的表现。"
+      },
+      {
+        "ja": "逆に、間の取り方を誤れば、「間が悪い」とか「間抜け」などと言われかねない。",
+        "en": "Misjudge it, though, and you risk being called ma ga warui (badly timed) or even manuke (a fool, literally \"missing ma\").",
+        "zh": "反之，如果\"间\"拿捏不当，就可能被人说成\"間が悪い\"（不合时宜），甚至\"間抜け\"（傻瓜，字面意思是\"缺了间\"）。"
+      },
+      {
+        "ja": "言葉そのものだけでなく、言葉と言葉のあいだにも耳を澄ませてこそ、日本語の奥深さが見えてくるのではないだろうか。",
+        "en": "Perhaps it is only by listening not just to the words but to the spaces between them that the depth of Japanese comes into view.",
+        "zh": "不仅倾听语言本身，也用心倾听字句之间的空隙，或许只有这样，才能领略到日语的深邃。"
+      }
+    ]
+  },
+  {
+    "title": "失敗を恐れない社会へ",
+    "level": "N1",
+    "lines": [
+      {
+        "ja": "失敗を恐れるあまり、新しいことに挑戦できなくなる人は少なくない。",
+        "en": "Many people are so afraid of failing that they can no longer bring themselves to try anything new.",
+        "zh": "因过于害怕失败而不敢尝试新事物的人并不少。"
+      },
+      {
+        "ja": "とりわけ周囲の目を気にしがちな社会では、その傾向が顕著だ。",
+        "en": "This is especially marked in societies where people tend to worry about how others see them.",
+        "zh": "尤其是在人们容易在意他人眼光的社会里，这种倾向尤为明显。"
+      },
+      {
+        "ja": "しかし振り返ってみれば、私たちは失敗を通してこそ多くを学んできたはずだ。",
+        "en": "Yet looking back, it is surely through failure that we have learned the most.",
+        "zh": "然而回顾过去，我们正是通过失败才学到了很多东西。"
+      },
+      {
+        "ja": "自転車に乗れるようになるまでに何度転んだか、いちいち数える子どもはいない。",
+        "en": "No child keeps count of how many times they fell before learning to ride a bike.",
+        "zh": "学会骑自行车之前摔了多少次，没有哪个孩子会一一去数。"
+      },
+      {
+        "ja": "大人になるにつれて失敗が許されなくなるのは、本人よりもむしろ周囲の問題なのかもしれない。",
+        "en": "If failure becomes less forgivable as we grow up, the problem may lie less with us than with those around us.",
+        "zh": "随着长大成人，失败越来越不被容许，这或许与其说是本人的问题，不如说是周围的问题。"
+      },
+      {
+        "ja": "失敗を責めるのではなく、そこから何を得たかを問う文化が根付けば、挑戦する人はもっと増えるに違いない。",
+        "en": "If a culture took root that asked what was gained from a failure rather than assigning blame, more people would surely take on challenges.",
+        "zh": "如果能形成一种不责备失败、而是追问从中收获了什么的文化，敢于挑战的人一定会更多。"
+      }
+    ]
+  },
+  {
+    "title": "便利さの代償",
+    "level": "N1",
+    "lines": [
+      {
+        "ja": "現代社会は、かつてないほどの便利さを手に入れた。",
+        "en": "Modern society has gained a level of convenience never seen before.",
+        "zh": "现代社会获得了前所未有的便利。"
+      },
+      {
+        "ja": "ボタン一つで食事が届き、道を覚えなくても目的地にたどり着ける。",
+        "en": "A meal arrives at the press of a button, and you can reach your destination without ever learning the way.",
+        "zh": "按一下按钮，饭菜就会送上门；不用记路，也能到达目的地。"
+      },
+      {
+        "ja": "だが、その裏で、私たちは何かを失いつつあるのではないか。",
+        "en": "Yet behind all this, might we not be gradually losing something?",
+        "zh": "然而在这背后，我们是否正在逐渐失去些什么？"
+      },
+      {
+        "ja": "手間をかけることでしか得られない喜びや、迷いながら見つける発見が、日常から姿を消しかけている。",
+        "en": "The joy that comes only from taking trouble, and the discoveries made while losing our way, are starting to vanish from everyday life.",
+        "zh": "只有花费功夫才能获得的喜悦，在迷茫中偶然得到的发现，正逐渐从日常生活中消失。"
+      },
+      {
+        "ja": "もちろん、便利さそのものを否定するつもりは毛頭ない。",
+        "en": "Of course, I have no intention whatsoever of rejecting convenience itself.",
+        "zh": "当然，我丝毫没有否定便利本身的意思。"
+      },
+      {
+        "ja": "肝心なのは、効率と引き換えに何を手放しているのかを、時折立ち止まって考えることだろう。",
+        "en": "What matters, surely, is to stop now and then and ask what we are giving up in exchange for efficiency.",
+        "zh": "关键在于时不时停下脚步想一想，我们为了效率究竟放弃了什么。"
+      }
+    ]
+  }
+]

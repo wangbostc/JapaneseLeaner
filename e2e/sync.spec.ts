@@ -1,4 +1,5 @@
 import { expect, test, type Browser, type Page } from '@playwright/test'
+import { SAMPLES } from './samples'
 
 // Runs against the real Worker (wrangler dev, local D1): two browser contexts are two devices.
 const SETUP = 'e2e-sync-setup-code'
@@ -36,8 +37,8 @@ test('a lesson made on one device shows up on the other, and deleting it there r
   const laptop = await newDevice(browser, 'Laptop') // connecting syncs straight away
   await laptop.goto('./#/library')
   await expect(laptop.getByRole('link', { name: /同期テスト/ })).toBeVisible()
-  // The built-in samples didn't double up: three samples plus the imported lesson.
-  await expect(laptop.locator('.lesson-row')).toHaveCount(4)
+  // The built-in samples didn't double up: the samples plus the imported lesson.
+  await expect(laptop.locator('.lesson-row')).toHaveCount(SAMPLES + 1)
 
   await laptop.getByRole('link', { name: /同期テスト/ }).click()
   await laptop.getByRole('button', { name: 'Delete lesson' }).click()
@@ -48,7 +49,7 @@ test('a lesson made on one device shows up on the other, and deleting it there r
   await syncNow(phone)
   await phone.goto('./#/library')
   await expect(phone.getByRole('link', { name: /同期テスト/ })).toHaveCount(0)
-  await expect(phone.locator('.lesson-row')).toHaveCount(3)
+  await expect(phone.locator('.lesson-row')).toHaveCount(SAMPLES)
 })
 
 test('restoring an older backup on a connected device brings back what other devices made since', async ({ browser }) => {

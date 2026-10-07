@@ -53,8 +53,9 @@ review pushes every later one back. Due reviews are listed before new lessons.
 
 ## Lessons
 
-Three original starter lessons (N5–N3, with English and Chinese translations) are
-read aloud by the device's Japanese voice. To add your own, go to **Library →
+Fifteen original starter lessons, three for each JLPT level from N5 to N1, with
+English and Chinese translations, are read aloud by the device's Japanese voice.
+Each device adds any new ones on its next start. To add your own, go to **Library →
 Import**:
 
 - Audio plus an SRT / VTT / LRC transcript: the audio is split into sentences by
@@ -205,6 +206,22 @@ Code layout:
 
 The mic and speech recognition can't run headless, so the e2e tests swap them
 out through `window.__kikitoriFake`. Real-device speech needs checking by hand.
+
+### Starter lessons (MongoDB)
+
+The starter lessons are kept in a local MongoDB (database `kikitori`, collection
+`lessons`). `src/content/samples.json` is their committed export, so building the
+app doesn't need MongoDB. A lesson looks like
+`{ title, level: 'N5'…'N1', lines: [{ ja, en, zh }] }`. After editing lessons:
+
+```bash
+pnpm lessons:export   # MongoDB → src/content/samples.json (checks titles, levels and translations)
+pnpm lessons:import   # samples.json → MongoDB: adds lessons it lacks (a fresh machine), never overwrites
+```
+
+`MONGO_URL` overrides the default `mongodb://127.0.0.1:27017`. The title is the
+sample's id on every device, so a renamed lesson arrives as a new one. Devices
+that already have a lesson keep their copy when it's edited or removed here.
 
 The kuromoji dictionary is served gzipped. The loader checks the gzip magic bytes
 itself, so it works whether or not the host also sends `Content-Encoding: gzip`

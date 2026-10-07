@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { SAMPLES } from './samples'
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
@@ -28,7 +29,7 @@ const readLesson = (page: Page, title: string) =>
 
 test('free practice leaves the schedule and resume point alone, but still marks weak sentences hard', async ({ page }) => {
   await page.goto('./')
-  await expect(page.locator('.lesson-row')).toHaveCount(3)
+  await expect(page.locator('.lesson-row')).toHaveCount(SAMPLES)
   // A scheduled session in progress: first study, shadowing step, sentence 3.
   const scheduledResume = { round: 0, stepIndex: 1, sentenceIndex: 3 }
   await page.evaluate(
@@ -78,7 +79,7 @@ test('free practice leaves the schedule and resume point alone, but still marks 
 
 test('mastered lessons can still be practised', async ({ page }) => {
   await page.goto('./')
-  await expect(page.locator('.lesson-row')).toHaveCount(3)
+  await expect(page.locator('.lesson-row')).toHaveCount(SAMPLES)
   await page.evaluate(
     () =>
       new Promise<void>((resolve) => {

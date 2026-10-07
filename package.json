@@ -15,7 +15,9 @@
     "prebuild": "node scripts/copy-dict.mjs && node scripts/build-jmdict.mjs",
     "e2e": "playwright test",
     "dev:worker": "pnpm build && wrangler d1 migrations apply kikitori --local && node scripts/large-assets.mjs upload --local && wrangler dev",
-    "worker:smoke": "node scripts/worker-smoke.mjs"
+    "worker:smoke": "node scripts/worker-smoke.mjs",
+    "lessons:export": "node scripts/lessons.mjs export",
+    "lessons:import": "node scripts/lessons.mjs import"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",
@@ -43,6 +45,7 @@
     "@vitejs/plugin-react": "^6.1.1",
     "fake-indexeddb": "^6.2.5",
     "jsdom": "^30.1.1",
+    "mongodb": "^7.7.0",
     "oxlint": "^1.81.0",
     "playwright": "^1.63.0",
     "typescript": "~6.0.2",

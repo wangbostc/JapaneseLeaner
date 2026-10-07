@@ -69,10 +69,11 @@ describe('sync bookkeeping', () => {
     const { seedOnce } = await import('./seed')
     const s = createStore(new KikitoriDB(fresh()))
     await seedOnce(s)
+    const { sampleLessons } = await import('../content/samples')
     const uids = (await s.db.lessons.toArray()).map((l) => l.uid)
-    expect(uids).toEqual(['sample:私の朝', 'sample:週末のカフェ', 'sample:雨の日の過ごし方'])
+    expect(uids).toEqual(sampleLessons().map((l) => `sample:${l.title}`))
     // The oldest possible version: a tombstone from another device always beats it.
-    expect((await s.db.lessons.toArray()).map((l) => l.updatedAt)).toEqual([0, 0, 0])
+    expect((await s.db.lessons.toArray()).map((l) => l.updatedAt)).toEqual(uids.map(() => 0))
     s.db.close()
   })
 

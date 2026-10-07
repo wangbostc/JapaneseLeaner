@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { SAMPLES } from './samples'
 
 const SENTENCES = [
   '私は毎朝六時に起きます。',
@@ -28,7 +29,7 @@ test('first study round end to end', async ({ page }) => {
   await fakeSpeech(page)
   await page.goto('./')
   await expect(page.getByRole('link', { name: /私の朝/ })).toBeVisible()
-  await expect(page.locator('.lesson-row')).toHaveCount(3)
+  await expect(page.locator('.lesson-row')).toHaveCount(SAMPLES)
   await shot(page, '01-today')
 
   await page.getByRole('link', { name: /私の朝/ }).click()
@@ -97,7 +98,7 @@ test('first study round end to end', async ({ page }) => {
 
   // Back on Today: the lesson moved to "Coming up"; the saved word is a due card.
   await page.getByRole('link', { name: 'Back to Today' }).click()
-  await expect(page.locator('.lesson-row')).toHaveCount(3)
+  await expect(page.locator('.lesson-row')).toHaveCount(SAMPLES)
   await expect(page.getByText('Review 1/7')).toBeVisible()
   await expect(page.getByText('2 cards to review')).toBeVisible()
   await shot(page, '08-today-after')
