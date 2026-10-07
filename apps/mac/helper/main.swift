@@ -60,7 +60,8 @@ final class Speaker: NSObject, AVSpeechSynthesizerDelegate {
   }
   private func finished(_ u: AVSpeechUtterance, stopped: Bool) {
     guard let id = ids.removeValue(forKey: ObjectIdentifier(u)), running.removeValue(forKey: id) != nil else { return }
-    send(["id": id, "ok": true, "stopped": stopped || stopping.remove(id) != nil])
+    let asked = stopping.remove(id) != nil
+    send(["id": id, "ok": true, "stopped": stopped || asked])
   }
   func speechSynthesizer(_ s: AVSpeechSynthesizer, didFinish u: AVSpeechUtterance) { finished(u, stopped: false) }
   func speechSynthesizer(_ s: AVSpeechSynthesizer, didCancel u: AVSpeechUtterance) { finished(u, stopped: true) }
@@ -103,7 +104,12 @@ final class Playback: NSObject, AVAudioPlayerDelegate {
     }
     players[id] = (p, timer)
     running[id] = { [weak self] stopped in self?.done(id, stopped: stopped) }
-    p.play()
+    if !p.play() {
+      timer.invalidate()
+      players.removeValue(forKey: id)
+      running.removeValue(forKey: id)
+      throw NSError(domain: "kikitori", code: 1, userInfo: [NSLocalizedDescriptionKey: "the output device refused to play"])
+    }
   }
   func done(_ id: Int, stopped: Bool) {
     guard let (p, timer) = players.removeValue(forKey: id) else { return }
@@ -197,6 +203,10 @@ final class Listener {
   }
 
   private func complete() {
+    // Also reached on the recogniser's own final result mid-recording (server recognition caps
+    // audio at about a minute): the mic must close then too, or it stays live and the next
+    // listen's installTap throws.
+    closeMic()
     finishing?.cancel()
     finishing = nil
     task = nil
@@ -271,7 +281,7 @@ func handle(_ msg: [String: Any]) {
     } catch { fail(id, "can't play: \(error.localizedDescription)") }
   case "listen":
     guard let path = msg["path"] as? String else { return fail(id, "path required") }
-    if running[listener.id] != nil { listener.cancel() }
+    listener.cancel() // whatever state the last attempt was left in
     // Reserved while permissions are asked: a stop meanwhile ends the call.
     running[id] = { _ in
       running.removeValue(forKey: id)
