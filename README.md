@@ -266,6 +266,7 @@ bun run --cwd apps/mac dev      # from source, with data in apps/mac/.dev-data
 bun run test:mac                # UI tests in gpuix's test renderer (macOS)
 bun run --cwd apps/mac build    # apps/mac/build/Kikitori.app (ad-hoc signed)
 bun apps/mac/scripts/shot.ts    # run it in the background and save screenshots
+bun apps/mac/scripts/build-icon.ts  # after editing apps/mac/assets/icon*.svg: rebuilds the committed AppIcon.icns (needs `bunx playwright install chromium`)
 ```
 
 The built app keeps its data in `~/Library/Application Support/Kikitori`. Set

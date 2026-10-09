@@ -1,0 +1,46 @@
+<!-- Kikitori's macOS app icon: the web app's mark (public/favicon.svg) on Apple's 1024 grid.
+     Regenerate AppIcon.icns with: bun apps/mac/scripts/build-icon.ts -->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <path id="body" d="M382.8 100.0 L641.2 100.0 C722.6 100.0 763.3 100.0 800.1 108.3 C856.0 125.9 898.1 168.0 915.7 223.9 C924.0 260.7 924.0 301.4 924.0 382.8 L924.0 641.2 C924.0 722.6 924.0 763.3 915.7 800.1 C898.1 856.0 856.0 898.1 800.1 915.7 C763.3 924.0 722.6 924.0 641.2 924.0 L382.8 924.0 C301.4 924.0 260.7 924.0 223.9 915.7 C168.0 898.1 125.9 856.0 108.3 800.1 C100.0 763.3 100.0 722.6 100.0 641.2 L100.0 382.8 C100.0 301.4 100.0 260.7 108.3 223.9 C125.9 168.0 168.0 125.9 223.9 108.3 C260.7 100.0 301.4 100.0 382.8 100.0 Z"/>
+    <clipPath id="clip"><use href="#body" xlink:href="#body"/></clipPath>
+    <linearGradient id="body-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#34549c"/>
+      <stop offset="0.45" stop-color="#2c4a8c"/>
+      <stop offset="1" stop-color="#1f3670"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.08" r="0.75">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.10"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.28"/>
+      <stop offset="0.3" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="0.7" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.18"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fffdf8"/>
+      <stop offset="1" stop-color="#efe8d8"/>
+    </linearGradient>
+    <radialGradient id="dot" cx="0.5" cy="0.42" r="0.6">
+      <stop offset="0" stop-color="#d04b31"/>
+      <stop offset="1" stop-color="#bd3b24"/>
+    </radialGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#000" flood-opacity="0.32"/>
+    </filter>
+    <filter id="lift" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#0b1633" flood-opacity="0.30"/>
+    </filter>
+  </defs>
+  <use href="#body" xlink:href="#body" fill="url(#body-grad)" filter="url(#shadow)"/>
+  <g clip-path="url(#clip)">
+    <use href="#body" xlink:href="#body" fill="url(#glow)"/>
+    <use href="#body" xlink:href="#body" fill="none" stroke="url(#rim)" stroke-width="8"/>
+  </g>
+  <g filter="url(#lift)">
+    <path d="M641.73 319.66 A232 232 0 1 1 303.48 410.30" fill="none" stroke="url(#ring)" stroke-width="92" stroke-linecap="round"/>
+    <circle cx="512" cy="512" r="86" fill="url(#dot)"/>
+  </g>
+</svg>

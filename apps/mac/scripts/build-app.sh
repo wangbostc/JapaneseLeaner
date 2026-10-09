@@ -20,6 +20,8 @@ NATIVE=$(bun -e "const p = require('path'); const n = p.dirname(Bun.resolveSync(
 cp "$NATIVE/gpuix-native.darwin-arm64.node" "$APP/Contents/Frameworks/"
 cp -R "$(dirname "$(bun -e "console.log(Bun.resolveSync('kuromoji/package.json', '$ROOT/packages/core'))")")/dict" "$APP/Contents/Resources/dict"
 cp "$ROOT/public/pitch/accents.json" "$APP/Contents/Resources/pitch/"
+# The app icon (built from assets/icon.svg by scripts/build-icon.ts, and committed).
+cp assets/AppIcon.icns "$APP/Contents/Resources/"
 cp "$ROOT/public/jmdict/common.json" "$ROOT/public/jmdict/examples.json" "$APP/Contents/Resources/jmdict/"
 
 cat > "$APP/Contents/Info.plist" <<PLIST
@@ -31,6 +33,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleName</key><string>Kikitori</string>
   <key>CFBundleDisplayName</key><string>Kikitori</string>
   <key>CFBundleExecutable</key><string>kikitori</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>$VERSION</string>
   <key>CFBundleVersion</key><string>1</string>

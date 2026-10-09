@@ -1,0 +1,7 @@
+<!-- The icon for 16 and 32 px (Finder lists, the menu bar's app switcher): no shadows, a bolder
+     ring and dot, so the dot stays vermilion instead of blurring into the indigo. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <path d="M382.8 100.0 L641.2 100.0 C722.6 100.0 763.3 100.0 800.1 108.3 C856.0 125.9 898.1 168.0 915.7 223.9 C924.0 260.7 924.0 301.4 924.0 382.8 L924.0 641.2 C924.0 722.6 924.0 763.3 915.7 800.1 C898.1 856.0 856.0 898.1 800.1 915.7 C763.3 924.0 722.6 924.0 641.2 924.0 L382.8 924.0 C301.4 924.0 260.7 924.0 223.9 915.7 C168.0 898.1 125.9 856.0 108.3 800.1 C100.0 763.3 100.0 722.6 100.0 641.2 L100.0 382.8 C100.0 301.4 100.0 260.7 108.3 223.9 C125.9 168.0 168.0 125.9 223.9 108.3 C260.7 100.0 301.4 100.0 382.8 100.0 Z" fill="#2c4a8c"/>
+  <path d="M641.73 319.66 A232 232 0 1 1 303.48 410.30" fill="none" stroke="#f6f3ec" stroke-width="112" stroke-linecap="round"/>
+  <circle cx="512" cy="512" r="100" fill="#d8472e"/>
+</svg>
