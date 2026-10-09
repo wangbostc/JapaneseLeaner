@@ -3,7 +3,7 @@ import { VoiceCredit } from '../components/VoiceCredit'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useSettings } from '../app/useSettings'
 import { useDictionary } from '../app/useDictionary'
-import { holdSync } from '../app/sync'
+import { holdSync, syncIdle } from '../app/sync'
 import { Icon } from '../components/Icon'
 import { ExampleSentences } from '../components/ExampleSentences'
 import { Meanings } from '../components/Meanings'
@@ -66,6 +66,18 @@ function CardModePicker() {
 /** Keys from text fields and the like are theirs, not shortcuts. */
 const typing = (target: EventTarget | null) =>
   target instanceof HTMLElement && (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable)
+
+/**
+ * Controls focused by a click or tap (not by the keyboard). A control reached with the keyboard
+ * keeps its own Space and Enter (a keyboard user picks a mode or presses Undo that way); one
+ * merely clicked doesn't, and Space still shows the answer. (:focus-visible can't tell: a key
+ * pressed on a clicked button makes it match.)
+ */
+const clicked = new WeakSet<Element>()
+/** What the last pointer press landed on, until the focus it brings. */
+let pressed: Element | null = null
+const ownsSpace = (target: EventTarget | null) =>
+  target instanceof Element && !clicked.has(target) && !!target.closest('button, a, [role="button"]') && !target.closest('[data-testid="show-answer"]')
 
 export function Cards() {
   const { t, settings } = useSettings()
@@ -132,6 +144,9 @@ export function Cards() {
     if (busy || !last) return
     setBusy(true)
     try {
+      // A sync already under way may be sending this grade: once it's done, the store knows
+      // whether the server has it (and refuses the undo if so).
+      await syncIdle()
       const undone = await store.undoGrade(last)
       setUndos((u) => u.slice(0, -1))
       if (undone) {
@@ -164,7 +179,11 @@ export function Cards() {
   useLayoutEffect(() => {
     onKey.current = (e) => {
       if (e.repeat || e.ctrlKey || e.metaKey || e.altKey || typing(e.target)) return
+      if ((e.key === ' ' || e.key === 'Enter') && ownsSpace(e.target)) return
       const action = cardKey(e.key, flipped)
+      // With the answer showing, Space has nothing to do: not scroll the page, nor click the
+      // button the mouse last pressed.
+      if (action === null && e.key === ' ') e.preventDefault()
       if (action === null) return
       if (action === 'flip') {
         if (!card) return
@@ -186,8 +205,21 @@ export function Cards() {
   })
   useEffect(() => {
     const listener = (e: KeyboardEvent) => onKey.current(e)
+    const pointer = (e: PointerEvent) => (pressed = e.target instanceof Element ? e.target : null)
+    const focus = (e: FocusEvent) => {
+      if (!(e.target instanceof Element)) return
+      if (pressed && e.target.contains(pressed)) clicked.add(e.target)
+      else clicked.delete(e.target)
+      pressed = null
+    }
     window.addEventListener('keydown', listener)
-    return () => window.removeEventListener('keydown', listener)
+    window.addEventListener('pointerdown', pointer, true)
+    window.addEventListener('focusin', focus)
+    return () => {
+      window.removeEventListener('keydown', listener)
+      window.removeEventListener('pointerdown', pointer, true)
+      window.removeEventListener('focusin', focus)
+    }
   }, [])
 
   // Hold syncing while reviewing, so the last grade stays undoable; let it run while the

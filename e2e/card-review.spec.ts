@@ -69,8 +69,15 @@ test('Listen hides the Japanese until the answer', async ({ page }) => {
   await expect(page.getByTestId('core-label')).toHaveText('Core 3,500 · #1')
   await expect(card).not.toContainText(CORE[0][0])
 
-  // Space shows the answer, not a click on the focused mode button.
-  await page.getByTestId('card-mode-read').focus()
+  // A mode button reached with the keyboard keeps its Space (a keyboard user picks a mode so)...
+  await page.getByTestId('card-mode-listen').focus()
+  await page.keyboard.press('Shift+Tab')
+  await expect(page.getByTestId('card-mode-read')).toBeFocused()
+  await page.keyboard.press('Space')
+  await expect(page.getByTestId('card-mode-read')).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByTestId('card-back')).toHaveCount(0)
+  // ...but one clicked with the mouse doesn't: Space shows the answer.
+  await page.getByTestId('card-mode-listen').click()
   await page.keyboard.press('Space')
   await expect(card).toContainText(CORE[0][0])
   await expect(page.getByTestId('card-back')).toBeVisible()
