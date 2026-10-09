@@ -22,7 +22,7 @@ export function WordSheet({ pick, onClose }: { pick: WordPick; onClose: () => vo
     <Col style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'flex-end' }}>
       <Pressable testId="sheet-backdrop" onPress={onClose} style={{ flexGrow: 1, backgroundColor: C.scrim, cursor: 'default' }} />
       {/* Across the window; its contents lined up with the page's. */}
-      <Col style={{ alignItems: 'center', padding: 24, backgroundColor: C.panel, borderTopWidth: 1, borderColor: C.line }}>
+      <Col style={{ alignItems: 'center', paddingTop: 24, paddingBottom: 24, paddingLeft: PAGE_PADDING, paddingRight: PAGE_PADDING, backgroundColor: C.panel, borderTopWidth: 1, borderColor: C.line }}>
         <Col testId="word-sheet" style={{ gap: 12, maxWidth: PAGE_WIDTH - 2 * PAGE_PADDING, width: '100%' }}>
           <Row style={{ gap: 12, alignItems: 'flex-end' }}>
             <Text size={30} ja weight={600}>
