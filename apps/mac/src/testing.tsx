@@ -94,17 +94,26 @@ export async function open({ transcripts = [], picks = [], newWordsPerDay = 0, e
         return app.getByTestId(testId).count()
       }, { timeout: 5000 })
       .toBeGreaterThan(0)
-  /** Clicks an element once it's there, first scrolling the page so it's inside the window. */
+  /**
+   * Clicks an element once it's there, first scrolling the page so it's inside the window: down
+   * to one below it, or up to one scrolled away above (under the tab bar). How far either goes
+   * depends on the screen: the test window is capped at its height.
+   */
   const click = async (testId: string) => {
     await appears(testId)
     const target = app.getByTestId(testId)
     const box = await target.bounds()
     const { height } = renderer.getWindowSize()
-    if (box.y + box.height > height) {
+    // The page scrolls under the tab bar (the scroll area's own bounds move with its content).
+    const tab = await app.getByTestId('tab-cards').bounds()
+    const top = tab.y + tab.height
+    const below = box.y + box.height - height
+    const above = top - box.y
+    if (below > 0 || above > 0) {
       // scrollIntoView doesn't move this test renderer's scroll areas; scrollTo does.
       const page = (await app.getByTestId('scroll').element()).id
       const [x, y] = renderer.getScrollOffset(page) ?? [0, 0]
-      renderer.scrollTo(page, x, y - (box.y + box.height - height + 40))
+      renderer.scrollTo(page, x, below > 0 ? y - (below + 40) : Math.min(0, y + above + 40))
       // A scroll applies on the next frame: let time pass and paint before clicking.
       renderer.flush()
       renderer.advanceTime(50)
