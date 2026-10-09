@@ -31,6 +31,10 @@ describe('recall prompts', () => {
     expect(recallPrompt({ kind: 'word', front: '天気', reading: 'てんき' }, dict)).toEqual(['weather; the elements', 'fair weather'])
   })
 
+  it('asks for a word by the meaning it came with, when it has one (a private lesson’s word list)', () => {
+    expect(recallPrompt({ kind: 'word', front: '天気', reading: 'てんき', gloss: 'the weather' }, dict)).toEqual(['the weather'])
+  })
+
   it('asks for a sentence by its translation', () => {
     expect(recallPrompt({ kind: 'sentence', front: '雨です。', reading: '' }, dict, 'It is raining.')).toEqual(['It is raining.'])
   })

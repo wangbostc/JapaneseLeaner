@@ -4,6 +4,7 @@ import { backupContract } from '@kikitori/core/test/contracts/backup'
 import { coreWordsContract } from '@kikitori/core/test/contracts/coreWords'
 import { databaseContract } from '@kikitori/core/test/contracts/database'
 import { seedContract } from '@kikitori/core/test/contracts/seed'
+import { privateLessonsContract } from '@kikitori/core/test/contracts/privateLessons'
 import { storeContract } from '@kikitori/core/test/contracts/store'
 import { describe, expect, it } from 'vitest'
 import { sqliteDatabase, type SqlDriver } from './sqliteDatabase'
@@ -19,6 +20,7 @@ const sqlite: Backend = {
 databaseContract(sqlite)
 storeContract(sqlite)
 seedContract(sqlite)
+privateLessonsContract(sqlite)
 backupContract(sqlite)
 coreWordsContract(sqlite)
 

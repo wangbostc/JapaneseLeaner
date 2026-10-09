@@ -35,8 +35,10 @@ export function modeOf(card: Pick<Flashcard, 'uid' | 'front'>, setting: CardMode
  * answer shows them), or a sentence's translation. Null when there is none, and the card is then
  * read instead (as is a word while the dictionary is unavailable).
  */
-export function recallPrompt(card: Pick<Flashcard, 'kind' | 'front' | 'reading'>, dict: Dictionary | null, translation?: string): string[] | null {
+export function recallPrompt(card: Pick<Flashcard, 'kind' | 'front' | 'reading' | 'gloss'>, dict: Dictionary | null, translation?: string): string[] | null {
   if (card.kind === 'sentence') return translation ? [translation] : null
+  // A meaning the card came with (a private lesson's word list) asks best: it's the one learned.
+  if (card.gloss) return [card.gloss]
   const entry = dict?.lookup(card.front, card.reading)[0]
   return entry?.senses.length ? entry.senses.map((s) => s.glosses.join('; ')) : null
 }

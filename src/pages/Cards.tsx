@@ -322,6 +322,11 @@ export function Cards() {
               {card.reading}
             </div>
             {card.kind === 'word' && <PitchAccent word={card.front} reading={card.reading} />}
+            {card.gloss && (
+              <p className="card-gloss" data-testid="card-gloss">
+                {card.gloss}
+              </p>
+            )}
             {card.kind === 'word' && <Meanings word={card.front} reading={card.reading} />}
             {translation && <p className="translation">{translation}</p>}
             {card.kind === 'word' && <ExampleSentences word={card.front} reading={card.reading} />}

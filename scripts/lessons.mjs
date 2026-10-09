@@ -13,6 +13,10 @@
 // The title is the sample's identity on every device (uid `sample:<title>`), so titles are
 // unique, and renaming a lesson makes it a new sample. Devices that already have a sample keep
 // it when it is edited or removed here: only new titles reach them.
+//
+// Private lessons (a textbook of the learner's own, like Genki) live in `privateLessons`, which
+// this script never reads: samples.json is public. The macOS app reads those itself
+// (@kikitori/core/privateLessons). A lesson here that looks like one stops the export.
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { MongoClient } from 'mongodb'
@@ -46,9 +50,23 @@ const plain = (l) => ({ title: l.title, level: l.level, lines: l.lines.map(({ ja
 
 const perLevel = (lessons) => LEVELS.map((lv) => `${lv} ${lessons.filter((l) => l.level === lv).length}`).join(', ')
 
+/** Fields only a private lesson has, and the books whose text mustn't be published. */
+const PRIVATE_FIELDS = ['book', 'chapter', 'label', 'audio', 'vocab', 'private']
+const PRIVATE_TITLE = /genki|げんき|tobira|とびら/i
+
+/** Throws naming any lesson that looks private, before anything is written to samples.json. */
+function refusePrivate(docs) {
+  const found = docs.filter((d) => PRIVATE_FIELDS.some((f) => f in d) || PRIVATE_TITLE.test(d.title ?? ''))
+  if (found.length)
+    throw new Error(
+      `not exported: ${found.map((d) => d.title).join(', ')} look like private lessons, and samples.json is public. Keep them in the privateLessons collection.`,
+    )
+}
+
 async function exportLessons(lessons) {
   // Easiest first, then in the order they were added: a fresh install seeds them in this order.
   const docs = await lessons.find().sort({ _id: 1 }).toArray()
+  refusePrivate(docs)
   const out = docs.map(plain).sort((a, b) => LEVELS.indexOf(a.level) - LEVELS.indexOf(b.level))
   check(out)
   writeFileSync(FILE, JSON.stringify(out, null, 2) + '\n')

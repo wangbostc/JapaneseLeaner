@@ -5,6 +5,7 @@ import { backupContract } from '@kikitori/core/test/contracts/backup'
 import { coreWordsContract } from '@kikitori/core/test/contracts/coreWords'
 import { databaseContract } from '@kikitori/core/test/contracts/database'
 import { seedContract } from '@kikitori/core/test/contracts/seed'
+import { privateLessonsContract } from '@kikitori/core/test/contracts/privateLessons'
 import { storeContract } from '@kikitori/core/test/contracts/store'
 import { describe, it } from 'vitest'
 
@@ -15,6 +16,7 @@ if (onBun) {
   databaseContract(bun)
   storeContract(bun)
   seedContract(bun)
+  privateLessonsContract(bun)
   backupContract(bun)
   coreWordsContract(bun)
 } else {

@@ -15,6 +15,7 @@
     "@gpuix/react": "0.10.0",
     "@kikitori/core": "workspace:*",
     "@kikitori/sqlite": "workspace:*",
+    "mongodb": "^7.7.0",
     "react": "^19.3.0"
   },
   "devDependencies": {
