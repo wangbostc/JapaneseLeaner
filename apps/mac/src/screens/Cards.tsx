@@ -3,6 +3,7 @@ import type { Flashcard } from '@kikitori/core/model'
 import { previewIntervals, Rating, type Grade } from '@kikitori/core/srs'
 import { useEffect, useMemo, useState } from 'react'
 import { useApp, useQuery } from '../context'
+import { ExampleSentences } from '../ui/ExampleSentences'
 import { Meanings } from '../ui/Meanings'
 import { PitchAccent } from '../ui/PitchAccent'
 import { Button, Col, Pressable, Row, Text } from '../ui/primitives'
@@ -110,6 +111,7 @@ export function Cards() {
             {card.kind === 'word' && <PitchAccent word={card.front} reading={card.reading} />}
             {card.kind === 'word' && <Meanings word={card.front} reading={card.reading} />}
             {translation && <Text color={C.dim}>{translation}</Text>}
+            {card.kind === 'word' && <ExampleSentences word={card.front} reading={card.reading} />}
           </Col>
         )}
         <Row style={{ gap: 12, alignItems: 'center' }}>

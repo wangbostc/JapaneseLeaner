@@ -113,6 +113,10 @@ your browser supports.
   [CC BY-SA 4.0](https://www.edrdg.org/edrdg/licence.html). The JSON conversion is
   from [jmdict-simplified](https://github.com/scriptin/jmdict-simplified). It's
   downloaded at build time, pinned to a release and verified by checksum.
+- **Example sentences** on flashcards are from [Tatoeba](https://tatoeba.org) (the Tanaka
+  Corpus), by its contributors, under [CC BY 2.0 FR](https://tatoeba.org/en/terms_of_use),
+  as JMdict links them to its entries (jmdict-simplified's `jmdict-examples-eng` asset). Each
+  sentence links to its Tatoeba page, which names its author.
 - **kuromoji.js** (Apache 2.0) with **IPADIC** © NAIST.
 - **UniDic 3.1.0** (cwj) © The UniDic Consortium, used under the BSD 3-Clause licence
   (`public/pitch/UNIDIC-LICENSE.txt`). `public/pitch/accents.json` is derived from it by
@@ -129,12 +133,15 @@ your browser supports.
 JMdict is revised regularly. EDRDG asks apps to keep their copy current, and to refresh it at least every few months.
 
 1. Pick the newest release at https://github.com/scriptin/jmdict-simplified/releases.
-2. Write its tag and the sha256 of `jmdict-eng-common-<tag>.json.tgz` into
+2. Write its tag, the sha256 of `jmdict-eng-common-<tag>.json.tgz` (`sha256`) and the sha256
+   of `jmdict-examples-eng-<tag>.json.tgz` (`examplesSha256`) into
    `scripts/jmdict-release.json`. That file is the only place the version lives. The build
-   script and the service-worker cache name (so returning visitors get the new data) both
-   read it.
+   script and the service-worker cache names (so returning visitors get the new data) both
+   read it. Its `format` is the built files' layout: bump it when the build script changes
+   what it writes.
 3. Run `bun install` (or `node scripts/build-jmdict.mjs`). The script sees that the built
-   file is from a different release and rebuilds it.
+   files are from a different release (or format) and rebuilds both: `common.json` (meanings)
+   and `examples.json` (example sentences, in the same order as the entries).
 4. Run `bun run test && bun run e2e`, then open a PR.
 
 ## Backend (Cloudflare Workers)

@@ -15,6 +15,8 @@ export const C = {
   danger: '#ff7b72',
   dangerBg: '#3a2224',
   hard: '#3b3320',
+  /** An example sentence's word. */
+  mark: '#28406b',
   scrim: '#000000aa',
 }
 

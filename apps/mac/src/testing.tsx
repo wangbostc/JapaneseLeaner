@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { connectTest } from '@gpuix/react/automation'
 import { createTestRoot } from '@gpuix/react/testing'
+import { createExamples, type ExamplesData } from '@kikitori/core/examples'
 import { createDictionary, type DictData } from '@kikitori/core/jmdict'
 import { createAccentTable } from '@kikitori/core/pitch'
 import { seedOnce } from '@kikitori/core/seed'
@@ -24,11 +25,14 @@ import { memoryPrefs } from './platform/prefs'
 import type { MacSettings } from './settings'
 
 export const DICT: DictData = {
+  release: 'test',
   version: 'test',
   dictDate: '2026-01-01',
   tags: { n: 'noun', adv: 'adverb' },
   entries: [[['毎朝'], ['まいあさ'], [[['n', 'adv'], ['every morning']]]]],
 }
+
+export const EXAMPLES: ExamplesData = { release: 'test', format: 2, examples: [[['毎朝六時に起きます。', 'I get up at six every morning.', '毎朝', 1234, 0]]] }
 
 /** The whole app on an in-memory database with the real starter lessons, in a test window. */
 export interface OpenOptions {
@@ -59,6 +63,7 @@ export async function open({ transcripts = [], picks = [], newWordsPerDay = 0, e
     store,
     analyzer: await testAnalyzer(),
     dictionary: async () => createDictionary(DICT),
+    examples: async () => createExamples(EXAMPLES, createDictionary(DICT)),
     accents: async () => createAccentTable({ accents: { '毎朝|まいあさ': '0' } }),
     settings: { lang: 'en', furigana: true, translation: true, chunks: false, rate: 1, newWordsPerDay, ...settings },
     prefs,

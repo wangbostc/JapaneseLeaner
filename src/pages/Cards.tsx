@@ -3,6 +3,7 @@ import { VoiceCredit } from '../components/VoiceCredit'
 import { useEffect, useMemo, useState } from 'react'
 import { useSettings } from '../app/useSettings'
 import { Icon } from '../components/Icon'
+import { ExampleSentences } from '../components/ExampleSentences'
 import { Meanings } from '../components/Meanings'
 import { PitchAccent } from '../components/PitchAccent'
 import { type Flashcard } from '@kikitori/core/model'
@@ -91,6 +92,7 @@ export function Cards() {
             {card.kind === 'word' && <PitchAccent word={card.front} reading={card.reading} />}
             {card.kind === 'word' && <Meanings word={card.front} reading={card.reading} />}
             {translation && <p className="translation">{translation}</p>}
+            {card.kind === 'word' && <ExampleSentences word={card.front} reading={card.reading} />}
           </div>
         )}
         <button className="btn ghost" onClick={() => speak(card.kind === 'word' ? card.front : card.context, settings.rate, settings.voiceURI)}>
