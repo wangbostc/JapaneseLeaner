@@ -44,7 +44,18 @@ const MAX_RESULTS = 3
  * Each names the entry by a spelling it has (the kana itself for an entry with no kanji: さん is
  * the honorific, not 酸). Checked in packages/core/src/jmdict.data.test.ts.
  */
-export const USUAL_ENTRY: Record<string, string> = { いる: '居る', そう: '然う', つく: '付く', もの: '物', たち: '達', さん: 'さん' }
+export const USUAL_ENTRY: Record<string, string> = {
+  いる: '居る',
+  そう: '然う',
+  つく: '付く',
+  もの: '物',
+  たち: '達',
+  さん: 'さん',
+  あと: '後',
+  きのう: '昨日',
+  なん: '何',
+  かね: '金',
+}
 
 /**
  * How common a written word is: its rank among the 3,500 core words (by frequency), keyed by
@@ -76,10 +87,20 @@ export function createDictionary(data: DictData): Dictionary {
    * spelling's, or, for a word written in kana, the kana's own (`kanaRank`): よく, a core word in
    * kana, is 良く, not 翼 (also a core word, but written in kanji).
    */
-  const frequency = (i: number, kanaRank: number) => {
+  const frequency = (i: number, kanaRank: number, word: string, read: string | null) => {
     const [kanji, kana] = data.entries[i]
     let best = kanaWord(i) ? kanaRank : Infinity
-    for (const k of kanji) for (const r of kana) best = Math.min(best, CORE_RANK.get(`${k}|${toHiragana(r)}`) ?? Infinity)
+    // Only the form looked up counts: an entry listing it as a minor variant doesn't borrow its
+    // main form's rank (わけ isn't 理由, read りゆう; 家 read うち isn't 内). `read` is null for a
+    // word in kanji looked up without a reading: any of that spelling's readings count.
+    const inKanji = /\p{Script=Han}/u.test(word)
+    for (const k of kanji) {
+      if (inKanji && k !== word) continue
+      for (const r of kana) {
+        const h = toHiragana(r)
+        if (read === null || h === read) best = Math.min(best, CORE_RANK.get(`${k}|${h}`) ?? Infinity)
+      }
+    }
     return best
   }
 
@@ -91,8 +112,9 @@ export function createDictionary(data: DictData): Dictionary {
      * Entries for a dictionary form, best first. With a reading, entries that
      * are read that way come first (e.g. 今日 read きょう before こんにち); then
      * those spelled exactly so (ホット before ほっと, which kana folding joins);
-     * then the more common word (かえる: 帰る, not 蛙). Among the rest, a word
-     * looked up in kana prefers entries written in kana: こと is 事, not 琴.
+     * then the more common word (かえる: 帰る, not 蛙; こと, a core word in kana,
+     * is 事, usually written so, not 琴). Among the rest, a word looked up in kana
+     * prefers an entry with no kanji (かしら, the particle), then JMdict's order.
      */
     lookup(word, reading) {
       const hits = index.get(word) ?? index.get(toHiragana(word)) ?? []
@@ -100,7 +122,10 @@ export function createDictionary(data: DictData): Dictionary {
       const reads = (i: number) => want !== null && data.entries[i][1].some((k) => toHiragana(k) === want)
       const spelled = (i: number) => data.entries[i][0].includes(word) || data.entries[i][1].includes(word)
       const inKana = !/\p{Script=Han}/u.test(word)
-      const kana = (i: number) => inKana && kanaWord(i)
+      // Past frequency, only an entry with no kanji at all is preferred for a word in kana (かしら,
+      // the particle): "usually written in kana" alone doesn't make an entry the usual meaning
+      // (ならう is 習う, not 倣う). It counts above, for core words written in kana.
+      const kana = (i: number) => inKana && data.entries[i][0].length === 0
       const kanaRank = inKana ? (CORE_RANK.get(`${word}|${toHiragana(word)}`) ?? Infinity) : Infinity
       const usual = (i: number) => {
         const [kanji, kana] = data.entries[i]
@@ -108,7 +133,9 @@ export function createDictionary(data: DictData): Dictionary {
       }
       // Higher is better in every place: matches the reading, spelled so, the usual entry, more
       // common, written in kana.
-      const rank = (i: number) => [Number(reads(i)), Number(spelled(i)), Number(usual(i)), -frequency(i, kanaRank), Number(kana(i))]
+      // The reading the word is looked up by: given, or the word itself when written in kana.
+      const read = want ?? (inKana ? toHiragana(word) : null)
+      const rank = (i: number) => [Number(reads(i)), Number(spelled(i)), Number(usual(i)), -frequency(i, kanaRank, word, read), Number(kana(i))]
       return [...hits]
         .sort((a, b) => {
           const [ra, rb] = [rank(a), rank(b)]

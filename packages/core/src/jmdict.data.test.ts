@@ -36,9 +36,15 @@ describe.runIf(built)('the built dictionary and examples', () => {
       ['たち', '達'], ['みる', '見る'], ['いく', '行く'], ['いう', '言う'], ['かう', '買う'], ['かえる', '帰る'],
       ['ひく', '引く'], ['かく', '書く'], ['おす', '押す'], ['はし', '橋'], ['くも', '雲'], ['やすい', '安い'],
       ['あい', '愛'], ['できる', '出来る'], ['わかる', '分かる'], ['つく', '付く'], ['とる', '取る'], ['まつ', '待つ'],
+      ['わけ', '訳'], ['かわ', '川'], ['たま', '玉'], ['こおり', '氷'], ['ならう', '習う'], ['あと', '後'], ['きのう', '昨日'],
+      ['なん', '何'], ['ただす', '正す'], ['かね', '金'],
     ]
     expect(everyday.filter(([word, kanji]) => !dict.lookup(word, word)[0].kanji.includes(kanji))).toEqual([])
     expect(dict.lookup('さん', 'さん')[0].kanji).toEqual([]) // the honorific, not 酸
+    expect(dict.lookup('かしら', 'かしら')[0].kanji).toEqual([]) // "I wonder", not 頭 (read あたま)
+    // An entry listing a spelling as a minor variant doesn't win by its main form's frequency.
+    expect(dict.lookup('家', 'うち')[0].kanji[0]).toBe('家')
+    expect(dict.lookup('着く')[0].kanji[0]).toBe('着く')
   })
 
   it('has examples for nearly every core word, each with its word in the sentence', () => {
