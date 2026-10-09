@@ -45,6 +45,13 @@ export function newLessonRow(input: NewLesson & { mediaId?: number; mediaUid?: s
 }
 
 /** The app's operations on lessons, cards and logs, over any storage backend. */
+/** A card as it was before a grade, to undo it. */
+export interface GradeUndo {
+  id: number
+  card: Flashcard['card']
+  updatedAt: Flashcard['updatedAt']
+}
+
 export function createStore(database: Database) {
   return {
     db: database,
@@ -151,10 +158,27 @@ export function createStore(database: Database) {
 
     dueCards: (now = Date.now()) => database.cards.dueBy(new Date(now)),
 
-    async gradeCard(id: number, grade: Grade, now = Date.now()) {
+    /** Grades a card; returns what it was before (for undoGrade), or null if it's gone. */
+    async gradeCard(id: number, grade: Grade, now = Date.now()): Promise<GradeUndo | null> {
       const c = await database.cards.get(id)
-      if (!c) return
+      if (!c) return null
       await database.cards.update(id, { card: review(c.card, grade, new Date(now)) })
+      return { id, card: c.card, updatedAt: c.updatedAt }
+    },
+
+    /**
+     * Puts a graded card back as it was, if the grade hasn't been sent to the server: once it
+     * has, the server keeps the later review (merge.ts), so an undo would come back undone.
+     * The card's own updatedAt comes back too, so nothing is left to sync (and an unreviewed
+     * core card stays unsynced). Returns whether it was undone.
+     */
+    async undoGrade(before: GradeUndo): Promise<boolean> {
+      return database.transaction(async () => {
+        const c = await database.cards.get(before.id)
+        if (!c || (c.syncedVersion !== undefined && c.syncedVersion === c.updatedAt)) return false
+        await database.cards.update(before.id, { card: before.card, updatedAt: before.updatedAt })
+        return true
+      })
     },
 
     async log(entry: Omit<PracticeLog, 'id' | 'lessonUid'>) {

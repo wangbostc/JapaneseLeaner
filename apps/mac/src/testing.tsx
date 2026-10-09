@@ -65,7 +65,7 @@ export async function open({ transcripts = [], picks = [], newWordsPerDay = 0, e
     dictionary: async () => createDictionary(DICT),
     examples: async () => createExamples(EXAMPLES, createDictionary(DICT)),
     accents: async () => createAccentTable({ accents: { '毎朝|まいあさ': '0' } }),
-    settings: { lang: 'en', furigana: true, translation: true, chunks: false, rate: 1, newWordsPerDay, ...settings },
+    settings: { lang: 'en', furigana: true, translation: true, chunks: false, rate: 1, newWordsPerDay, cardMode: 'read', ...settings },
     prefs,
     keys: keyEvents(),
     audio,

@@ -84,6 +84,31 @@ export function storeContract(backend: Backend) {
     expect((await s.dueCards(due)).map((c) => c.front)).toEqual(['天気'])
   })
 
+  it('undoes a grade not yet synced, leaving nothing to sync', async () => {
+    const id = await lesson('a')
+    const c = await s.addCard({ lessonId: id, kind: 'word', front: '天気', reading: 'てんき', context: '' }, T0)
+    const before = (await s.db.cards.get(c))!
+    const undo = (await s.gradeCard(c, Rating.Easy, T0 + H))!
+    expect((await s.db.cards.get(c))!.updatedAt).toBeGreaterThan(before.updatedAt!)
+    expect(await s.undoGrade(undo)).toBe(true)
+    const after = (await s.db.cards.get(c))!
+    expect(after.card).toEqual(before.card)
+    expect(after.updatedAt).toBe(before.updatedAt)
+    expect((await s.dueCards(T0 + H)).map((x) => x.front)).toEqual(['天気'])
+  })
+
+  it('keeps a grade the server already has', async () => {
+    const id = await lesson('a')
+    const c = await s.addCard({ lessonId: id, kind: 'word', front: '天気', reading: 'てんき', context: '' }, T0)
+    const undo = (await s.gradeCard(c, Rating.Good, T0 + H))!
+    // As sync marks a pushed card: its version is the server's.
+    const graded = (await s.db.cards.get(c))!
+    await s.db.cards.update(c, { syncedVersion: graded.updatedAt })
+    expect(await s.undoGrade(undo)).toBe(false)
+    expect((await s.db.cards.get(c))!.card).toEqual(graded.card)
+    expect(await s.gradeCard(999_999, Rating.Good, T0)).toBeNull()
+  })
+
   it('deletes a lesson with its cards', async () => {
     const id = await lesson('a')
     await s.addCard({ lessonId: id, kind: 'sentence', front: 'x', reading: 'x', context: 'x' }, T0)

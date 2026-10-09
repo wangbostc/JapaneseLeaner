@@ -3,6 +3,7 @@ import { DEFAULT_NEW_WORDS_PER_DAY } from '@kikitori/core/coreWords'
 import { STRINGS } from '@kikitori/core/i18n'
 import { sanitizeSettings } from './sanitizeSettings'
 import { SettingsContext, type Settings } from './useSettings'
+import { DEFAULT_CARD_MODE } from '@kikitori/core/review'
 
 const KEY = 'kikitori.settings'
 
@@ -13,6 +14,7 @@ const defaults = (): Settings => ({
   chunks: true,
   rate: 1,
   newWordsPerDay: DEFAULT_NEW_WORDS_PER_DAY,
+  cardMode: DEFAULT_CARD_MODE,
 })
 
 function load(): Settings {

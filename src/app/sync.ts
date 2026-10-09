@@ -127,6 +127,10 @@ let again = false
 let applying = false
 
 export function syncNow(): Promise<void> {
+  if (holds > 0) {
+    waiting = true
+    return Promise.resolve()
+  }
   if (running) {
     again = true
     return running
@@ -159,6 +163,26 @@ export function syncNow(): Promise<void> {
     }
   })()
   return running
+}
+
+/**
+ * While held, syncing waits (and runs once the last hold is released). Reviewing cards holds it,
+ * so the last grade stays undoable: a grade the server has can't be undone (merge.ts).
+ */
+let holds = 0
+let waiting = false
+export function holdSync(): () => void {
+  holds++
+  let released = false
+  return () => {
+    if (released) return
+    released = true
+    holds--
+    if (holds === 0 && waiting) {
+      waiting = false
+      void syncNow()
+    }
+  }
 }
 
 const DEBOUNCE_MS = 4000

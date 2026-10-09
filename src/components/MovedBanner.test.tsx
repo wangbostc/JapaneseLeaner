@@ -4,7 +4,7 @@ import { STRINGS } from '@kikitori/core/i18n'
 import { SettingsContext, type Settings } from '../app/useSettings'
 import { MovedBanner } from './MovedBanner'
 
-const settings: Settings = { lang: 'en', furigana: true, translation: true, chunks: false, rate: 1, newWordsPerDay: 10 }
+const settings: Settings = { lang: 'en', furigana: true, translation: true, chunks: false, rate: 1, newWordsPerDay: 10, cardMode: 'read' }
 const render = (to?: string, lang: Settings['lang'] = 'en') =>
   renderToString(
     <SettingsContext.Provider value={{ settings: { ...settings, lang }, update: () => {}, t: STRINGS[lang] }}>
