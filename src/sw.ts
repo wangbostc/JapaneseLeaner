@@ -29,8 +29,15 @@ registerRoute(({ url }) => url.pathname.includes('/dict/'), cacheFirst('kuromoji
 // Word meanings and example sentences; the caches are named after the pinned JMdict release and
 // the files' format, so either change replaces them.
 const jmdictCache = `${jmdictRelease.version}-f${jmdictRelease.format}`
-registerRoute(({ url }) => url.pathname.endsWith('/jmdict/common.json'), cacheFirst(`jmdict-${jmdictCache}`, 2))
-registerRoute(({ url }) => url.pathname.endsWith('/jmdict/examples.json'), cacheFirst(`jmdict-examples-${jmdictCache}`, 2))
+const JMDICT_CACHES = [`jmdict-${jmdictCache}`, `jmdict-examples-${jmdictCache}`]
+registerRoute(({ url }) => url.pathname.endsWith('/jmdict/common.json'), cacheFirst(JMDICT_CACHES[0], 2))
+registerRoute(({ url }) => url.pathname.endsWith('/jmdict/examples.json'), cacheFirst(JMDICT_CACHES[1], 2))
+// The copies from earlier releases or formats are never read again: a few MB each, so drop them.
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((names) => Promise.all(names.filter((n) => n.startsWith('jmdict-') && !JMDICT_CACHES.includes(n)).map((n) => caches.delete(n)))),
+  )
+})
 // Pitch accents (UniDic aType), fetched on first use; named after the UniDic release the file came from.
 registerRoute(({ url }) => url.pathname.endsWith('/pitch/accents.json'), cacheFirst('pitch-unidic-cwj-3.1.0', 2))
 

@@ -27,14 +27,18 @@ describe.runIf(built)('the built dictionary and examples', () => {
       return isKana(word) && !kanaEntry(entry.index) && !entry.kanji.includes(USUAL_ENTRY[word])
     })
     expect(wrong).toEqual([])
-    // The ones it used to get wrong.
-    const first = (word: string) => dict.lookup(word, word)[0]
-    expect(first('いる').kanji).toContain('居る')
-    expect(first('つく').kanji).toContain('付く')
-    expect(first('そう').kanji).toContain('然う')
-    expect(first('こと').kanji).toContain('事')
-    expect(first('この').kanji).not.toContain('九')
-    expect(first('よう').kanji).not.toContain('酔う')
+  })
+
+  it('finds the everyday word for words written in kana, not a rarer one spelled the same', () => {
+    // Checked by hand, not by the lookup's own rules: what a learner reading these means.
+    const everyday: [string, string][] = [
+      ['いる', '居る'], ['こと', '事'], ['この', '此の'], ['よう', '様'], ['よく', '良く'], ['また', '又'], ['もの', '物'],
+      ['たち', '達'], ['みる', '見る'], ['いく', '行く'], ['いう', '言う'], ['かう', '買う'], ['かえる', '帰る'],
+      ['ひく', '引く'], ['かく', '書く'], ['おす', '押す'], ['はし', '橋'], ['くも', '雲'], ['やすい', '安い'],
+      ['あい', '愛'], ['できる', '出来る'], ['わかる', '分かる'], ['つく', '付く'], ['とる', '取る'], ['まつ', '待つ'],
+    ]
+    expect(everyday.filter(([word, kanji]) => !dict.lookup(word, word)[0].kanji.includes(kanji))).toEqual([])
+    expect(dict.lookup('さん', 'さん')[0].kanji).toEqual([]) // the honorific, not 酸
   })
 
   it('has examples for nearly every core word, each with its word in the sentence', () => {

@@ -30,7 +30,8 @@ describe('dictionary', () => {
   it('ranks the entry matching the reading first', () => {
     expect(dict.lookup('今日', 'きょう').map((e) => e.kana[0])).toEqual(['きょう', 'こんにち'])
     expect(dict.lookup('今日', 'こんにち').map((e) => e.kana[0])).toEqual(['こんにち', 'きょう'])
-    expect(dict.lookup('今日').map((e) => e.kana[0])).toEqual(['こんにち', 'きょう'])
+    // With no reading, the more common word (今日 read きょう is a core word).
+    expect(dict.lookup('今日').map((e) => e.kana[0])).toEqual(['きょう', 'こんにち'])
   })
 
   it('matches kana regardless of hiragana/katakana', () => {
