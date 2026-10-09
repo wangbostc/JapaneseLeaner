@@ -37,7 +37,7 @@ describe.runIf(built)('the built dictionary and examples', () => {
       ['ひく', '引く'], ['かく', '書く'], ['おす', '押す'], ['はし', '橋'], ['くも', '雲'], ['やすい', '安い'],
       ['あい', '愛'], ['できる', '出来る'], ['わかる', '分かる'], ['つく', '付く'], ['とる', '取る'], ['まつ', '待つ'],
       ['わけ', '訳'], ['かわ', '川'], ['たま', '玉'], ['こおり', '氷'], ['ならう', '習う'], ['あと', '後'], ['きのう', '昨日'],
-      ['なん', '何'], ['ただす', '正す'], ['かね', '金'],
+      ['なん', '何'], ['ただす', '正す'], ['かね', '金'], ['ない', '無い'], ['くらい', '暗い'], ['むし', '虫'], ['ぼうし', '帽子'],
     ]
     expect(everyday.filter(([word, kanji]) => !dict.lookup(word, word)[0].kanji.includes(kanji))).toEqual([])
     expect(dict.lookup('さん', 'さん')[0].kanji).toEqual([]) // the honorific, not 酸
@@ -51,6 +51,10 @@ describe.runIf(built)('the built dictionary and examples', () => {
     const withExamples = CORE_WORDS.filter(([word, reading]) => examples.of(dict.lookup(word, reading)[0]).length > 0)
     expect(withExamples.length).toBeGreaterThan(3200) // 3,303 for 3.6.2
     for (const [word, reading] of CORE_WORDS.slice(0, 200)) for (const e of examples.of(dict.lookup(word, reading)[0])) expect(formRange(e)).not.toBeNull()
+  })
+
+  it('gives ない (core #80) the examples of 無い, not none (the auxiliary has none)', () => {
+    expect(examples.of(dict.lookup('ない', 'ない')[0]).length).toBeGreaterThan(0)
   })
 
   it('gives いる examples of 居る, not 射る', () => {

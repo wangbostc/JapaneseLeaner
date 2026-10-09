@@ -55,6 +55,10 @@ export const USUAL_ENTRY: Record<string, string> = {
   きのう: '昨日',
   なん: '何',
   かね: '金',
+  ない: '無い',
+  くらい: '暗い',
+  むし: '虫',
+  ぼうし: '帽子',
 }
 
 /**
