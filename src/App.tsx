@@ -88,7 +88,7 @@ function Shell() {
 
 export function App() {
   useEffect(() => {
-    seedOnce(store)
+    seedOnce(store).catch((e) => console.error('[seed]', e)) // tried again at the next start
     // Ask the browser not to evict our IndexedDB under storage pressure;
     // everything the learner has done lives only there.
     navigator.storage?.persist?.().catch(() => {})

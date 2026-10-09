@@ -80,7 +80,9 @@ test('a suspended card leaves review until it is resumed', async ({ page }) => {
   await r.getByTestId(/^suspend-/).click()
   await expect(r.getByTestId('card-status')).toHaveText('Suspended')
   await expect(r.getByTestId(/^suspend-/)).toHaveText('Resume')
-  // Suspended ones go last.
+  // It stays in place while open (its Resume at hand); closed, it goes last with the suspended.
+  await expect(rows(page).first()).toContainText(CORE[0][0])
+  await r.locator('.card-row-main').click()
   await expect(rows(page).last()).toContainText(CORE[0][0])
   await page.getByTestId('card-filter-due').click()
   await expect(page.getByTestId('card-count')).toHaveText('9 cards')
@@ -98,6 +100,8 @@ test('a suspended card leaves review until it is resumed', async ({ page }) => {
   r = await open(page, CORE[0][0])
   await r.getByTestId(/^suspend-/).click()
   await expect(r.getByTestId('card-status')).toHaveText('New')
+  // Closed, it takes its place among the due again.
+  await r.locator('.card-row-main').click()
   await expect(rows(page).first()).toContainText(CORE[0][0])
   await page.getByTestId('card-filter-due').click()
   await expect(page.getByTestId('card-count')).toHaveText('10 cards')
@@ -140,7 +144,7 @@ test('All cards is there once everything is reviewed, too', async ({ page }) => 
 
 test('a saved card can be corrected and deleted; a core word keeps its spelling', async ({ page }) => {
   await fresh(page)
-  // Save a word from a lesson (found in the Library: Today lists only what's due by the moment it opened).
+  // Save a word from a lesson.
   await page.goto('./#/library')
   await page.getByRole('link', { name: /私の朝/ }).click()
   await page.getByRole('link', { name: 'Intensive listening' }).click()
@@ -161,7 +165,8 @@ test('a saved card can be corrected and deleted; a core word keeps its spelling'
   // Cancel leaves it as it was.
   await r.getByTestId(/^edit-\d+$/).click()
   await expect(page.getByTestId('edit-front')).toBeEnabled()
-  await expect(page.getByTestId('edit-context')).toHaveValue('私は毎朝六時に起きます。')
+  // The sentence it came from is shown, not edited (it finds the card's translation).
+  await expect(page.locator('.card-editor')).toContainText('私は毎朝六時に起きます。')
   await page.getByTestId('edit-reading').fill('まちがい')
   await page.getByTestId('cancel-edit').click()
   await expect(page.getByTestId('edit-reading')).toHaveCount(0)

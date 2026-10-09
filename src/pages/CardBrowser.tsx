@@ -38,30 +38,37 @@ export function CardBrowser() {
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<Filter>('all')
   const [limit, setLimit] = useState(PAGE)
-  // One row open at a time; editing and confirming a delete belong to it.
-  const [openId, setOpenId] = useState<number | null>(null)
+  // One row open at a time; editing and confirming a delete belong to it. While open, it keeps its
+  // place (as if still suspended or not, as when opened), so suspending it doesn't send it, and its
+  // Resume button, off the page.
+  const [open, setOpen] = useState<{ id: number; suspended: boolean } | null>(null)
+  const openId = open?.id ?? null
   const [editing, setEditing] = useState(false)
   const [confirming, setConfirming] = useState(false)
 
   // Due first (soonest first), then the rest by due date, suspended last.
-  const sorted = useMemo(
-    () => [...(data?.cards ?? [])].sort((a, b) => Number(!!a.suspendedAt) - Number(!!b.suspendedAt) || dueOf(a) - dueOf(b)),
-    [data],
-  )
+  const sorted = useMemo(() => {
+    const suspended = (c: Flashcard) => (open && c.id === open.id ? open.suspended : !!c.suspendedAt)
+    return [...(data?.cards ?? [])].sort((a, b) => Number(suspended(a)) - Number(suspended(b)) || dueOf(a) - dueOf(b))
+  }, [data, open])
   const now = data?.now ?? 0
   const shown = useMemo(() => {
     const q = fold(query.trim())
-    return sorted.filter((c) => matches(filter, c, now) && (!q || [c.front, c.reading, c.context].some((s) => fold(s).includes(q))))
-  }, [sorted, now, query, filter])
+    return sorted.filter(
+      (c) => (c.id === open?.id || matches(filter, c, now)) && (!q || [c.front, c.reading, c.context].some((s) => fold(s).includes(q))),
+    )
+  }, [sorted, now, query, filter, open])
 
   if (!data) return null
 
+  // A new search or filter is a new list: the open row closes (and so takes its usual place).
   const narrow = (next: () => void) => {
     next()
     setLimit(PAGE)
+    setOpen(null)
   }
-  const toggle = (id: number) => {
-    setOpenId((open) => (open === id ? null : id))
+  const toggle = (c: Flashcard) => {
+    setOpen((o) => (o?.id === c.id ? null : { id: c.id!, suspended: !!c.suspendedAt }))
     setEditing(false)
     setConfirming(false)
   }
@@ -107,10 +114,10 @@ export function CardBrowser() {
       ) : (
         <ul className="list card-list">
           {shown.slice(0, limit).map((c) => {
-            const open = openId === c.id
+            const isOpen = openId === c.id
             return (
               <li key={c.id} className={`card-row ${c.suspendedAt ? 'is-suspended' : ''}`} data-testid={`card-row-${c.id}`}>
-                <button type="button" className="card-row-main" aria-expanded={open} onClick={() => toggle(c.id!)}>
+                <button type="button" className="card-row-main" aria-expanded={isOpen} onClick={() => toggle(c)}>
                   <span className="card-row-text">
                     <span className="card-row-front" lang="ja">
                       {c.front}
@@ -128,7 +135,7 @@ export function CardBrowser() {
                     {isCoreCard(c) && <small className="muted">{t.coreWordLabel(coreRank(c))}</small>}
                   </span>
                 </button>
-                {open &&
+                {isOpen &&
                   (editing ? (
                     <CardEditor card={c} onDone={() => setEditing(false)} />
                   ) : (
@@ -146,7 +153,7 @@ export function CardBrowser() {
                         onClick={async () => {
                           if (!confirming) return setConfirming(true)
                           await store.removeCard(c.id!)
-                          setOpenId(null)
+                          setOpen(null)
                           setConfirming(false)
                         }}
                         onBlur={() => setConfirming(false)}
@@ -170,33 +177,42 @@ export function CardBrowser() {
   )
 }
 
-/** Corrects a card's text in place. A core word's spelling is what it is, so it stays fixed. */
+/**
+ * Corrects a card's reading, or a saved word's spelling. A core word's spelling, a sentence card's
+ * text and the sentence a card came from stay as they are (see store.editCard).
+ */
 function CardEditor({ card, onDone }: { card: Flashcard; onDone: () => void }) {
   const { t } = useSettings()
-  const core = isCoreCard(card)
+  const fixed = isCoreCard(card) ? t.coreFrontFixed : card.kind === 'sentence' ? t.sentenceFrontFixed : null
   const [front, setFront] = useState(card.front)
   const [reading, setReading] = useState(card.reading)
-  const [context, setContext] = useState(card.context)
+  const [duplicate, setDuplicate] = useState(false)
   const save = async (e: FormEvent) => {
     e.preventDefault()
-    await store.editCard(card.id!, { ...(core ? {} : { front }), reading: reading.trim(), context: context.trim() })
+    if ((await store.editCard(card.id!, { ...(fixed ? {} : { front }), reading })) === 'duplicate') return setDuplicate(true)
     onDone()
   }
   return (
     <form className="form card-editor" onSubmit={save}>
       <label>
         {t.cardFront}
-        <input lang="ja" value={front} disabled={core} data-testid="edit-front" onChange={(e) => setFront(e.target.value)} />
-        {core && <small className="muted">{t.coreFrontFixed}</small>}
+        <input lang="ja" value={front} disabled={!!fixed} data-testid="edit-front" onChange={(e) => (setFront(e.target.value), setDuplicate(false))} />
+        {fixed && <small className="muted">{fixed}</small>}
+        {duplicate && (
+          <small className="error" data-testid="duplicate-front">
+            {t.duplicateFront}
+          </small>
+        )}
       </label>
       <label>
         {t.cardReading}
         <input lang="ja" value={reading} data-testid="edit-reading" onChange={(e) => setReading(e.target.value)} />
       </label>
-      <label>
-        {t.cardContext}
-        <textarea lang="ja" rows={2} value={context} data-testid="edit-context" onChange={(e) => setContext(e.target.value)} />
-      </label>
+      {card.context && card.context !== card.front && (
+        <p className="muted small" lang="ja">
+          {t.cardContext}: {card.context}
+        </p>
+      )}
       <div className="row">
         <button type="submit" className="btn primary" data-testid="save-card">
           {t.saveCard}

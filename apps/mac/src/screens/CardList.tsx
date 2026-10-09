@@ -28,22 +28,26 @@ const MATCHES: Record<Filter, (c: Flashcard, now: number) => boolean> = {
 /** For search: katakana as hiragana, full-width letters as ASCII, any case. */
 const fold = (s: string) => toHiragana(s.normalize('NFKC')).toLowerCase()
 
-/** Due first, then by due date; suspended cards last. */
-const byDue = (a: Flashcard, b: Flashcard) => Number(!!a.suspendedAt) - Number(!!b.suspendedAt) || dueAt(a) - dueAt(b) || a.id! - b.id!
+/** Due first, then by due date; suspended cards last (`suspended` says which are). */
+const byDue = (suspended: (c: Flashcard) => boolean) => (a: Flashcard, b: Flashcard) =>
+  Number(suspended(a)) - Number(suspended(b)) || dueAt(a) - dueAt(b) || a.id! - b.id!
 
-/** A card's text, corrected; a core word's spelling is its identity, so it stays. */
+/**
+ * A card's reading, or a saved word's spelling, corrected. A core word's spelling, a sentence
+ * card's text and the sentence a card came from stay as they are (see store.editCard).
+ */
 function Editor({ card, onDone }: { card: Flashcard; onDone: () => void }) {
   const { t, store } = useApp()
-  const core = isCoreCard(card)
+  const fixed = isCoreCard(card) ? t.coreFrontFixed : card.kind === 'sentence' ? t.sentenceFrontFixed : undefined
   // Set once: the list re-runs on every change, and mustn't reset what's being typed.
   const [front, setFront] = useState(card.front)
   const [reading, setReading] = useState(card.reading)
-  const [context, setContext] = useState(card.context)
+  const [duplicate, setDuplicate] = useState(false)
   const [busy, setBusy] = useState(false)
   const save = async () => {
     setBusy(true)
     try {
-      await store.editCard(card.id!, { ...(core ? {} : { front }), reading, context })
+      if ((await store.editCard(card.id!, { ...(fixed ? {} : { front }), reading })) === 'duplicate') return setDuplicate(true)
       onDone()
     } finally {
       setBusy(false)
@@ -51,15 +55,22 @@ function Editor({ card, onDone }: { card: Flashcard; onDone: () => void }) {
   }
   return (
     <Col testId="card-editor" style={{ gap: 12 }}>
-      <Field label={t.cardFront} hint={core ? t.coreFrontFixed : undefined}>
-        <TextField testId="edit-front" value={front} onChange={setFront} readOnly={core} />
+      <Field label={t.cardFront} hint={fixed}>
+        <TextField testId="edit-front" value={front} onChange={(v) => (setFront(v), setDuplicate(false))} readOnly={!!fixed} />
+        {duplicate && (
+          <Text testId="duplicate-front" color={C.danger}>
+            {t.duplicateFront}
+          </Text>
+        )}
       </Field>
       <Field label={t.cardReading}>
         <TextField testId="edit-reading" value={reading} onChange={setReading} />
       </Field>
-      <Field label={t.cardContext}>
-        <TextField testId="edit-context" value={context} onChange={setContext} />
-      </Field>
+      {card.context && card.context !== card.front && (
+        <Text ja size={12} color={C.dim}>
+          {`${t.cardContext}: ${card.context}`}
+        </Text>
+      )}
       <Row style={{ gap: 8 }}>
         <Button testId="save-card" label={t.saveCard} variant="primary" disabled={busy} onPress={() => void save()} />
         <Button testId="cancel-edit" label={t.cancelEdit} variant="ghost" onPress={onDone} />
@@ -71,12 +82,15 @@ function Editor({ card, onDone }: { card: Flashcard; onDone: () => void }) {
 export function CardList() {
   const { t, settings, store, navigate } = useApp()
   // Live: a suspend, edit or delete shows at once. `now` is taken with each run.
-  const data = useQuery(async () => ({ cards: (await store.allCards()).sort(byDue), now: Date.now() }), [])
+  const data = useQuery(async () => ({ cards: await store.allCards(), now: Date.now() }), [])
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<Filter>('all')
   const [limit, setLimit] = useState(PAGE)
   // One row open at a time, showing its actions, its editor, or a delete awaiting confirmation.
-  const [open, setOpen] = useState<number | null>(null)
+  // While open, it keeps its place (sorted as when opened), so suspending it doesn't send it, and
+  // its Resume button, off the page.
+  const [opened, setOpened] = useState<{ id: number; suspended: boolean } | null>(null)
+  const open = opened?.id ?? null
   const [editing, setEditing] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -84,12 +98,15 @@ export function CardList() {
   const shown = useMemo(() => {
     if (!data) return []
     const q = fold(search.trim())
-    return data.cards.filter((c) => MATCHES[filter](c, data.now) && (!q || [c.front, c.reading, c.context].some((s) => fold(s).includes(q))))
-  }, [data, search, filter])
+    const suspended = (c: Flashcard) => (opened && c.id === opened.id ? opened.suspended : !!c.suspendedAt)
+    return [...data.cards]
+      .sort(byDue(suspended))
+      .filter((c) => (c.id === opened?.id || MATCHES[filter](c, data.now)) && (!q || [c.front, c.reading, c.context].some((s) => fold(s).includes(q))))
+  }, [data, search, filter, opened])
   if (!data) return null
 
-  const toggle = (id: number) => {
-    setOpen(open === id ? null : id)
+  const toggle = (c: Flashcard) => {
+    setOpened(open === c.id ? null : { id: c.id!, suspended: !!c.suspendedAt })
     setEditing(false)
     setConfirming(false)
   }
@@ -106,7 +123,7 @@ export function CardList() {
     confirming
       ? run(async () => {
           await store.removeCard(id)
-          setOpen(null)
+          setOpened(null)
           setConfirming(false)
         })
       : setConfirming(true)
@@ -139,14 +156,17 @@ export function CardList() {
         onChange={(v) => {
           setSearch(v)
           setLimit(PAGE)
+          setOpened(null)
         }}
       />
       <Choice
         testId="card-filter"
         value={filter}
         onChange={(f) => {
+          // A new list: the open row closes (and so takes its usual place).
           setFilter(f)
           setLimit(PAGE)
+          setOpened(null)
         }}
         options={FILTERS.map((f): [Filter, string] => [f, t.cardFilters[f]])}
       />
@@ -163,7 +183,7 @@ export function CardList() {
             <Col key={id} style={{ borderRadius: 10, backgroundColor: C.panel }}>
               <Pressable
                 testId={`card-row-${id}`}
-                onPress={() => toggle(id)}
+                onPress={() => toggle(c)}
                 style={{ justifyContent: 'space-between', gap: 16, paddingLeft: 14, paddingRight: 14, paddingTop: 10, paddingBottom: 10, borderRadius: 10 }}
                 hover={{ backgroundColor: C.raised }}
               >

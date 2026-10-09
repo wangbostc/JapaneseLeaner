@@ -14,8 +14,9 @@ export const DEFAULT_NEW_WORDS_PER_DAY = 10
 /** A core word's card has the same uid on every device, so introducing it twice never duplicates it. */
 export const coreUid = (word: string) => `core:${word}`
 export const isCoreCard = (card: Pick<Flashcard, 'uid'>) => card.uid?.startsWith('core:') ?? false
+const RANKS = new Map(CORE_WORDS.map(([w], i) => [coreUid(w), i + 1]))
 /** 1-based frequency rank of a core card's word (0 if it isn't one). */
-export const coreRank = (card: Pick<Flashcard, 'uid'>) => (isCoreCard(card) ? CORE_WORDS.findIndex(([w]) => coreUid(w) === card.uid) + 1 : 0)
+export const coreRank = (card: Pick<Flashcard, 'uid'>) => (card.uid && RANKS.get(card.uid)) || 0
 
 /**
  * Adds up to `perDay` new core-word cards a day (counted by local day), most frequent first.

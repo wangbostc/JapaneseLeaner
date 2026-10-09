@@ -282,6 +282,10 @@ describe.runIf(hasNativeTestRenderer)('import, cards, stats and settings', () =>
     await shows('10 cards')
     await click(`card-row-${byRank(1)}`)
     await click(`suspend-${byRank(1)}`)
+    // It stays while open, its Resume at hand; closed, it leaves the due list.
+    await shows('Resume')
+    await shows('10 cards')
+    await click(`card-row-${byRank(1)}`)
     await shows('9 cards')
     expect(await app.getByTestId(`card-row-${byRank(1)}`).count()).toBe(0)
     expect((await db.cards.get(byRank(1)))!.suspendedAt).toBeGreaterThan(0)
@@ -315,6 +319,8 @@ describe.runIf(hasNativeTestRenderer)('import, cards, stats and settings', () =>
     await click(`card-row-${byRank(1)}`)
     await shows(STRINGS.en.resume)
     await click(`suspend-${byRank(1)}`)
+    await shows(STRINGS.en.suspend) // still open, in place
+    await click(`card-row-${byRank(1)}`)
     await shows(STRINGS.en.noMatchingCards)
     expect((await db.cards.get(byRank(1)))!.suspendedAt).toBeUndefined()
     await click('back-to-cards')
