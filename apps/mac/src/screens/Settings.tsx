@@ -8,6 +8,7 @@ import { RATES, sanitizeSettings } from '../settings'
 import { Choice, Field, Toggle } from '../ui/form'
 import { Button, Col, Row, Text } from '../ui/primitives'
 import { C } from '../ui/theme'
+import { VoiceSettings } from './VoiceSettings'
 
 /** kikitori-backup-2026-10-06.json, or -2, -3… if that name is taken. */
 function backupName(dir: string, exists: (p: string) => boolean, now = new Date()) {
@@ -90,6 +91,7 @@ export function Settings() {
       <Field label={t.settingsRate}>
         <Choice testId="rate" value={settings.rate} onChange={(rate) => updateSettings({ rate })} options={RATES.map((r): [number, string] => [r, `${r}×`])} />
       </Field>
+      <VoiceSettings />
       <Field label={t.settingsNewWords} hint={t.settingsNewWordsHint}>
         <Choice
           testId="new-words"

@@ -1,5 +1,7 @@
 import { STRINGS } from '@kikitori/core/i18n'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { engineOf } from '@kikitori/core/voices'
+import { withEngineVoice } from './audio/voices'
 import { AppContext, type App as AppValue, type AppDeps, type Route, type WordPick } from './context'
 import { Cards } from './screens/Cards'
 import { Import } from './screens/Import'
@@ -13,6 +15,9 @@ import { writeSettings, type MacSettings } from './settings'
 import { Col, Pressable, Row, Text } from './ui/primitives'
 import { C } from './ui/theme'
 import { WordSheet } from './ui/WordSheet'
+
+/** How often to ask a closed engine again for the chosen voice's character. */
+const SPEAKER_RETRY_MS = 30_000
 
 type Tab = 'today' | 'library' | 'cards' | 'stats' | 'settings'
 
@@ -84,9 +89,35 @@ export function App({ deps, initialRoute = { name: 'today' } }: { deps: AppDeps;
     [deps.prefs],
   )
   const close = useCallback(() => setWord(null), [])
+  // The voice is read at each sentence, so `audio` (and a study round's player) stays the same
+  // object when it changes.
+  const audio = useMemo(() => withEngineVoice(deps.audio, deps.voices), [deps.audio, deps.voices])
+  // The credit names the voice's character (VOICEVOX's terms require it), so an engine voice
+  // speaks only once its character is known; until then, the Mac's own.
+  const { voiceURI, voiceSpeaker } = settings
+  useEffect(() => audio.setVoice(voiceSpeaker ? voiceURI : undefined), [audio, voiceURI, voiceSpeaker])
+  // A voice chosen while its engine was closed, or restored from a web backup, comes without its
+  // character: ask its engine, again every so often until it answers (without the voice, if it
+  // isn't installed there: Settings says so).
+  useEffect(() => {
+    if (!voiceURI || voiceSpeaker) return
+    let live = true
+    const ask = () =>
+      deps.voices.probe().then(({ voices, up }) => {
+        const speaker = voices.find((v) => v.id === voiceURI)?.speaker
+        if (live && speaker) updateSettings({ voiceSpeaker: speaker })
+        else if (up.includes(engineOf(voiceURI))) clearInterval(timer)
+      })
+    void ask()
+    const timer = setInterval(ask, SPEAKER_RETRY_MS)
+    return () => {
+      live = false
+      clearInterval(timer)
+    }
+  }, [deps.voices, voiceURI, voiceSpeaker, updateSettings])
   const app: AppValue = useMemo(
-    () => ({ ...deps, settings, updateSettings, t: STRINGS[settings.lang], route, navigate, showWord: setWord }),
-    [deps, settings, updateSettings, route, navigate],
+    () => ({ ...deps, audio, settings, updateSettings, t: STRINGS[settings.lang], route, navigate, showWord: setWord }),
+    [deps, audio, settings, updateSettings, route, navigate],
   )
   const { t } = app
   return (

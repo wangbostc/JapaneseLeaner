@@ -14,11 +14,14 @@ import { sqliteDatabase, type SqlDriver } from '@kikitori/sqlite'
 import { expect } from 'vitest'
 import { App } from './App'
 import { fakeAudio } from './audio/audio'
+import { fakeEngineFetch, type FakeEngines } from './audio/fakeEngines'
+import { engineVoices } from './audio/voices'
 import type { AppDeps } from './context'
 import { keyEvents } from './keys'
 import { nodeFiles } from './platform/files'
 import { mediaCache } from './platform/media'
 import { memoryPrefs } from './platform/prefs'
+import type { MacSettings } from './settings'
 
 export const DICT: DictData = {
   version: 'test',
@@ -35,15 +38,21 @@ export interface OpenOptions {
   picks?: (string[] | null)[]
   /** Core words a day (off unless a test is about them, so card counts stay put). */
   newWordsPerDay?: number
+  /** The engines "running" on this Mac (none unless a test is about them). */
+  engines?: FakeEngines
+  /** Settings saved before the app starts, over the tests' defaults. */
+  settings?: Partial<MacSettings>
 }
 
-export async function open({ transcripts = [], picks = [], newWordsPerDay = 0 }: OpenOptions = {}) {
+export async function open({ transcripts = [], picks = [], newWordsPerDay = 0, engines = {}, settings = {} }: OpenOptions = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'kikitori-test-'))
   const db = sqliteDatabase(new DatabaseSync(':memory:') as unknown as SqlDriver)
   const store = createStore(db)
   const prefs = memoryPrefs()
   const audio = fakeAudio(transcripts)
   const media = mediaCache(db, join(dir, 'media'))
+  const engine = fakeEngineFetch(engines)
+  const voices = engineVoices(join(dir, 'voices'), { fetch: engine.fetch })
   await seedOnce(store, () => prefs)
   const deps: AppDeps = {
     db,
@@ -51,10 +60,11 @@ export async function open({ transcripts = [], picks = [], newWordsPerDay = 0 }:
     analyzer: await testAnalyzer(),
     dictionary: async () => createDictionary(DICT),
     accents: async () => createAccentTable({ accents: { '毎朝|まいあさ': '0' } }),
-    settings: { lang: 'en', furigana: true, translation: true, chunks: false, rate: 1, newWordsPerDay },
+    settings: { lang: 'en', furigana: true, translation: true, chunks: false, rate: 1, newWordsPerDay, ...settings },
     prefs,
     keys: keyEvents(),
     audio,
+    voices,
     files: nodeFiles(async () => picks.shift() ?? null),
     mediaPath: media.path,
   }
@@ -97,7 +107,7 @@ export async function open({ transcripts = [], picks = [], newWordsPerDay = 0 }:
     }
     await target.click()
   }
-  return { db, store, deps, audio, prefs, dir, app, painted, shows, hides, lessonId, click, appears }
+  return { db, store, deps, audio, engine, prefs, dir, app, painted, shows, hides, lessonId, click, appears }
 }
 
 export type Opened = Awaited<ReturnType<typeof open>>

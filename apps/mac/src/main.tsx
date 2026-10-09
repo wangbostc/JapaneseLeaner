@@ -13,6 +13,7 @@ import { openBunDatabase } from '@kikitori/sqlite/bun'
 import { App } from './App'
 import { fakeAudio, helperAudio, type Audio } from './audio/audio'
 import { Helper, spawnHelper } from './audio/helper'
+import { engineVoices } from './audio/voices'
 import { keyEvents } from './keys'
 import { nodeFiles } from './platform/files'
 import { mediaCache } from './platform/media'
@@ -80,6 +81,10 @@ const audio: Audio =
         },
       }
     : baseAudio
+// Sentences made by AivisSpeech or VOICEVOX, kept for replays (not in `media`, which is pruned to
+// lessons' audio, nor `recordings`, which each start clears).
+const voices = engineVoices(join(dataDir, 'voices'))
+await voices.prune()
 const prefs = filePrefs(join(dataDir, 'prefs.json'))
 const store = createStore(db)
 await seedOnce(store, () => prefs)
@@ -102,6 +107,7 @@ render(
         prefs,
         keys,
         audio,
+        voices,
         files,
         mediaPath: media.path,
       }}

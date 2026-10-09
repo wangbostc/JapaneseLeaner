@@ -1,6 +1,7 @@
 import { DEFAULT_NEW_WORDS_PER_DAY, NEW_WORDS_PER_DAY } from '@kikitori/core/coreWords'
 import type { UiLang } from '@kikitori/core/model'
 import type { KeyValueStore } from '@kikitori/core/seed'
+import { isEngineVoiceId, type EngineVoiceId } from '@kikitori/core/voices'
 
 /** The macOS app's settings so far (the web app's grow as its features arrive here). */
 export interface MacSettings {
@@ -13,6 +14,10 @@ export interface MacSettings {
   rate: number
   /** Core-word cards added a day (0: off). */
   newWordsPerDay: number
+  /** An AivisSpeech or VOICEVOX voice on this Mac; unset: the Mac's own Japanese voice. */
+  voiceURI?: EngineVoiceId
+  /** The voice's character, for its credit ("VOICEVOX:<character>"); unset until the engine names it. */
+  voiceSpeaker?: string
 }
 
 const KEY = 'kikitori.settings'
@@ -35,7 +40,20 @@ export function sanitizeSettings(saved: unknown, base: MacSettings): MacSettings
     chunks: typeof s.chunks === 'boolean' ? s.chunks : base.chunks,
     rate: typeof s.rate === 'number' && s.rate >= 0.5 && s.rate <= 2 ? s.rate : base.rate,
     newWordsPerDay: (NEW_WORDS_PER_DAY as readonly unknown[]).includes(s.newWordsPerDay) ? (s.newWordsPerDay as number) : base.newWordsPerDay,
+    ...voiceOf(s),
   }
+}
+
+/**
+ * The saved engine voice and its character (kept only with its voice). Without one, the Mac's own
+ * voice: saved with it, or a web backup's Azure or browser voice, which mean nothing here. Both
+ * keys are always there, so a restored backup replaces the current voice rather than merging
+ * into it (a web backup's engine voice comes without its character: the app asks its engine).
+ */
+function voiceOf(s: Record<string, unknown>): Pick<MacSettings, 'voiceURI' | 'voiceSpeaker'> {
+  const voiceURI = typeof s.voiceURI === 'string' && isEngineVoiceId(s.voiceURI) ? s.voiceURI : undefined
+  const voiceSpeaker = voiceURI && typeof s.voiceSpeaker === 'string' && s.voiceSpeaker ? s.voiceSpeaker : undefined
+  return { voiceURI, voiceSpeaker }
 }
 
 /** Saved settings over the defaults. */

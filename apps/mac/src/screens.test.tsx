@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { formatDuration, STRINGS } from '@kikitori/core/i18n'
 import { hasNativeTestRenderer } from '@gpuix/react/testing'
 import { describe, expect, it } from 'vitest'
+import type { FakeEngines } from './audio/fakeEngines'
 import { open } from './testing'
 
 const FIXTURES = join(import.meta.dirname, '../../../e2e/fixtures')
@@ -143,5 +144,80 @@ describe.runIf(hasNativeTestRenderer)('import, cards, stats and settings', () =>
     await click('tab-settings')
     await click('new-words-0')
     expect(JSON.parse(prefs.getItem('kikitori.settings')!)).toMatchObject({ newWordsPerDay: 0 })
+  })
+
+  it('speaks in an AivisSpeech or VOICEVOX voice chosen in Settings, credited, and in the Mac’s own when chosen back', { timeout: 30000 }, async () => {
+    const engines = {
+      aivis: [{ name: 'まお', styles: [{ name: 'ノーマル', id: 888753760 }, { name: 'おちつき', id: 888753763 }] }],
+      voicevox: [
+        { name: '青山龍星', styles: [{ name: 'ノーマル', id: 13 }] },
+        { name: 'ずんだもん', styles: [{ name: 'ノーマル', id: 3 }, { name: 'ハミング', id: 3001, type: 'humming' }] },
+      ],
+    }
+    const o = await open({ engines })
+    const { click, shows, hides, prefs, audio, engine, dir, lessonId } = o
+    await click('tab-settings')
+    await click('voice-aivis')
+    await shows('AivisSpeech is running: 2 voices.')
+    await shows('AivisSpeech:まお') // the default, credited
+    await click('style-aivis:888753763')
+    await click('voice-try')
+    await expect.poll(() => audio.played.length).toBe(1)
+    expect(audio.played[0].path.startsWith(join(dir, 'voices', 'aivis-888753763-'))).toBe(true)
+    expect(engine.made).toEqual([['888753763', STRINGS.en.voiceSample]])
+
+    await click('voice-voicevox')
+    await shows('VOICEVOX:青山龍星')
+    await click('speaker-ずんだもん')
+    await shows('VOICEVOX:ずんだもん')
+    await hides('ハミング') // not a talking voice
+    expect(JSON.parse(prefs.getItem('kikitori.settings')!)).toMatchObject({ voiceURI: 'voicevox:3', voiceSpeaker: 'ずんだもん' })
+
+    // A lesson without audio is read aloud in it, credited.
+    await click('tab-library')
+    await click(`lesson-${await lessonId('私の朝')}`)
+    await shows('VOICEVOX:ずんだもん')
+
+    await click('tab-settings')
+    await click('voice-mac')
+    await hides('VOICEVOX:ずんだもん')
+    await click('voice-try')
+    await expect.poll(() => audio.spoken).toEqual([STRINGS.en.voiceSample])
+    expect(JSON.parse(prefs.getItem('kikitori.settings')!).voiceURI).toBeUndefined()
+  })
+
+  it('says when the chosen engine isn’t running, and finds it once it is', { timeout: 30000 }, async () => {
+    const engines: FakeEngines = {}
+    const o = await open({ engines })
+    const { click, shows, audio } = o
+    await click('tab-settings')
+    await click('voice-voicevox')
+    await shows(STRINGS.en.macEngineMissing('VOICEVOX', 'http://127.0.0.1:50021'))
+    await click('voice-try')
+    await expect.poll(() => audio.spoken).toEqual([STRINGS.en.voiceSample]) // the Mac's own voice meanwhile
+    engines.voicevox = [{ name: '青山龍星', styles: [{ name: 'ノーマル', id: 13 }] }]
+    await click('engine-check')
+    await shows('VOICEVOX is running: 1 voice.')
+    await shows('VOICEVOX:青山龍星') // named now that the engine answers
+    await click('voice-try')
+    await expect.poll(() => audio.played.length).toBe(1) // and speaking in it, credited
+  })
+
+  it('names a voice restored without its character by asking its engine, then speaks in it', { timeout: 30000 }, async () => {
+    const o = await open({ engines: { voicevox: [{ name: '青山龍星', styles: [{ name: 'ノーマル', id: 13 }] }] }, settings: { voiceURI: 'voicevox:13' } })
+    const { click, shows, lessonId, prefs } = o
+    await click('tab-library')
+    await click(`lesson-${await lessonId('私の朝')}`)
+    await shows('VOICEVOX:青山龍星') // without opening Settings
+    expect(JSON.parse(prefs.getItem('kikitori.settings')!)).toMatchObject({ voiceURI: 'voicevox:13', voiceSpeaker: '青山龍星' })
+  })
+
+  it('says when the chosen voice isn’t installed in the running engine', { timeout: 30000 }, async () => {
+    const o = await open({ engines: { aivis: [{ name: 'コハク', styles: [{ name: 'ノーマル', id: 1 }] }] }, settings: { voiceURI: 'aivis:888753760' } })
+    await o.click('tab-settings')
+    await o.shows(STRINGS.en.macVoiceNotInstalled('AivisSpeech'))
+    await o.click('speaker-コハク')
+    await o.hides(STRINGS.en.macVoiceNotInstalled('AivisSpeech'))
+    await o.shows('AivisSpeech:コハク')
   })
 })

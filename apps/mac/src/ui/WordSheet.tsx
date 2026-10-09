@@ -5,6 +5,7 @@ import { Meanings } from './Meanings'
 import { PitchAccent } from './PitchAccent'
 import { Button, Col, Pressable, Row, Text } from './primitives'
 import { C } from './theme'
+import { VoiceCredit } from './VoiceCredit'
 
 /** A tapped word over the page: its reading, pitch and meanings, and a button to save it as a card. */
 export function WordSheet({ pick, onClose }: { pick: WordPick; onClose: () => void }) {
@@ -41,6 +42,7 @@ export function WordSheet({ pick, onClose }: { pick: WordPick; onClose: () => vo
           <Button testId="save-word" label={saved ? t.saved : t.saveWord} variant="primary" onPress={save} disabled={saved} />
           <Button testId="close-sheet" label={t.back} variant="ghost" onPress={onClose} />
         </Row>
+        <VoiceCredit />
       </Col>
     </Col>
   )

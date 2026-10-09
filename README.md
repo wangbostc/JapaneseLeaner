@@ -182,6 +182,7 @@ AivisSpeech speaks VOICEVOX's API, so Kikitori treats them alike. The computer m
      gosu user /opt/voicevox_engine/run --host 0.0.0.0 --allow_origin https://your-kikitori.workers.dev
    ```
 3. On that computer, go to **Settings → Use AivisSpeech / VOICEVOX on this computer**. Their voices appear under **Japanese voice**. The default is AivisSpeech's まお (ノーマル), or VOICEVOX's 青山龍星 (ノーマル) if only VOICEVOX is running.
+   In the macOS app, choose AivisSpeech or VOICEVOX under **Settings → Japanese voice**, then a character and style (no allowed origin is needed there).
 4. On a lesson page, press **Prepare this voice for your other devices**. Every sentence is made on the computer and uploaded, and sentences you just play there are uploaded too.
 5. On your phone, the prepared voice appears under "<engine> (prepared on your computer)". With no Azure, it's the default once anything has been prepared. Sentences that haven't been prepared use the phone's own voice; after one miss, the phone doesn't ask again for 10 minutes.
 
@@ -246,6 +247,12 @@ process and talks to in JSON lines. It reads text aloud (the system's Japanese v
 plays parts of audio files, and recognises speech live while recording. Recognition runs on
 this Mac when Japanese dictation is installed (System Settings → Keyboard → Dictation), and
 on Apple's servers otherwise.
+
+Lessons without audio, cards and words are read aloud in the system's best Japanese voice, or
+in an AivisSpeech or VOICEVOX voice on this Mac: choose it under **Settings → Japanese voice**
+(see [the engines](#voices-from-your-computer-aivisspeech-and-voicevox-free-open-source) for
+setting them up). Each sentence is made once and kept in `voices/` in the app's data folder, so
+replays work with the engine closed. While the engine doesn't answer, the system voice speaks.
 
 ```bash
 bun run --cwd apps/mac dev      # from source, with data in apps/mac/.dev-data

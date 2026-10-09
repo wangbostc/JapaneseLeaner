@@ -8,6 +8,7 @@ import type { Lesson } from '@kikitori/core/model'
 import type { Step } from '@kikitori/core/schedule'
 import type { WatchedDatabase } from '@kikitori/sqlite'
 import type { Audio } from './audio/audio'
+import type { EngineVoices } from './audio/voices'
 import type { KeyValueStore } from '@kikitori/core/seed'
 import type { KeyEvents } from './keys'
 import type { Files } from './platform/files'
@@ -25,7 +26,10 @@ export interface AppDeps {
   settings: MacSettings
   prefs: KeyValueStore
   keys: KeyEvents
+  /** Sound in and out; the app speaks through it in the chosen engine voice, if any. */
   audio: Audio
+  /** AivisSpeech and VOICEVOX on this Mac. */
+  voices: EngineVoices
   files: Files
   /** A file holding the lesson's audio (for the helper to play); null for lessons read aloud. */
   mediaPath: (lesson: Lesson) => Promise<string | null>
