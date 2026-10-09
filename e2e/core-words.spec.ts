@@ -13,6 +13,11 @@ test('a fresh install brings the day’s core words to Cards, most frequent firs
   await expect(page.getByTestId('core-label')).toHaveText('Core 3,500 · #1')
   await page.getByRole('button', { name: 'Show answer' }).click()
   await expect(card.getByTestId('meanings')).toBeVisible()
+  // Example sentences from Tatoeba, the word marked, each linked to its page.
+  const example = card.getByTestId('example').first()
+  await expect(example).toBeVisible()
+  await expect(example.locator('mark').first()).toBeVisible()
+  await expect(example.getByRole('link', { name: /^Tatoeba #\d+$/ })).toHaveAttribute('href', /^https:\/\/tatoeba\.org\/sentences\/\d+$/)
   await page.getByRole('button', { name: /^Good/ }).click()
   await expect(page.getByTestId('core-label')).toHaveText('Core 3,500 · #2')
   await expect(card).toContainText(CORE[1][0])

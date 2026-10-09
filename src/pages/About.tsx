@@ -8,6 +8,7 @@ const SOURCES: { name: string; use: string; licence: string; href: string }[] = 
     licence: 'CC BY-SA 4.0',
     href: 'https://www.edrdg.org/wiki/index.php/JMdict-EDICT_Dictionary_Project',
   },
+  { name: 'Tatoeba', use: 'tatoeba', licence: 'CC BY 2.0 FR', href: 'https://tatoeba.org/en/terms_of_use' },
   {
     name: 'jmdict-simplified',
     use: 'jmdictSimplified',

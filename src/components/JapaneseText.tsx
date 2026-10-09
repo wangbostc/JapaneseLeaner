@@ -1,6 +1,7 @@
 import { Fragment, type ReactNode } from 'react'
 import { phrases, senseGroups, textOf } from '@kikitori/core/chunking'
 import { rubySegments } from '@kikitori/core/furigana'
+import { tokensIn } from '@kikitori/core/examples'
 import { contentLemmas } from '@kikitori/core/scoring'
 import type { Analyzer, Token } from '@kikitori/core/tokenizer'
 
@@ -17,14 +18,41 @@ interface Props {
   /** Accessible label for a group's play button, given its 1-based number; in the UI language. */
   playLabel?: (n: number) => string
   uiLang?: string
+  /** Characters [start, end) to highlight (an example's word), by the tokens that cover them. */
+  mark?: [number, number] | null
 }
 
 /** Japanese text with optional furigana; content words are tappable. */
-export function JapaneseText({ text, analyzer, furigana, onWord, className, chunked, onPlayGroup, playLabel, uiLang }: Props) {
-  if (!analyzer) return <span className={className} lang="ja">{text}</span>
+export function JapaneseText({ text, analyzer, furigana, onWord, className, chunked, onPlayGroup, playLabel, uiLang, mark }: Props) {
+  if (!analyzer) {
+    if (!mark) return <span className={className} lang="ja">{text}</span>
+    return (
+      <span className={className} lang="ja">
+        {text.slice(0, mark[0])}
+        <mark>{text.slice(mark[0], mark[1])}</mark>
+        {text.slice(mark[1])}
+      </span>
+    )
+  }
   const tokens = analyzer.tokenize(text)
+  const marked = tokensIn(
+    text,
+    tokens.map((t) => t.surface),
+    mark ?? null,
+  )
   const renderToken = (t: Token, i: number) => {
-    const inner = furigana
+    const inner = marked.has(i) ? <mark key={i}>{plain(t)}</mark> : plain(t)
+    const tappable = onWord && contentLemmas([t]).size > 0
+    return tappable ? (
+      <button key={i} type="button" className="word" onClick={() => onWord(t)}>
+        {inner}
+      </button>
+    ) : (
+      <Fragment key={i}>{inner}</Fragment>
+    )
+  }
+  function plain(t: Token) {
+    return furigana
       ? rubySegments(t).map((seg, k) =>
           seg.ruby ? (
             <ruby key={k}>
@@ -36,14 +64,6 @@ export function JapaneseText({ text, analyzer, furigana, onWord, className, chun
           ),
         )
       : t.surface
-    const tappable = onWord && contentLemmas([t]).size > 0
-    return tappable ? (
-      <button key={i} type="button" className="word" onClick={() => onWord(t)}>
-        {inner}
-      </button>
-    ) : (
-      <Fragment key={i}>{inner}</Fragment>
-    )
   }
 
   if (!chunked) return <span className={className} lang="ja">{tokens.map(renderToken)}</span>

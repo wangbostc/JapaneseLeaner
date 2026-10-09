@@ -26,8 +26,11 @@ const cacheFirst = (cacheName: string, maxEntries: number) =>
 registerRoute(({ url }) => /\/assets\/(transcribe\.worker-[^/]+\.js|[^/]+\.wasm)$/.test(url.pathname), cacheFirst('asr-runtime', 8))
 // Versioned with kuromoji so a dictionary upgrade isn't masked by the old cache.
 registerRoute(({ url }) => url.pathname.includes('/dict/'), cacheFirst('kuromoji-dict-0.1.2', 20))
-// Word meanings; the cache is named after the pinned JMdict release.
-registerRoute(({ url }) => url.pathname.endsWith('/jmdict/common.json'), cacheFirst(`jmdict-${jmdictRelease.version}`, 2))
+// Word meanings and example sentences; the caches are named after the pinned JMdict release and
+// the files' format, so either change replaces them.
+const jmdictCache = `${jmdictRelease.version}-f${jmdictRelease.format}`
+registerRoute(({ url }) => url.pathname.endsWith('/jmdict/common.json'), cacheFirst(`jmdict-${jmdictCache}`, 2))
+registerRoute(({ url }) => url.pathname.endsWith('/jmdict/examples.json'), cacheFirst(`jmdict-examples-${jmdictCache}`, 2))
 // Pitch accents (UniDic aType), fetched on first use; named after the UniDic release the file came from.
 registerRoute(({ url }) => url.pathname.endsWith('/pitch/accents.json'), cacheFirst('pitch-unidic-cwj-3.1.0', 2))
 

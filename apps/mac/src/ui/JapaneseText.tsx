@@ -1,5 +1,6 @@
 import { phrases } from '@kikitori/core/chunking'
 import { rubySegments } from '@kikitori/core/furigana'
+import { tokensIn } from '@kikitori/core/examples'
 import { contentLemmas } from '@kikitori/core/scoring'
 import type { Analyzer, Token } from '@kikitori/core/tokenizer'
 import { Col, Pressable, Row, Text } from './primitives'
@@ -16,18 +17,25 @@ interface Props {
   size?: number
   /** Prefix for each word's testId (`<prefix>-<token index>`), unique per page. */
   testIdPrefix?: string
+  /** Characters [start, end) to highlight (an example's word), by the tokens that cover them. */
+  mark?: [number, number] | null
 }
 
 /**
  * Japanese text with furigana. gpuix has no ruby, so each word is a small column (reading over
  * the text), and the words wrap as boxes in a row.
  */
-export function JapaneseText({ text, analyzer, furigana, onWord, chunked, size = 22, testIdPrefix = 'word' }: Props) {
+export function JapaneseText({ text, analyzer, furigana, onWord, chunked, size = 22, testIdPrefix = 'word', mark }: Props) {
   const tokens = analyzer.tokenize(text)
+  const marked = tokensIn(
+    text,
+    tokens.map((t) => t.surface),
+    mark ?? null,
+  )
   const rubySize = Math.round(size * 0.5)
   const word = (tok: Token, i: number, gapAfter: boolean) => {
     const body = (
-      <Row style={{ alignItems: 'flex-end', ...(gapAfter ? { marginRight: size * 0.4 } : {}) }}>
+      <Row style={{ alignItems: 'flex-end', ...(gapAfter ? { marginRight: size * 0.4 } : {}), ...(marked.has(i) ? { backgroundColor: C.mark, borderRadius: 3 } : {}) }}>
         {(furigana ? rubySegments(tok) : [{ text: tok.surface }]).map((seg, k) => (
           <Col key={k} style={{ alignItems: 'center' }}>
             {furigana && (

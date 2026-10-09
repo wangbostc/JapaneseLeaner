@@ -71,6 +71,11 @@ describe.runIf(hasNativeTestRenderer)('import, cards, stats and settings', () =>
     await shows('1 of 1')
     await click('show-answer')
     await shows('1. every morning · noun, adverb')
+    // Its example sentence, with its translation and source; played in the chosen voice.
+    await shows('I get up at six every morning.')
+    await shows('Tatoeba #1234')
+    await click('play-example-0')
+    await expect.poll(() => o.audio.spoken).toContain('毎朝六時に起きます。')
     await click('grade-3') // Good
     await shows('All caught up.')
     const graded = (await db.cards.get(card))!

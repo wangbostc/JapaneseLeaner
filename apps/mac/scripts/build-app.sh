@@ -20,7 +20,7 @@ NATIVE=$(bun -e "const p = require('path'); const n = p.dirname(Bun.resolveSync(
 cp "$NATIVE/gpuix-native.darwin-arm64.node" "$APP/Contents/Frameworks/"
 cp -R "$(dirname "$(bun -e "console.log(Bun.resolveSync('kuromoji/package.json', '$ROOT/packages/core'))")")/dict" "$APP/Contents/Resources/dict"
 cp "$ROOT/public/pitch/accents.json" "$APP/Contents/Resources/pitch/"
-cp "$ROOT/public/jmdict/common.json" "$APP/Contents/Resources/jmdict/"
+cp "$ROOT/public/jmdict/common.json" "$ROOT/public/jmdict/examples.json" "$APP/Contents/Resources/jmdict/"
 
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>

@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { Strings } from '@kikitori/core/i18n'
 import type { AccentTable } from '@kikitori/core/pitch'
+import type { Examples } from '@kikitori/core/examples'
 import type { Dictionary } from '@kikitori/core/jmdict'
 import type { Store } from '@kikitori/core/store'
 import type { Analyzer, Token } from '@kikitori/core/tokenizer'
@@ -21,6 +22,8 @@ export interface AppDeps {
   analyzer: Analyzer
   /** JMdict and the pitch-accent table, loaded on first use; null when unavailable. */
   dictionary: () => Promise<Dictionary | null>
+  /** Example sentences for the dictionary's entries, loaded on first use; null when unavailable. */
+  examples: () => Promise<Examples | null>
   accents: () => Promise<AccentTable | null>
   /** Settings at start; they change through `updateSettings`, saved in `prefs`. */
   settings: MacSettings

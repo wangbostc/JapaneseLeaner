@@ -351,6 +351,14 @@ ruby rt { font-size: 0.5em; color: var(--muted); letter-spacing: 0; }
 .sources a { color: var(--accent); font-weight: 600; }
 .sources li { gap: 12px; align-items: flex-start; }
 .meanings.loading { min-height: 3.2em; }
+.examples { text-align: left; width: 100%; }
+.examples h3 { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin: 12px 0 4px; }
+.examples ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.example-ja { display: flex; align-items: flex-start; gap: 6px; font-size: 1.1rem; }
+.example-ja mark { background: var(--accent-soft); color: var(--ink); border-radius: 4px; padding: 0 1px; }
+.example-ja .btn { flex: none; padding: 2px 8px; }
+.examples .translation { margin: 2px 0 0; }
+.example-source { font-size: 0.7rem; color: var(--muted); }
 .explain { margin-top: 10px; }
 .explain .btn.ghost { padding-left: 0; color: var(--accent); }
 .explain-body {

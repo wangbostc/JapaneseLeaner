@@ -3,6 +3,7 @@ import { homedir } from 'node:os'
 import { appendFileSync, mkdirSync, rmSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { render } from '@gpuix/react'
+import { createExamples, type ExamplesData } from '@kikitori/core/examples'
 import { createDictionary, type DictData } from '@kikitori/core/jmdict'
 import { createAccentTable } from '@kikitori/core/pitch'
 import { introduceCoreWords } from '@kikitori/core/coreWords'
@@ -28,6 +29,7 @@ const repo = join(import.meta.dir, '../../..')
 const resources = {
   dict: bundled ? join(dirname(process.execPath), '../Resources/dict') : join(dirname(Bun.resolveSync('kuromoji/package.json', import.meta.dir)), 'dict'),
   jmdict: bundled ? join(dirname(process.execPath), '../Resources/jmdict/common.json') : join(repo, 'public/jmdict/common.json'),
+  examples: bundled ? join(dirname(process.execPath), '../Resources/jmdict/examples.json') : join(repo, 'public/jmdict/examples.json'),
   accents: bundled ? join(dirname(process.execPath), '../Resources/pitch/accents.json') : join(repo, 'public/pitch/accents.json'),
   helper: bundled ? join(dirname(process.execPath), 'kikitori-audio') : join(import.meta.dir, '../build/kikitori-audio'),
 }
@@ -48,6 +50,13 @@ const optionalJson = <T,>(path: string, make: (data: never) => T) =>
       return null // not built (JMdict comes from postinstall) or unreadable: the UI leaves it out
     }
   })
+
+const dictionary = optionalJson(resources.jmdict, (data: DictData) => createDictionary(data))
+// Example sentences only with the dictionary they were built for (null otherwise).
+const examples = once(async () => {
+  const data = await optionalJson(resources.examples, (data: ExamplesData) => data)()
+  return createExamples(data, await dictionary())
+})
 
 const db = openBunDatabase(join(dataDir, 'kikitori.db'))
 
@@ -101,7 +110,8 @@ render(
         db,
         store,
         analyzer,
-        dictionary: optionalJson(resources.jmdict, (data: DictData) => createDictionary(data)),
+        dictionary,
+        examples,
         accents: optionalJson(resources.accents, (data: { accents: Record<string, string> }) => createAccentTable(data)),
         settings,
         prefs,
