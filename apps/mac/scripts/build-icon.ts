@@ -5,7 +5,7 @@
 import { execFileSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { chromium } from '@playwright/test'
 
 const assets = join(import.meta.dir, '../assets')
@@ -27,19 +27,23 @@ const FILES: [string, number][] = [
 ]
 
 const iconset = join(mkdtempSync(join(tmpdir(), 'kikitori-icon-')), 'AppIcon.iconset')
-execFileSync('mkdir', ['-p', iconset])
-const browser = await chromium.launch()
 try {
-  const page = await browser.newPage()
-  for (const [file, px] of FILES) {
-    await page.setViewportSize({ width: px, height: px })
-    const drawing = (px <= 32 ? small : full).replace(/width="1024" height="1024"/, `width="${px}" height="${px}"`)
-    await page.setContent(`<html><body style="margin:0;background:transparent">${drawing}</body></html>`)
-    await page.screenshot({ path: join(iconset, file), omitBackground: true, clip: { x: 0, y: 0, width: px, height: px } })
+  execFileSync('mkdir', ['-p', iconset])
+  // Needs Playwright's Chromium: bunx playwright install chromium
+  const browser = await chromium.launch()
+  try {
+    const page = await browser.newPage()
+    for (const [file, px] of FILES) {
+      await page.setViewportSize({ width: px, height: px })
+      const drawing = (px <= 32 ? small : full).replace(/width="1024" height="1024"/, `width="${px}" height="${px}"`)
+      await page.setContent(`<html><body style="margin:0;background:transparent">${drawing}</body></html>`)
+      await page.screenshot({ path: join(iconset, file), omitBackground: true, clip: { x: 0, y: 0, width: px, height: px } })
+    }
+  } finally {
+    await browser.close()
   }
+  execFileSync('iconutil', ['-c', 'icns', iconset, '-o', join(assets, 'AppIcon.icns')])
 } finally {
-  await browser.close()
+  rmSync(dirname(iconset), { recursive: true, force: true })
 }
-execFileSync('iconutil', ['-c', 'icns', iconset, '-o', join(assets, 'AppIcon.icns')])
-rmSync(join(iconset, '..'), { recursive: true, force: true })
 console.log(`wrote ${join(assets, 'AppIcon.icns')}`)
