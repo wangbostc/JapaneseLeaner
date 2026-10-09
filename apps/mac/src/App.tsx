@@ -1,5 +1,6 @@
 import { STRINGS } from '@kikitori/core/i18n'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { engineOf } from '@kikitori/core/voices'
 import { withEngineVoice } from './audio/voices'
 import { AppContext, type App as AppValue, type AppDeps, type Route, type WordPick } from './context'
 import { Cards } from './screens/Cards'
@@ -96,14 +97,16 @@ export function App({ deps, initialRoute = { name: 'today' } }: { deps: AppDeps;
   const { voiceURI, voiceSpeaker } = settings
   useEffect(() => audio.setVoice(voiceSpeaker ? voiceURI : undefined), [audio, voiceURI, voiceSpeaker])
   // A voice chosen while its engine was closed, or restored from a web backup, comes without its
-  // character: ask its engine, again every so often until it answers.
+  // character: ask its engine, again every so often until it answers (without the voice, if it
+  // isn't installed there: Settings says so).
   useEffect(() => {
     if (!voiceURI || voiceSpeaker) return
     let live = true
     const ask = () =>
-      deps.voices.probe().then(({ voices }) => {
+      deps.voices.probe().then(({ voices, up }) => {
         const speaker = voices.find((v) => v.id === voiceURI)?.speaker
         if (live && speaker) updateSettings({ voiceSpeaker: speaker })
+        else if (up.includes(engineOf(voiceURI))) clearInterval(timer)
       })
     void ask()
     const timer = setInterval(ask, SPEAKER_RETRY_MS)

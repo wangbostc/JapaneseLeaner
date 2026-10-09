@@ -298,6 +298,7 @@ const en = {
   macEngineMissing: (engine: string, url: string) =>
     `${engine} isn’t answering at ${url}. Open it (or start its Docker engine) and keep it running; until then, this Mac’s own voice speaks.`,
   macCheckAgain: 'Check again',
+  macVoiceNotInstalled: (engine: string) => `The chosen voice isn’t installed in ${engine} here: choose another. Until then, this Mac’s own voice speaks.`,
   // Core words
   settingsNewWords: 'New core words per day',
   settingsNewWordsHint: 'Flashcards for the 3,500 most frequent Japanese words, most frequent first. Words you’ve already saved are skipped.',
@@ -592,6 +593,7 @@ const zh: Strings = {
   macEngineRunning: (engine: string, n: number) => `${engine} 正在运行：${n} 种声音。`,
   macEngineMissing: (engine: string, url: string) => `${url} 上的 ${engine} 没有响应。请打开它（或启动它的 Docker 引擎）并保持运行；在此之前，使用本机语音。`,
   macCheckAgain: '重新检查',
+  macVoiceNotInstalled: (engine: string) => `这里的 ${engine} 没有安装所选的声音：请另选一个。在此之前，使用本机语音。`,
   settingsNewWords: '每天新增核心词',
   settingsNewWordsHint: '3500 个最常用日语词的单词卡，按使用频率从高到低。已经保存过的词会跳过。',
   newWordsOff: '关闭',

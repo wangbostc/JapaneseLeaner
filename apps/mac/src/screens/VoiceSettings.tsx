@@ -16,13 +16,14 @@ export function VoiceSettings() {
   const { t, settings, updateSettings, voices, audio } = useApp()
   const [found, setFound] = useState<Found | null>(null)
   const [checks, setChecks] = useState(0)
+  // Asked again when the app names the chosen voice: its engine has started meanwhile.
   useEffect(() => {
     let live = true
     voices.probe().then((f) => live && setFound(f))
     return () => {
       live = false
     }
-  }, [voices, checks])
+  }, [voices, checks, settings.voiceSpeaker])
   const checkAgain = () => {
     setFound(null)
     setChecks((n) => n + 1)
@@ -69,9 +70,17 @@ export function VoiceSettings() {
               {t.voicevoxChecking}
             </Text>
           ) : found.up.includes(engine) ? (
-            <Text testId="engine-status" color={C.good}>
-              {t.macEngineRunning(ENGINE_NAMES[engine], ofEngine.length)}
-            </Text>
+            <Col style={{ gap: 6 }}>
+              <Text testId="engine-status" color={C.good}>
+                {t.macEngineRunning(ENGINE_NAMES[engine], ofEngine.length)}
+              </Text>
+              {/* From a backup, or a model since removed: the Mac's own voice speaks meanwhile. */}
+              {!current && (
+                <Text testId="voice-missing" color={C.danger}>
+                  {t.macVoiceNotInstalled(ENGINE_NAMES[engine])}
+                </Text>
+              )}
+            </Col>
           ) : (
             <Col style={{ gap: 6 }}>
               <Text testId="engine-status" color={C.danger}>

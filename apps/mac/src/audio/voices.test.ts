@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readdirSync, readFileSync, utimesSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, readFileSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -50,8 +50,9 @@ describe('engine voices on this Mac', () => {
     const recent = await voices.clip('voicevox:13', '新しい。')
     utimesSync(old, new Date(2026, 0, 1), new Date(2026, 0, 1))
     writeFileSync(join(d, 'x.wav.1-1.part'), 'RIFF')
+    symlinkSync(join(d, 'gone.wav'), join(d, 'dangling.wav')) // can't be read: left alone, not fatal
     await voices.prune(20) // room for one 13-byte clip
-    expect(readdirSync(d)).toEqual([recent.slice(d.length + 1)])
+    expect(readdirSync(d).sort()).toEqual(['dangling.wav', recent.slice(d.length + 1)].sort())
     // A clip used again is the most recent.
     await voices.clip('voicevox:13', '古い。')
     expect(existsSync(old)).toBe(true)
@@ -59,7 +60,10 @@ describe('engine voices on this Mac', () => {
 })
 
 describe('speaking in an engine voice', () => {
-  const stub = (clip: EngineVoices['clip']): EngineVoices => ({ urls: { aivis: '', voicevox: '' }, probe: async () => ({ voices: [], up: [] }), clip })
+  const stub = (clip: EngineVoices['clip'], made: EngineVoices['made'] = async () => null): EngineVoices & { discarded: string[] } => {
+    const discarded: string[] = []
+    return { urls: { aivis: '', voicevox: '' }, probe: async () => ({ voices: [], up: [] }), made, clip, discarded, discard: async (p) => void discarded.push(p) }
+  }
 
   it('plays the sentence’s clip at the learner’s rate', async () => {
     const base = fakeAudio()
@@ -133,6 +137,55 @@ describe('speaking in an engine voice', () => {
     await first
     expect(base.played.map((p) => p.path)).toEqual(['/二。.wav'])
     expect(base.spoken).toEqual([])
+  })
+
+  it('plays clips made before while the engine is closed, even right after it failed one', async () => {
+    const d = dir()
+    const engine = { voicevox: SPEAKERS.voicevox } as Parameters<typeof fakeEngineFetch>[0]
+    const voices = engineVoices(d, { fetch: fakeEngineFetch(engine).fetch })
+    const base = fakeAudio()
+    const audio = withEngineVoice(base, voices)
+    audio.setVoice('voicevox:13')
+    await audio.speak('一。', 1) // made while the engine runs
+    delete engine.voicevox // closed
+    await audio.speak('二。', 1) // never made: the Mac's voice
+    await audio.speak('一。', 1) // made before: its clip, not the Mac's voice
+    expect(base.spoken).toEqual(['二。'])
+    expect(base.played.map((p) => p.path)).toEqual([expect.stringContaining('voicevox-13-'), expect.stringContaining('voicevox-13-')])
+  })
+
+  it('stops a study step’s sentence when a play button speaks another', async () => {
+    const base = fakeAudio()
+    const stopped: boolean[] = []
+    const audio = withEngineVoice(
+      { ...base, playFile: async (_p, _s, _e, _r, signal) => void (await new Promise((r) => setTimeout(r, 20)), stopped.push(!!signal?.aborted)) },
+      stub(async (_v, text) => `/${text}.wav`),
+    )
+    audio.setVoice('voicevox:13')
+    const step = new AbortController() // the study player's
+    const sentence = audio.speak('一。', 1, step.signal)
+    await new Promise((r) => setTimeout(r, 5))
+    await audio.speak('毎朝', 1) // the word sheet's play button
+    await sentence
+    expect(stopped).toEqual([true, false])
+    expect(step.signal.aborted).toBe(false) // the step itself goes on
+  })
+
+  it('reads a sentence whose clip won’t play in the Mac’s own voice, and makes it again next time', async () => {
+    const base = fakeAudio()
+    const voices = stub(async () => '/bad.wav')
+    const audio = withEngineVoice(
+      {
+        ...base,
+        playFile: async () => {
+          throw new Error('can’t play')
+        },
+      },
+      voices,
+    )
+    audio.setVoice('voicevox:13')
+    await audio.speak('一。', 1)
+    expect([base.spoken, voices.discarded]).toEqual([['一。'], ['/bad.wav']])
   })
 
   it('speaks in the voice last set', async () => {

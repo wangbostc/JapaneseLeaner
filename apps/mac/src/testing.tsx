@@ -21,6 +21,7 @@ import { keyEvents } from './keys'
 import { nodeFiles } from './platform/files'
 import { mediaCache } from './platform/media'
 import { memoryPrefs } from './platform/prefs'
+import type { MacSettings } from './settings'
 
 export const DICT: DictData = {
   version: 'test',
@@ -39,9 +40,11 @@ export interface OpenOptions {
   newWordsPerDay?: number
   /** The engines "running" on this Mac (none unless a test is about them). */
   engines?: FakeEngines
+  /** Settings saved before the app starts, over the tests' defaults. */
+  settings?: Partial<MacSettings>
 }
 
-export async function open({ transcripts = [], picks = [], newWordsPerDay = 0, engines = {} }: OpenOptions = {}) {
+export async function open({ transcripts = [], picks = [], newWordsPerDay = 0, engines = {}, settings = {} }: OpenOptions = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'kikitori-test-'))
   const db = sqliteDatabase(new DatabaseSync(':memory:') as unknown as SqlDriver)
   const store = createStore(db)
@@ -57,7 +60,7 @@ export async function open({ transcripts = [], picks = [], newWordsPerDay = 0, e
     analyzer: await testAnalyzer(),
     dictionary: async () => createDictionary(DICT),
     accents: async () => createAccentTable({ accents: { '毎朝|まいあさ': '0' } }),
-    settings: { lang: 'en', furigana: true, translation: true, chunks: false, rate: 1, newWordsPerDay },
+    settings: { lang: 'en', furigana: true, translation: true, chunks: false, rate: 1, newWordsPerDay, ...settings },
     prefs,
     keys: keyEvents(),
     audio,
