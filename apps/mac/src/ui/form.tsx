@@ -19,8 +19,19 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
 
 const boxStyle = { fontSize: 15, fontFamily: FONT_JA, color: C.text, padding: 10, borderRadius: 8, backgroundColor: C.panel, borderWidth: 1, borderColor: C.line }
 
-export function TextField({ value, onChange, placeholder, testId }: { value: string; onChange: (v: string) => void; placeholder?: string; testId?: string }) {
-  return <input testId={testId} value={value} placeholder={placeholder} onChange={(e) => onChange(e.value ?? '')} theme={{ caret: C.accent }} style={boxStyle} />
+/** A one-line text box; `readOnly` shows its value dimmed, unchangeable. */
+export function TextField({ value, onChange, placeholder, testId, readOnly }: { value: string; onChange: (v: string) => void; placeholder?: string; testId?: string; readOnly?: boolean }) {
+  return (
+    <input
+      testId={testId}
+      value={value}
+      placeholder={placeholder}
+      readOnly={readOnly}
+      onChange={(e) => !readOnly && onChange(e.value ?? '')}
+      theme={{ caret: C.accent }}
+      style={readOnly ? { ...boxStyle, color: C.dim } : boxStyle}
+    />
+  )
 }
 
 export function TextArea({ value, onChange, rows = 6, testId }: { value: string; onChange: (v: string) => void; rows?: number; testId?: string }) {

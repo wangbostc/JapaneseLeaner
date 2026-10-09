@@ -84,6 +84,44 @@ export function storeContract(backend: Backend) {
     expect((await s.dueCards(due)).map((c) => c.front)).toEqual(['天気'])
   })
 
+  it('suspends a card out of the due list and resumes it, as a change to sync', async () => {
+    const id = await lesson('a')
+    const c = await s.addCard({ lessonId: id, kind: 'word', front: '天気', reading: 'てんき', context: '' }, T0)
+    const before = (await s.db.cards.get(c))!.updatedAt!
+    await s.setSuspended(c, true, T0 + H)
+    expect((await s.db.cards.get(c))!.suspendedAt).toBe(T0 + H)
+    expect((await s.db.cards.get(c))!.updatedAt).toBeGreaterThan(before)
+    expect(await s.dueCards(T0 + D)).toEqual([])
+    expect((await s.allCards()).map((x) => x.front)).toEqual(['天気'])
+    await s.setSuspended(c, false, T0 + 2 * H)
+    expect((await s.db.cards.get(c))!.suspendedAt).toBeUndefined()
+    expect((await s.dueCards(T0 + D)).map((x) => x.front)).toEqual(['天気'])
+  })
+
+  it('edits a saved word’s spelling and any card’s reading, but never what identifies it', async () => {
+    const id = await lesson('a')
+    const c = await s.addCard({ lessonId: id, kind: 'word', front: '天気', reading: 'てんき', context: '今日は天気がいい。' }, T0)
+    expect(await s.editCard(c, { front: ' 天気予報 ', reading: ' てんきよほう ' })).toBe('ok')
+    expect((await s.db.cards.get(c))!).toMatchObject({ front: '天気予報', reading: 'てんきよほう', context: '今日は天気がいい。' })
+    const stamp = (await s.db.cards.get(c))!.updatedAt
+    await s.editCard(c, { front: '', reading: 'てんきよほう' }) // nothing changes: no new version
+    expect((await s.db.cards.get(c))!).toMatchObject({ front: '天気予報', updatedAt: stamp })
+
+    // Another card of the lesson has that spelling: refused, so the lesson keeps one card a word.
+    const other = await s.addCard({ lessonId: id, kind: 'word', front: '散歩', reading: 'さんぽ', context: '' }, T0)
+    expect(await s.editCard(other, { front: '天気予報', reading: 'てんき' })).toBe('duplicate')
+    expect((await s.db.cards.get(other))!).toMatchObject({ front: '散歩', reading: 'さんぽ' })
+
+    // A sentence card's text is the lesson's sentence (its translation and audio are found by it).
+    const sentence = await s.addCard({ lessonId: id, kind: 'sentence', front: 'こんにちは。', reading: '', context: 'こんにちは。' }, T0)
+    await s.editCard(sentence, { front: 'こんばんは。' })
+    expect((await s.db.cards.get(sentence))!.front).toBe('こんにちは。')
+
+    const core = await s.db.cards.add({ uid: 'core:天気', updatedAt: 0, lessonId: 0, kind: 'word', front: '天気', reading: 'てんき', context: '', card: (await s.db.cards.get(c))!.card, createdAt: T0 })
+    await s.editCard(core, { front: '天候', reading: 'てんき（天気）' })
+    expect((await s.db.cards.get(core))!).toMatchObject({ uid: 'core:天気', front: '天気', reading: 'てんき（天気）' })
+  })
+
   it('undoes a grade not yet synced, leaving nothing to sync', async () => {
     const id = await lesson('a')
     const c = await s.addCard({ lessonId: id, kind: 'word', front: '天気', reading: 'てんき', context: '' }, T0)

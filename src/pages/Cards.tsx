@@ -1,6 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { VoiceCredit } from '../components/VoiceCredit'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useSettings } from '../app/useSettings'
 import { useDictionary } from '../app/useDictionary'
 import { holdSync, syncIdle } from '../app/sync'
@@ -246,6 +247,11 @@ export function Cards() {
       {t.undo}
     </button>
   )
+  const allCards = (
+    <Link to="/cards/all" className="btn ghost" data-testid="all-cards">
+      {t.allCards}
+    </Link>
+  )
   const undoMessage = notice && (
     <p className="muted small" role="status" data-testid="undo-message">
       {notice}
@@ -257,7 +263,10 @@ export function Cards() {
       <div className="page">
         <div className="page-head">
           <h1>{t.navCards}</h1>
-          {undoButton}
+          <div className="card-head-side">
+            {undoButton}
+            {allCards}
+          </div>
         </div>
         {undoMessage}
         <p className="empty">{done.size ? t.cardsDoneToday : t.noCards}</p>
@@ -273,6 +282,7 @@ export function Cards() {
         <h1>{t.navCards}</h1>
         <div className="card-head-side">
           {undoButton}
+          {allCards}
           <span className="muted">
             {done.size + 1} {t.of} {queue.length}
           </span>

@@ -156,7 +156,39 @@ export function createStore(database: Database) {
       })
     },
 
-    dueCards: (now = Date.now()) => database.cards.dueBy(new Date(now)),
+    /** Cards due by `now`, suspended ones aside. */
+    dueCards: async (now = Date.now()) => (await database.cards.dueBy(new Date(now))).filter((c) => !c.suspendedAt),
+
+    /** Every card, for browsing. */
+    allCards: () => database.cards.all(),
+
+    /** Suspends a card (kept, but never due) or resumes it, due as it was scheduled. */
+    async setSuspended(id: number, suspended: boolean, now = Date.now()) {
+      const c = await database.cards.get(id)
+      if (!c || !!c.suspendedAt === suspended) return
+      await database.cards.update(id, { suspendedAt: suspended ? now : undefined })
+    },
+
+    /**
+     * Corrects a card's reading, or a saved word's spelling. What stays fixed: a core word's front
+     * (its identity, core:<word>; coreWords.ts imports this module), a sentence card's text and a
+     * card's context sentence (both are the lesson's sentence, which finds its translation and is
+     * what plays). A spelling another card of the same lesson has is refused ('duplicate'): the
+     * lesson would have two cards for one word.
+     */
+    async editCard(id: number, changes: Partial<Pick<Flashcard, 'front' | 'reading'>>): Promise<'ok' | 'duplicate'> {
+      const c = await database.cards.get(id)
+      if (!c) return 'ok'
+      const front = changes.front?.trim()
+      const next: Partial<Flashcard> = {}
+      if (changes.reading !== undefined) next.reading = changes.reading.trim()
+      if (front && front !== c.front && c.kind === 'word' && !c.uid?.startsWith('core:')) {
+        if ((await database.cards.where('lessonId', [c.lessonId])).some((o) => o.id !== id && o.front === front)) return 'duplicate'
+        next.front = front
+      }
+      if (Object.entries(next).some(([k, v]) => c[k as keyof Flashcard] !== v)) await database.cards.update(id, next)
+      return 'ok'
+    },
 
     /** Grades a card; returns what it was before (for undoGrade), or null if it's gone. */
     async gradeCard(id: number, grade: Grade, now = Date.now()): Promise<GradeUndo | null> {

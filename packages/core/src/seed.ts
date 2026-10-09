@@ -16,52 +16,51 @@ const SEEDED_KEY = 'kikitori.seededSamples'
 const LEGACY_KEY = 'kikitori.seeded'
 const LEGACY_SAMPLES = ['私の朝', '週末のカフェ', '雨の日の過ごし方'].map(sampleUid)
 
-/** Marks `uids` as added and returns those that weren't yet; null when there's no storage. */
-function claim(uids: string[], storage: () => KeyValueStore | undefined): string[] | null {
+/** The samples this device has added, by uid; null when there's no storage. */
+function seeded(storage: () => KeyValueStore | undefined): Set<string> | null {
   try {
     // Reading localStorage itself can throw (storage blocked), hence the getter inside the try.
     const kv = storage()
     if (!kv) return null
     const raw = kv.getItem(SEEDED_KEY)
-    const seeded = new Set<string>(raw ? JSON.parse(raw) : kv.getItem(LEGACY_KEY) ? LEGACY_SAMPLES : [])
-    const fresh = uids.filter((uid) => !seeded.has(uid))
-    if (fresh.length || !raw) kv.setItem(SEEDED_KEY, JSON.stringify([...seeded, ...fresh]))
-    return fresh
+    return new Set<string>(raw ? JSON.parse(raw) : kv.getItem(LEGACY_KEY) ? LEGACY_SAMPLES : [])
   } catch {
     return null
   }
 }
 
-/** Takes `uids` back out of the ledger (their seeding failed). */
-function unclaim(uids: string[], storage: () => KeyValueStore | undefined) {
+/** Records `uids` as added (and carries an older release's ledger over to this one's key). */
+function record(uids: string[], storage: () => KeyValueStore | undefined) {
   try {
     const kv = storage()
-    const raw = kv?.getItem(SEEDED_KEY)
-    if (!kv || !raw) return
-    const drop = new Set(uids)
-    kv.setItem(SEEDED_KEY, JSON.stringify((JSON.parse(raw) as string[]).filter((u) => !drop.has(u))))
+    if (!kv) return
+    const before = seeded(storage) ?? new Set<string>()
+    const after = new Set([...before, ...uids])
+    if (after.size === before.size && kv.getItem(SEEDED_KEY)) return
+    kv.setItem(SEEDED_KEY, JSON.stringify([...after]))
   } catch {
-    // storage unavailable: nothing was recorded either
+    // storage unavailable: the next start checks the database again
   }
 }
 
 /**
  * Adds the starter lessons this device hasn't had yet: all of them on first run, and any that
  * a later release brings. Each is added at most once, so deleting one sticks.
+ *
+ * They're recorded as added only once they're in the database: recorded first, a page closed
+ * or reloaded before the write committed would lose them for good. Two calls racing (StrictMode)
+ * are safe all the same: addSamples skips what's already there, inside its transaction.
  */
 export async function seedOnce(store: Store, storage: () => KeyValueStore | undefined = browserStorage) {
   const samples = sampleLessons().map((lesson) => ({ ...lesson, uid: sampleUid(lesson.title) }))
-  // Claimed before any await, so a second call racing this one (StrictMode) finds nothing to add.
-  const claimed = claim(samples.map((s) => s.uid), storage)
-  const wanted = claimed ? samples.filter((s) => claimed.includes(s.uid)) : samples
-  if (!wanted.length) return
-  try {
-    await addSamples(store, wanted)
-  } catch (e) {
-    // Not added after all: let the next start try again.
-    if (claimed) unclaim(claimed, storage)
-    throw e
-  }
+  const done = seeded(storage)
+  const wanted = done ? samples.filter((s) => !done.has(s.uid)) : samples
+  if (!wanted.length) return record([], storage)
+  await addSamples(store, wanted)
+  record(
+    wanted.map((s) => s.uid),
+    storage,
+  )
 }
 
 async function addSamples(store: Store, wanted: (ReturnType<typeof sampleLessons>[number] & { uid: string })[]) {

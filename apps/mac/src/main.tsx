@@ -96,7 +96,8 @@ const voices = engineVoices(join(dataDir, 'voices'))
 await voices.prune()
 const prefs = filePrefs(join(dataDir, 'prefs.json'))
 const store = createStore(db)
-await seedOnce(store, () => prefs)
+// A failure leaves the samples for the next start: never a reason not to open.
+await seedOnce(store, () => prefs).catch((e) => console.error('[seed]', e))
 const settings = readSettings(prefs, Intl.DateTimeFormat().resolvedOptions().locale)
 // Today's new core words, so Today counts them (Cards adds them too, if the day turns meanwhile).
 await introduceCoreWords(db, settings.newWordsPerDay)

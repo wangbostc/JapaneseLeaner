@@ -92,6 +92,18 @@ export function seedContract(backend: Backend) {
     expect(new Set((await s.db.lessons.all()).map((l) => l.updatedAt))).toEqual(new Set([0]))
   })
 
+  it('records nothing until the samples are in, so a page closed meanwhile seeds them next time', async () => {
+    const storage = memoryStorage()
+    // A write that never commits: the page is closed (or reloaded) before it does.
+    const closing = { ...s, db: { ...s.db, transaction: () => new Promise<never>(() => {}) } }
+    void seedOnce(closing)
+    await new Promise((r) => setTimeout(r, 20))
+    expect(storage.get('kikitori.seededSamples')).toBeUndefined()
+    await seedOnce(s) // the next start
+    expect(await uids()).toEqual([...ALL].sort())
+    expect(JSON.parse(storage.get('kikitori.seededSamples')!).sort()).toEqual([...ALL].sort())
+  })
+
   it('lets the next start try again when adding the samples fails', async () => {
     const storage = memoryStorage()
     const failing = { ...s, db: { ...s.db, transaction: async () => Promise.reject(new Error('quota')) } }

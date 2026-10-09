@@ -54,7 +54,7 @@ function Context({ card }: { card: Flashcard }) {
 }
 
 export function Cards() {
-  const { t, settings, updateSettings, store, db, audio, dictionary, keys } = useApp()
+  const { t, settings, updateSettings, store, db, audio, dictionary, keys, navigate } = useApp()
   // The due queue is loaded once: graded cards get later due dates, and a live query would
   // drop them mid-session and throw off the counter.
   const [queue, setQueue] = useState<Flashcard[] | null>(null)
@@ -174,7 +174,10 @@ export function Cards() {
       <Text size={28} weight={700}>
         {t.navCards}
       </Text>
-      {card && <Text color={C.dim} testId="card-counter">{`${done.size + 1} ${t.of} ${queue.length}`}</Text>}
+      <Row style={{ gap: 12, alignItems: 'center' }}>
+        {card && <Text color={C.dim} testId="card-counter">{`${done.size + 1} ${t.of} ${queue.length}`}</Text>}
+        <Button testId="all-cards" label={`${t.allCards} ›`} variant="ghost" onPress={() => navigate({ name: 'cardList' })} />
+      </Row>
     </Row>
   )
   const undoRow = (undos.length > 0 || message) && (

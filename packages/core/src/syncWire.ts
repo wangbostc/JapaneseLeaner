@@ -65,6 +65,8 @@ export interface WireCard {
   context: string
   card: WireFsrsCard
   createdAt: number
+  /** Set while suspended. Older clients drop it (their copy is in review again). */
+  suspendedAt?: number
 }
 
 export interface WireLog {

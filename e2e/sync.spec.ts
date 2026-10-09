@@ -172,8 +172,8 @@ test('a connected device speaks with the server’s natural voices, keeping each
   await select.selectOption('neural:ja-JP-KeitaNeural')
   await tryIt.click()
   await expect.poll(() => requests).toEqual(['ja-JP-NanamiNeural', 'ja-JP-KeitaNeural'])
-  const cached = await page.evaluate(async () => (await (await caches.open('tts-v1')).keys()).length)
-  expect(cached).toBe(2)
+  // Kept as the response arrives, a moment after the request: polled, not read once.
+  await expect.poll(() => page.evaluate(async () => (await (await caches.open('tts-v1')).keys()).length)).toBe(2)
 
   // Lessons use it too: the first step reads the first sentence aloud in the chosen voice.
   const texts: string[] = []
@@ -181,7 +181,8 @@ test('a connected device speaks with the server’s natural voices, keeping each
   await page.goto('./#/library')
   await page.getByRole('link', { name: /私の朝/ }).click()
   await page.getByRole('link', { name: 'Start' }).click()
-  await expect(page.getByRole('heading', { name: 'Intensive listening' })).toBeVisible()
+  // A fresh device's first lesson loads the tokenizer's dictionary: slow on a busy CI runner.
+  await expect(page.getByRole('heading', { name: 'Intensive listening' })).toBeVisible({ timeout: 20_000 })
   await expect.poll(() => texts).toContain('私は毎朝六時に起きます。')
   expect(requests.at(-1)).toBe('ja-JP-KeitaNeural')
   const studyUrl = page.url()
@@ -213,7 +214,8 @@ test('opened offline, a connected device still plays the natural-voice audio it 
   await page.goto('./#/library')
   await page.getByRole('link', { name: /私の朝/ }).click()
   await page.getByRole('link', { name: 'Start' }).click()
-  await expect(page.getByRole('heading', { name: 'Intensive listening' })).toBeVisible()
+  // A fresh device's first lesson loads the tokenizer's dictionary: slow on a busy CI runner.
+  await expect(page.getByRole('heading', { name: 'Intensive listening' })).toBeVisible({ timeout: 20_000 })
   await expect.poll(() => page.evaluate(async () => (await (await caches.open('tts-v1')).keys()).length)).toBeGreaterThan(0)
   const studyUrl = page.url()
 
