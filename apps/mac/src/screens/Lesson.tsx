@@ -6,6 +6,7 @@ import { JapaneseText } from '../ui/JapaneseText'
 import { RoundDots } from '../ui/LessonRow'
 import { Button, Col, Pill, Row, Text } from '../ui/primitives'
 import { C } from '../ui/theme'
+import { VoiceCredit } from '../ui/VoiceCredit'
 
 export function Lesson({ id }: { id: number }) {
   const { t, db, store, analyzer, settings, navigate, showWord } = useApp()
@@ -35,6 +36,8 @@ export function Lesson({ id }: { id: number }) {
           <Text color={C.dim}>{t.sentences(lesson.sentences.length)}</Text>
           <RoundDots done={lesson.progress.roundsDone} />
         </Row>
+        {/* Read aloud: in the chosen voice. */}
+        {!lesson.mediaId && <VoiceCredit />}
       </Col>
       <Col style={{ gap: 4, padding: 16, borderRadius: 10, backgroundColor: C.panel }}>
         {round ? (

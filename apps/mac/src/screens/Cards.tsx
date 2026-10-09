@@ -7,6 +7,7 @@ import { Meanings } from '../ui/Meanings'
 import { PitchAccent } from '../ui/PitchAccent'
 import { Button, Col, Pressable, Row, Text } from '../ui/primitives'
 import { C } from '../ui/theme'
+import { VoiceCredit } from '../ui/VoiceCredit'
 
 const fmtDays = (d: number) => (d < 1 / 24 ? `${Math.max(1, Math.round(d * 1440))}m` : d < 1 ? `${Math.round(d * 24)}h` : `${Math.round(d)}d`)
 
@@ -111,8 +112,9 @@ export function Cards() {
             {translation && <Text color={C.dim}>{translation}</Text>}
           </Col>
         )}
-        <Row>
+        <Row style={{ gap: 12, alignItems: 'center' }}>
           <Button testId="play-card" label={`▶ ${t.play}`} variant="ghost" onPress={() => void audio.speak(card.kind === 'word' ? card.front : card.context, settings.rate)} />
+          <VoiceCredit />
         </Row>
       </Col>
       {flipped ? (

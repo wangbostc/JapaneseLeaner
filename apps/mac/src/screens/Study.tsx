@@ -12,6 +12,7 @@ import { Shadow } from '../study/Shadow'
 import type { StepProps } from '../study/types'
 import { Button, Col, Row, Text } from '../ui/primitives'
 import { C } from '../ui/theme'
+import { VoiceCredit } from '../ui/VoiceCredit'
 
 const INPUT_STEPS: Step[] = ['intensive', 'blind']
 /** Longer than this without moving on is treated as the learner walking away. */
@@ -150,6 +151,7 @@ function Runner({ lesson, media, free }: RunnerProps) {
         ))}
       </Row>
       <Text color={C.dim}>{t.stepHelp[step]}</Text>
+      {!media && <VoiceCredit />}
       {step === 'intensive' && <Intensive key={step} {...props} />}
       {step === 'shadowing' && <Shadow key={step} {...props} mode="shadow" indices={lesson.sentences.map((_, k) => k)} />}
       {step === 'blind' && <Blind key={step} {...props} />}
