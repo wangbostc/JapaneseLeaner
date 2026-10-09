@@ -301,3 +301,25 @@ test('reviewing cards holds syncing in every tab, so a grade stays undoable with
   await expect(cards.getByTestId('undo-message')).toHaveText('Grade undone.')
   await expect(cards.getByText(/^1 of \d+$/)).toBeVisible()
 })
+
+test('a tab that found syncing held syncs again once the holding tab is gone', async ({ browser }) => {
+  const holder = await newDevice(browser, 'Holder')
+  const other = await holder.context().newPage()
+  await other.goto('./#/settings')
+  await holder.goto('./#/cards')
+  await expect(holder.getByTestId('flashcard')).toBeVisible()
+  // Tried while the other tab holds it: put off, not lost.
+  await other.getByRole('button', { name: 'Sync now' }).click()
+  await holder.close()
+
+  await other.goto('./#/import')
+  await other.getByRole('textbox', { name: /^Title/ }).fill('保留のあと')
+  await other.getByRole('textbox', { name: /^Transcript/ }).fill('保留のあとで同期します。')
+  await other.getByRole('button', { name: 'Create lesson' }).click()
+  await expect(other.getByRole('heading', { name: '保留のあと' })).toBeVisible()
+  await syncNow(other)
+
+  const laptop = await newDevice(browser, 'Laptop3') // connecting syncs straight away
+  await laptop.goto('./#/library')
+  await expect(laptop.getByRole('link', { name: /保留のあと/ })).toBeVisible()
+})

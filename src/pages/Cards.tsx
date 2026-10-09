@@ -69,15 +69,28 @@ const typing = (target: EventTarget | null) =>
 
 /**
  * Controls focused by a click or tap (not by the keyboard). A control reached with the keyboard
- * keeps its own Space and Enter (a keyboard user picks a mode or presses Undo that way); one
- * merely clicked doesn't, and Space still shows the answer. (:focus-visible can't tell: a key
- * pressed on a clicked button makes it match.)
+ * keeps its own keys (a keyboard user picks a mode or presses Undo with Space or Enter, follows a
+ * link with Enter); one merely clicked doesn't, and Space still shows the answer. (:focus-visible
+ * can't tell: a key pressed on a clicked button makes it match.) Tracked from the start, not
+ * just on Cards: the click that brought the learner here (the Cards tab) left its link focused.
  */
 const clicked = new WeakSet<Element>()
 /** What the last pointer press landed on, until the focus it brings. */
 let pressed: Element | null = null
-const ownsSpace = (target: EventTarget | null) =>
-  target instanceof Element && !clicked.has(target) && !!target.closest('button, a, [role="button"]') && !target.closest('[data-testid="show-answer"]')
+if (typeof window !== 'undefined') {
+  window.addEventListener('pointerdown', (e) => (pressed = e.target instanceof Element ? e.target : null), true)
+  window.addEventListener('focusin', (e) => {
+    if (!(e.target instanceof Element)) return
+    if (pressed && e.target.contains(pressed)) clicked.add(e.target)
+    else clicked.delete(e.target)
+    pressed = null
+  })
+}
+const ownsKey = (key: string, target: EventTarget | null) => {
+  if (!(target instanceof Element) || clicked.has(target) || target.closest('[data-testid="show-answer"]')) return false
+  if (target.closest('button, [role="button"]')) return key === ' ' || key === 'Enter'
+  return !!target.closest('a') && key === 'Enter'
+}
 
 export function Cards() {
   const { t, settings } = useSettings()
@@ -179,7 +192,7 @@ export function Cards() {
   useLayoutEffect(() => {
     onKey.current = (e) => {
       if (e.repeat || e.ctrlKey || e.metaKey || e.altKey || typing(e.target)) return
-      if ((e.key === ' ' || e.key === 'Enter') && ownsSpace(e.target)) return
+      if (ownsKey(e.key, e.target)) return
       const action = cardKey(e.key, flipped)
       // With the answer showing, Space has nothing to do: not scroll the page, nor click the
       // button the mouse last pressed.
@@ -205,21 +218,8 @@ export function Cards() {
   })
   useEffect(() => {
     const listener = (e: KeyboardEvent) => onKey.current(e)
-    const pointer = (e: PointerEvent) => (pressed = e.target instanceof Element ? e.target : null)
-    const focus = (e: FocusEvent) => {
-      if (!(e.target instanceof Element)) return
-      if (pressed && e.target.contains(pressed)) clicked.add(e.target)
-      else clicked.delete(e.target)
-      pressed = null
-    }
     window.addEventListener('keydown', listener)
-    window.addEventListener('pointerdown', pointer, true)
-    window.addEventListener('focusin', focus)
-    return () => {
-      window.removeEventListener('keydown', listener)
-      window.removeEventListener('pointerdown', pointer, true)
-      window.removeEventListener('focusin', focus)
-    }
+    return () => window.removeEventListener('keydown', listener)
   }, [])
 
   // Hold syncing while reviewing, so the last grade stays undoable; let it run while the

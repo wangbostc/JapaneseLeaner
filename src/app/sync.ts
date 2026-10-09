@@ -138,9 +138,10 @@ export function syncNow(): Promise<void> {
   const d = device()
   if (!d || status.kind === 'unavailable') return Promise.resolve()
   running = (async () => {
-    // Another tab of the app is reviewing cards: wait (it syncs itself once it lets go).
+    // Another tab of the app is reviewing cards: sync once it lets go.
     if (await heldElsewhere()) {
-      waiting = true
+      running = null
+      afterRelease()
       return
     }
     setStatus({ kind: 'syncing', device: d.name, lastSyncedAt })
@@ -184,7 +185,12 @@ let unlock: (() => void) | null = null
 let unlocked: Promise<unknown> = Promise.resolve()
 export function holdSync(): () => void {
   if (holds++ === 0 && typeof navigator !== 'undefined' && navigator.locks) {
-    unlocked = navigator.locks.request(HOLD_LOCK, { mode: 'shared' }, () => new Promise<void>((resolve) => (unlock = resolve))).catch(() => {})
+    // The release is ready before the lock is granted: a hold let go meanwhile (StrictMode's
+    // mount, unmount, mount) frees the lock the moment it's granted, rather than never.
+    let free!: () => void
+    const gate = new Promise<void>((resolve) => (free = resolve))
+    unlock = free
+    unlocked = navigator.locks.request(HOLD_LOCK, { mode: 'shared' }, () => gate).catch(() => {})
   }
   let released = false
   return () => {
@@ -198,6 +204,20 @@ export function holdSync(): () => void {
       void unlocked.then(() => syncNow())
     }
   }
+}
+
+/** Syncs once no tab holds syncing: an exclusive request is granted only then. */
+let retrying = false
+function afterRelease() {
+  if (retrying || typeof navigator === 'undefined' || !navigator.locks) return
+  retrying = true
+  void navigator.locks
+    .request(HOLD_LOCK, () => {})
+    .catch(() => {})
+    .then(() => {
+      retrying = false
+      void syncNow()
+    })
 }
 
 /** Whether another tab holds syncing (this tab's own holds are counted in `holds`). */

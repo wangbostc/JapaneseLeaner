@@ -133,3 +133,12 @@ test('the review mode is kept in settings', async ({ page }) => {
   await expect(page.getByTestId('card-mode-read')).toHaveAttribute('aria-pressed', 'false')
   await expect(page.getByTestId('card-prompt')).toContainText('How do you say this in Japanese?')
 })
+
+test('Space shows the answer right after the Cards tab was clicked', async ({ page }) => {
+  await fresh(page)
+  await page.goto('./')
+  await page.getByRole('link', { name: 'Cards', exact: true }).click()
+  await expect(page.getByTestId('flashcard')).toContainText(CORE[0][0])
+  await page.keyboard.press('Space')
+  await expect(page.getByTestId('card-back')).toBeVisible()
+})
