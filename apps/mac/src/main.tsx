@@ -127,7 +127,10 @@ render(
     title: 'Kikitori',
     width: 980,
     height: 760,
-    onKeyDown: (event) => keys.emit(event.key ?? ''),
+    // Not a held key's repeats: holding 3 would grade card after card.
+    onKeyDown: (event) => {
+      if (!event.isHeld) keys.emit(event.key ?? '')
+    },
     // KIKITORI_CLICK_LOG=<file>: every press and click, where it landed and on what (to debug input).
     ...(process.env.KIKITORI_CLICK_LOG
       ? {

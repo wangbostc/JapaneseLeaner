@@ -1,6 +1,7 @@
 import { createContext, useContext } from 'react'
 import type { UiLang } from '@kikitori/core/model'
 import type { Strings } from '@kikitori/core/i18n'
+import type { CardModeSetting } from '@kikitori/core/review'
 
 export interface Settings {
   lang: UiLang
@@ -12,6 +13,8 @@ export interface Settings {
   voiceURI?: string
   /** Core-word cards added a day (0: off). */
   newWordsPerDay: number
+  /** How flashcards are reviewed (read, listen, recall or a mix). */
+  cardMode: CardModeSetting
 }
 
 export interface SettingsCtx {

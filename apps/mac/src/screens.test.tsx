@@ -1,5 +1,6 @@
 import { existsSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { CORE_WORDS, coreRank } from '@kikitori/core/coreWords'
 import { formatDuration, STRINGS } from '@kikitori/core/i18n'
 import { hasNativeTestRenderer } from '@gpuix/react/testing'
 import { describe, expect, it } from 'vitest'
@@ -149,6 +150,102 @@ describe.runIf(hasNativeTestRenderer)('import, cards, stats and settings', () =>
     await click('tab-settings')
     await click('new-words-0')
     expect(JSON.parse(prefs.getItem('kikitori.settings')!)).toMatchObject({ newWordsPerDay: 0 })
+  })
+
+  it('reviews cards by keyboard, and undoes a grade', { timeout: 30000 }, async () => {
+    const o = await open({ newWordsPerDay: 10 })
+    const { click, shows, appears, painted, db, deps } = o
+    await shows('私の朝')
+    await click('tab-cards')
+    await shows('Core 3,500 · #1')
+    await shows(STRINGS.en.cardKeys)
+    const first = (await db.cards.all()).find((c) => coreRank(c) === 1)!
+    deps.keys.emit('3') // nothing before the answer
+    deps.keys.emit('space')
+    await appears('card-back')
+    deps.keys.emit('3') // Good
+    deps.keys.emit('3') // still grading: not the next card too
+    await shows('Core 3,500 · #2')
+    await shows('2 of 10')
+    expect((await db.cards.get(first.id!))!.card.reps).toBe(1)
+    await appears('undo')
+    deps.keys.emit('u')
+    await shows(STRINGS.en.undone)
+    await shows('Core 3,500 · #1')
+    await shows('1 of 10')
+    expect(painted()).not.toContain('Core 3,500 · #2')
+    expect((await db.cards.get(first.id!))!.card).toEqual(first.card)
+    expect(await o.app.getByTestId('undo').count()).toBe(0) // nothing left to undo
+    // And by its button, from the end of the session.
+    for (let n = 1; n <= 10; n++) {
+      deps.keys.emit('space')
+      await appears('card-back')
+      deps.keys.emit('3')
+      await shows(n < 10 ? `${n + 1} of 10` : 'All caught up.')
+    }
+    await click('undo')
+    await shows('Core 3,500 · #10')
+    await shows('10 of 10')
+  })
+
+  it('reviews by listening: the word is hidden, and played, until the answer', { timeout: 30000 }, async () => {
+    const o = await open({ newWordsPerDay: 10, settings: { cardMode: 'listen' } })
+    const { click, shows, appears, painted, audio, deps } = o
+    const [word] = CORE_WORDS[0]
+    await click('tab-cards')
+    await appears('card-prompt')
+    await shows(STRINGS.en.listenPrompt)
+    await shows('Core 3,500 · #1') // the label stays
+    expect(painted()).not.toContain(word)
+    await expect.poll(() => audio.spoken).toEqual([word])
+    await click('play-card')
+    await expect.poll(() => audio.spoken).toEqual([word, word])
+    deps.keys.emit('space')
+    await appears('card-back')
+    await shows(word)
+    expect(await o.app.getByTestId('card-prompt').count()).toBe(0)
+  })
+
+  it('reviews by recall: the meaning first, the Japanese (and its sound) with the answer', { timeout: 30000 }, async () => {
+    const o = await open({ settings: { cardMode: 'recall' } })
+    const { click, shows, appears, painted, store, deps, lessonId } = o
+    await shows('私の朝')
+    await store.addCard({ lessonId: await lessonId('私の朝'), kind: 'word', front: '毎朝', reading: 'まいあさ', context: '私は毎朝六時に起きます。' })
+    await click('tab-cards')
+    await appears('card-prompt')
+    await shows(STRINGS.en.recallPrompt)
+    await shows('1. every morning')
+    expect(painted()).not.toContain('毎朝')
+    expect(painted()).not.toContain('まいあさ')
+    expect(await o.app.getByTestId('play-card').count()).toBe(0)
+    deps.keys.emit('r') // playing it would answer it
+    deps.keys.emit('space')
+    await shows('毎朝')
+    await shows('1. every morning · noun, adverb')
+    await appears('play-card')
+    expect(o.audio.spoken).toEqual([])
+    deps.keys.emit('r')
+    await expect.poll(() => o.audio.spoken).toEqual(['毎朝'])
+  })
+
+  it('keeps the review mode chosen in Cards, and mixes modes card by card', { timeout: 30000 }, async () => {
+    const o = await open({ newWordsPerDay: 10 })
+    const { click, shows, appears, prefs, deps } = o
+    await click('tab-cards')
+    await shows(STRINGS.en.cardModeHint)
+    await click('card-mode-recall')
+    expect(JSON.parse(prefs.getItem('kikitori.settings')!)).toMatchObject({ cardMode: 'recall' })
+    await shows('Core 3,500 · #1') // no meanings for it (not in the test dictionary): read
+    await click('card-mode-mix')
+    expect(JSON.parse(prefs.getItem('kikitori.settings')!)).toMatchObject({ cardMode: 'mix' })
+    for (let n = 1; n <= 4; n++) {
+      await shows(`Core 3,500 · #${n}`)
+      deps.keys.emit('space')
+      await appears('card-back')
+      await shows(CORE_WORDS[n - 1][0])
+      deps.keys.emit('3')
+      await shows(`${n + 1} of 10`)
+    }
   })
 
   it('speaks in an AivisSpeech or VOICEVOX voice chosen in Settings, credited, and in the Mac’s own when chosen back', { timeout: 30000 }, async () => {

@@ -127,6 +127,10 @@ let again = false
 let applying = false
 
 export function syncNow(): Promise<void> {
+  if (holds > 0) {
+    waiting = true
+    return Promise.resolve()
+  }
   if (running) {
     again = true
     return running
@@ -134,6 +138,12 @@ export function syncNow(): Promise<void> {
   const d = device()
   if (!d || status.kind === 'unavailable') return Promise.resolve()
   running = (async () => {
+    // Another tab of the app is reviewing cards: sync once it lets go.
+    if (await heldElsewhere()) {
+      running = null
+      afterRelease()
+      return
+    }
     setStatus({ kind: 'syncing', device: d.name, lastSyncedAt })
     try {
       // Only the sync's own local writes are ignored; the user's edits meanwhile schedule another sync.
@@ -161,6 +171,65 @@ export function syncNow(): Promise<void> {
   return running
 }
 
+/**
+ * While held, syncing waits (and runs once the last hold is released). Reviewing cards holds it,
+ * so the last grade stays undoable: a grade the server has can't be undone (merge.ts). Every tab
+ * shares the database, so a hold also stops the app's other tabs syncing, through a shared Web
+ * Lock (released with the tab, however it closes).
+ */
+const HOLD_LOCK = 'kikitori-sync-hold'
+let holds = 0
+let waiting = false
+let unlock: (() => void) | null = null
+/** Settles once this tab's lock is released (so a sync then doesn't see it as another tab's). */
+let unlocked: Promise<unknown> = Promise.resolve()
+export function holdSync(): () => void {
+  if (holds++ === 0 && typeof navigator !== 'undefined' && navigator.locks) {
+    // The release is ready before the lock is granted: a hold let go meanwhile (StrictMode's
+    // mount, unmount, mount) frees the lock the moment it's granted, rather than never.
+    let free!: () => void
+    const gate = new Promise<void>((resolve) => (free = resolve))
+    unlock = free
+    unlocked = navigator.locks.request(HOLD_LOCK, { mode: 'shared' }, () => gate).catch(() => {})
+  }
+  let released = false
+  return () => {
+    if (released) return
+    released = true
+    if (--holds > 0) return
+    unlock?.()
+    unlock = null
+    if (waiting) {
+      waiting = false
+      void unlocked.then(() => syncNow())
+    }
+  }
+}
+
+/** Syncs once no tab holds syncing: an exclusive request is granted only then. */
+let retrying = false
+function afterRelease() {
+  if (retrying || typeof navigator === 'undefined' || !navigator.locks) return
+  retrying = true
+  void navigator.locks
+    .request(HOLD_LOCK, () => {})
+    .catch(() => {})
+    .then(() => {
+      retrying = false
+      void syncNow()
+    })
+}
+
+/** Whether another tab holds syncing (this tab's own holds are counted in `holds`). */
+async function heldElsewhere(): Promise<boolean> {
+  if (typeof navigator === 'undefined' || !navigator.locks) return false
+  const { held = [] } = await navigator.locks.query()
+  return held.some((l) => l.name === HOLD_LOCK)
+}
+
+/** Resolves once no sync is running here (one that started before a hold carries on). */
+export const syncIdle = (): Promise<void> => running ?? Promise.resolve()
+
 const DEBOUNCE_MS = 4000
 const INTERVAL_MS = 5 * 60_000
 
@@ -183,7 +252,8 @@ export async function startAutoSync() {
   }
   // Fires after every committed write to any Dexie database in this page (and other tabs).
   Dexie.on('storagemutated', soon)
-  document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && void syncNow())
+  // A moment later, so a screen that holds syncing (Cards) has taken its hold again first.
+  document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && setTimeout(() => void syncNow(), 0))
   window.addEventListener('online', () => void syncNow())
   setInterval(() => document.visibilityState === 'visible' && void syncNow(), INTERVAL_MS)
   void syncNow()

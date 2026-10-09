@@ -1,6 +1,7 @@
 import { DEFAULT_NEW_WORDS_PER_DAY, NEW_WORDS_PER_DAY } from '@kikitori/core/coreWords'
 import type { UiLang } from '@kikitori/core/model'
 import type { KeyValueStore } from '@kikitori/core/seed'
+import { DEFAULT_CARD_MODE, isCardModeSetting, type CardModeSetting } from '@kikitori/core/review'
 import { isEngineVoiceId, type EngineVoiceId } from '@kikitori/core/voices'
 
 /** The macOS app's settings so far (the web app's grow as its features arrive here). */
@@ -14,6 +15,8 @@ export interface MacSettings {
   rate: number
   /** Core-word cards added a day (0: off). */
   newWordsPerDay: number
+  /** How flashcards are reviewed (read, listen, recall or a mix); the web app's key. */
+  cardMode: CardModeSetting
   /** An AivisSpeech or VOICEVOX voice on this Mac; unset: the Mac's own Japanese voice. */
   voiceURI?: EngineVoiceId
   /** The voice's character, for its credit ("VOICEVOX:<character>"); unset until the engine names it. */
@@ -22,7 +25,7 @@ export interface MacSettings {
 
 const KEY = 'kikitori.settings'
 
-export const defaultSettings = (locale: string): MacSettings => ({ lang: locale.startsWith('zh') ? 'zh' : 'en', furigana: true, translation: true, chunks: false, rate: 1, newWordsPerDay: DEFAULT_NEW_WORDS_PER_DAY })
+export const defaultSettings = (locale: string): MacSettings => ({ lang: locale.startsWith('zh') ? 'zh' : 'en', furigana: true, translation: true, chunks: false, rate: 1, newWordsPerDay: DEFAULT_NEW_WORDS_PER_DAY, cardMode: DEFAULT_CARD_MODE })
 
 /** Speeds offered in Settings (Slow plays at 0.7 of the chosen one). */
 export const RATES = [0.8, 1, 1.2] as const
@@ -40,6 +43,7 @@ export function sanitizeSettings(saved: unknown, base: MacSettings): MacSettings
     chunks: typeof s.chunks === 'boolean' ? s.chunks : base.chunks,
     rate: typeof s.rate === 'number' && s.rate >= 0.5 && s.rate <= 2 ? s.rate : base.rate,
     newWordsPerDay: (NEW_WORDS_PER_DAY as readonly unknown[]).includes(s.newWordsPerDay) ? (s.newWordsPerDay as number) : base.newWordsPerDay,
+    cardMode: isCardModeSetting(s.cardMode) ? s.cardMode : base.cardMode,
     ...voiceOf(s),
   }
 }

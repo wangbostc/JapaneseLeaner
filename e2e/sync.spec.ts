@@ -281,3 +281,45 @@ test('the static build (no server) hides sync entirely', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Reminders' })).toBeVisible()
   await expect(page.getByTestId('sync-section')).toHaveCount(0)
 })
+
+test('reviewing cards holds syncing in every tab, so a grade stays undoable with another tab open', async ({ browser }) => {
+  const cards = await newDevice(browser, 'Reviewer')
+  // A second tab of the app: every grade reaches it too (Dexie tells other tabs), and it would
+  // sync it a few seconds later, were syncing not held.
+  const other = await cards.context().newPage()
+  await other.goto('./')
+  await expect(other.getByRole('heading', { name: 'Today' })).toBeVisible()
+
+  await cards.goto('./#/cards')
+  await expect(cards.getByTestId('flashcard')).toBeVisible()
+  await expect(cards.getByText(/^1 of \d+$/)).toBeVisible()
+  await cards.keyboard.press('Space')
+  await cards.keyboard.press('3')
+  await expect(cards.getByText(/^2 of \d+$/)).toBeVisible()
+  await cards.waitForTimeout(6000) // past the other tab's 4 s debounce
+  await cards.keyboard.press('u')
+  await expect(cards.getByTestId('undo-message')).toHaveText('Grade undone.')
+  await expect(cards.getByText(/^1 of \d+$/)).toBeVisible()
+})
+
+test('a tab that found syncing held syncs again once the holding tab is gone', async ({ browser }) => {
+  const holder = await newDevice(browser, 'Holder')
+  const other = await holder.context().newPage()
+  await other.goto('./#/settings')
+  await holder.goto('./#/cards')
+  await expect(holder.getByTestId('flashcard')).toBeVisible()
+  // Tried while the other tab holds it: put off, not lost.
+  await other.getByRole('button', { name: 'Sync now' }).click()
+  await holder.close()
+
+  await other.goto('./#/import')
+  await other.getByRole('textbox', { name: /^Title/ }).fill('保留のあと')
+  await other.getByRole('textbox', { name: /^Transcript/ }).fill('保留のあとで同期します。')
+  await other.getByRole('button', { name: 'Create lesson' }).click()
+  await expect(other.getByRole('heading', { name: '保留のあと' })).toBeVisible()
+  await syncNow(other)
+
+  const laptop = await newDevice(browser, 'Laptop3') // connecting syncs straight away
+  await laptop.goto('./#/library')
+  await expect(laptop.getByRole('link', { name: /保留のあと/ })).toBeVisible()
+})
