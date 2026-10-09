@@ -2,6 +2,7 @@ import { hasNativeTestRenderer } from '@gpuix/react/testing'
 import { describe, expect, it } from 'vitest'
 import type { fakeAudio } from './audio/audio'
 import { open } from './testing'
+import { PAGE_PADDING, PAGE_WIDTH } from './ui/theme'
 
 describe.runIf(hasNativeTestRenderer)('macOS app', () => {
   it('opens on Today with every starter lesson due', async () => {
@@ -9,6 +10,18 @@ describe.runIf(hasNativeTestRenderer)('macOS app', () => {
     await shows('私の朝')
     for (const title of ['私の朝', '週末のカフェ', '「間」の文化', '便利さの代償']) expect(painted()).toContain(title)
     expect(painted()).toContain('DUE NOW')
+  })
+
+  it('centres the page in a window wider than its column, the word sheet lined up with it', async () => {
+    const { app, appears, click, lessonId } = await open()
+    await appears('due')
+    // The test window is 1000 wide; the column 860, its content inset 28.
+    const inset = (1000 - PAGE_WIDTH) / 2 + PAGE_PADDING
+    expect((await app.getByTestId('due').bounds()).x).toBeCloseTo(inset, 0)
+    await click('tab-library')
+    await click(`lesson-${await lessonId('私の朝')}`)
+    await click('word-0-2')
+    expect((await app.getByTestId('word-sheet').bounds()).x).toBeCloseTo(inset, 0)
   })
 
   it('lists the library newest first', async () => {

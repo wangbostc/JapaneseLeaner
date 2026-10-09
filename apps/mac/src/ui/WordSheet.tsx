@@ -4,7 +4,7 @@ import { useApp, type WordPick } from '../context'
 import { Meanings } from './Meanings'
 import { PitchAccent } from './PitchAccent'
 import { Button, Col, Pressable, Row, Text } from './primitives'
-import { C } from './theme'
+import { C, PAGE_PADDING, PAGE_WIDTH } from './theme'
 import { VoiceCredit } from './VoiceCredit'
 
 /** A tapped word over the page: its reading, pitch and meanings, and a button to save it as a card. */
@@ -21,28 +21,31 @@ export function WordSheet({ pick, onClose }: { pick: WordPick; onClose: () => vo
   return (
     <Col style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'flex-end' }}>
       <Pressable testId="sheet-backdrop" onPress={onClose} style={{ flexGrow: 1, backgroundColor: C.scrim, cursor: 'default' }} />
-      <Col testId="word-sheet" style={{ gap: 12, padding: 24, backgroundColor: C.panel, borderTopWidth: 1, borderColor: C.line }}>
-        <Row style={{ gap: 12, alignItems: 'flex-end' }}>
-          <Text size={30} ja weight={600}>
-            {token.lemma}
-          </Text>
-          <Text size={18} ja color={C.ruby}>
-            {reading}
-          </Text>
-        </Row>
-        {token.surface !== token.lemma && (
-          <Text color={C.dim} ja>
-            {`${token.surface} · ${token.pos}`}
-          </Text>
-        )}
-        <PitchAccent word={token.lemma} reading={reading} pos={token.pos} />
-        <Meanings word={token.lemma} reading={reading} />
-        <Row style={{ gap: 10 }}>
-          <Button testId="play-word" label={t.play} onPress={() => void audio.speak(token.lemma, settings.rate)} />
-          <Button testId="save-word" label={saved ? t.saved : t.saveWord} variant="primary" onPress={save} disabled={saved} />
-          <Button testId="close-sheet" label={t.back} variant="ghost" onPress={onClose} />
-        </Row>
-        <VoiceCredit />
+      {/* Across the window; its contents lined up with the page's. */}
+      <Col style={{ alignItems: 'center', paddingTop: 24, paddingBottom: 24, paddingLeft: PAGE_PADDING, paddingRight: PAGE_PADDING, backgroundColor: C.panel, borderTopWidth: 1, borderColor: C.line }}>
+        <Col testId="word-sheet" style={{ gap: 12, maxWidth: PAGE_WIDTH - 2 * PAGE_PADDING, width: '100%' }}>
+          <Row style={{ gap: 12, alignItems: 'flex-end' }}>
+            <Text size={30} ja weight={600}>
+              {token.lemma}
+            </Text>
+            <Text size={18} ja color={C.ruby}>
+              {reading}
+            </Text>
+          </Row>
+          {token.surface !== token.lemma && (
+            <Text color={C.dim} ja>
+              {`${token.surface} · ${token.pos}`}
+            </Text>
+          )}
+          <PitchAccent word={token.lemma} reading={reading} pos={token.pos} />
+          <Meanings word={token.lemma} reading={reading} />
+          <Row style={{ gap: 10 }}>
+            <Button testId="play-word" label={t.play} onPress={() => void audio.speak(token.lemma, settings.rate)} />
+            <Button testId="save-word" label={saved ? t.saved : t.saveWord} variant="primary" onPress={save} disabled={saved} />
+            <Button testId="close-sheet" label={t.back} variant="ghost" onPress={onClose} />
+          </Row>
+          <VoiceCredit />
+        </Col>
       </Col>
     </Col>
   )

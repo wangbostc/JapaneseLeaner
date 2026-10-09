@@ -20,6 +20,11 @@ export const C = {
   scrim: '#000000aa',
 }
 
+/** The page column's widest (a comfortable line length): a wider window centres it. */
+export const PAGE_WIDTH = 860
+/** Around the page's content, inside that column. */
+export const PAGE_PADDING = 28
+
 /** Japanese text, and everything else (Latin and CJK UI strings). */
 export const FONT_JA = 'Hiragino Sans'
 export const FONT_UI = 'Helvetica Neue'

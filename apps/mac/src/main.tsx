@@ -128,6 +128,9 @@ render(
     title: 'Kikitori',
     width: 980,
     height: 760,
+    // The smallest the pages were checked at: narrower, they'd only get cramped.
+    minWidth: 720,
+    minHeight: 540,
     // Not a held key's repeats: holding 3 would grade card after card.
     onKeyDown: (event) => {
       if (!event.isHeld) keys.emit(event.key ?? '')
