@@ -65,6 +65,7 @@ export function backupContract(backend: Backend) {
     await src.finishRound(id, 0, T0)
     const card = await src.addCard({ lessonId: id, kind: 'word', front: '散歩', reading: 'さんぽ', context: '散歩する。' }, T0)
     await src.gradeCard(card, Rating.Good, T0)
+    await src.setSuspended(card, true, T0)
     await src.log({ lessonId: id, step: 'intensive', mode: 'input', ms: 60_000, at: T0 })
     await src.addKnownWords(['散歩'], T0)
 
@@ -88,6 +89,10 @@ export function backupContract(backend: Backend) {
     expect(c.card.due).toBeInstanceOf(Date)
     expect(c.card.last_review).toBeInstanceOf(Date)
     expect(await dst.dueCards(T0)).toEqual([])
+    // Suspended it stays, until resumed.
+    expect(c.suspendedAt).toBe(T0)
+    expect(await dst.dueCards(c.card.due.getTime())).toEqual([])
+    await dst.setSuspended(c.id!, false)
     expect((await dst.dueCards(c.card.due.getTime())).map((x) => x.front)).toEqual(['散歩'])
 
     expect(await dst.stats(T0)).toMatchObject({ totalMs: 60_000, words: 1, cards: 1 })

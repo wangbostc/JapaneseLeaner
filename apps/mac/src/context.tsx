@@ -43,6 +43,8 @@ export type Route =
   | { name: 'library' }
   | { name: 'import' }
   | { name: 'cards' }
+  /** Every card, to search, suspend, edit or delete. */
+  | { name: 'cardList' }
   | { name: 'stats' }
   | { name: 'settings' }
   | { name: 'lesson'; id: number }

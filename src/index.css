@@ -319,6 +319,27 @@ ruby rt { font-size: 0.5em; color: var(--muted); letter-spacing: 0; }
 .card-prompt p { margin: 0; }
 .card-prompt ol { margin: 0; padding-left: 1.4em; text-align: left; font-size: 1.1rem; }
 .card-keys { margin: 0; text-align: center; }
+/* The card browser: a compact list; a tapped row opens its actions or editor. */
+.card-filters { display: flex; flex-wrap: wrap; gap: 6px; }
+.card-filters .btn { padding: 5px 12px; font-size: 0.85rem; }
+.card-filters .btn[aria-pressed='true'] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.card-list { list-style: none; padding: 0; margin: 0; gap: 6px; }
+.card-row { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.card-row.is-suspended .card-row-front { color: var(--muted); }
+.card-row-main {
+  display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 14px;
+  font: inherit; color: inherit; text-align: left; background: none; border: 0; border-radius: 12px; cursor: pointer;
+}
+.card-row-main:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.card-row-text { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.card-row-front { font-size: 1.15rem; overflow-wrap: anywhere; }
+.card-row-side { display: flex; flex-direction: column; align-items: flex-end; flex: none; line-height: 1.3; text-align: right; }
+.card-row-actions, .card-editor { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 0 14px 12px; }
+.card-row-actions .btn { padding: 6px 14px; font-size: 0.88rem; }
+.card-row-actions .btn.danger { margin-top: 0; }
+.card-row-actions p { margin: 0; flex-basis: 100%; }
+.card-editor { flex-direction: column; align-items: stretch; }
+.form.card-editor input:disabled:not([type='checkbox']) { color: var(--muted); background: var(--surface-2); }
 /* No keyboard to speak of on a phone. */
 @media (hover: none) { .card-keys { display: none; } }
 

@@ -84,6 +84,34 @@ export function storeContract(backend: Backend) {
     expect((await s.dueCards(due)).map((c) => c.front)).toEqual(['天気'])
   })
 
+  it('suspends a card out of the due list and resumes it, as a change to sync', async () => {
+    const id = await lesson('a')
+    const c = await s.addCard({ lessonId: id, kind: 'word', front: '天気', reading: 'てんき', context: '' }, T0)
+    const before = (await s.db.cards.get(c))!.updatedAt!
+    await s.setSuspended(c, true, T0 + H)
+    expect((await s.db.cards.get(c))!.suspendedAt).toBe(T0 + H)
+    expect((await s.db.cards.get(c))!.updatedAt).toBeGreaterThan(before)
+    expect(await s.dueCards(T0 + D)).toEqual([])
+    expect((await s.allCards()).map((x) => x.front)).toEqual(['天気'])
+    await s.setSuspended(c, false, T0 + 2 * H)
+    expect((await s.db.cards.get(c))!.suspendedAt).toBeUndefined()
+    expect((await s.dueCards(T0 + D)).map((x) => x.front)).toEqual(['天気'])
+  })
+
+  it('edits a card’s text, but never a core word’s front', async () => {
+    const id = await lesson('a')
+    const c = await s.addCard({ lessonId: id, kind: 'word', front: '天気', reading: 'てんき', context: '' }, T0)
+    await s.editCard(c, { front: ' 天気予報 ', reading: 'てんきよほう', context: '明日の天気予報。' })
+    expect((await s.db.cards.get(c))!).toMatchObject({ front: '天気予報', reading: 'てんきよほう', context: '明日の天気予報。' })
+    const stamp = (await s.db.cards.get(c))!.updatedAt
+    await s.editCard(c, { front: '', reading: 'てんきよほう' }) // nothing changes: no new version
+    expect((await s.db.cards.get(c))!).toMatchObject({ front: '天気予報', updatedAt: stamp })
+
+    const core = await s.db.cards.add({ uid: 'core:天気', updatedAt: 0, lessonId: 0, kind: 'word', front: '天気', reading: 'てんき', context: '', card: (await s.db.cards.get(c))!.card, createdAt: T0 })
+    await s.editCard(core, { front: '天候', context: '天気がいい。' })
+    expect((await s.db.cards.get(core))!).toMatchObject({ uid: 'core:天気', front: '天気', context: '天気がいい。' })
+  })
+
   it('undoes a grade not yet synced, leaving nothing to sync', async () => {
     const id = await lesson('a')
     const c = await s.addCard({ lessonId: id, kind: 'word', front: '天気', reading: 'てんき', context: '' }, T0)

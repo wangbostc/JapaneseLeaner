@@ -62,6 +62,8 @@ export interface Flashcard extends Partial<Synced> {
   context: string
   card: Card
   createdAt: number
+  /** When it was suspended: kept, but never due, until resumed. Absent for a card in review. */
+  suspendedAt?: number
 }
 
 export interface PracticeLog extends Partial<Synced> {

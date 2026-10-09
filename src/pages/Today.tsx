@@ -22,7 +22,15 @@ export function Today() {
     const timer = setTimeout(() => setNow(Date.now()), Math.min(nextDue - Date.now() + 500, 2 ** 31 - 1))
     return () => clearTimeout(timer)
   }, [nextDue, now])
-  const cardsDue = useLiveQuery(() => db.cards.where('card.due').belowOrEqual(new Date()).count(), [])
+  const cardsDue = useLiveQuery(
+    () =>
+      db.cards
+        .where('card.due')
+        .belowOrEqual(new Date())
+        .filter((c) => !c.suspendedAt)
+        .count(),
+    [],
+  )
   const stats = useLiveQuery(() => store.stats(), [])
   if (!agenda) return null
 

@@ -156,7 +156,30 @@ export function createStore(database: Database) {
       })
     },
 
-    dueCards: (now = Date.now()) => database.cards.dueBy(new Date(now)),
+    /** Cards due by `now`, suspended ones aside. */
+    dueCards: async (now = Date.now()) => (await database.cards.dueBy(new Date(now))).filter((c) => !c.suspendedAt),
+
+    /** Every card, for browsing. */
+    allCards: () => database.cards.all(),
+
+    /** Suspends a card (kept, but never due) or resumes it, due as it was scheduled. */
+    async setSuspended(id: number, suspended: boolean, now = Date.now()) {
+      const c = await database.cards.get(id)
+      if (!c || !!c.suspendedAt === suspended) return
+      await database.cards.update(id, { suspendedAt: suspended ? now : undefined })
+    },
+
+    /**
+     * Corrects a card's text. A core word's front is its identity (core:<word>, see coreWords.ts,
+     * which imports this module), so only its reading and context change.
+     */
+    async editCard(id: number, changes: Partial<Pick<Flashcard, 'front' | 'reading' | 'context'>>) {
+      const c = await database.cards.get(id)
+      if (!c) return
+      const { front, ...rest } = changes
+      const next = { ...rest, ...(front !== undefined && !c.uid?.startsWith('core:') && front.trim() ? { front: front.trim() } : {}) }
+      if (Object.entries(next).some(([k, v]) => c[k as keyof Flashcard] !== v)) await database.cards.update(id, next)
+    },
 
     /** Grades a card; returns what it was before (for undoGrade), or null if it's gone. */
     async gradeCard(id: number, grade: Grade, now = Date.now()): Promise<GradeUndo | null> {

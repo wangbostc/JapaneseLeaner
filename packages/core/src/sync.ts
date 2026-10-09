@@ -60,6 +60,7 @@ function toWireCard(c: Flashcard, lessonUid: string | null): WireCard {
     context: c.context,
     card: { ...c.card, due: toIso(c.card.due)!, last_review: toIso(c.card.last_review) } as WireCard['card'],
     createdAt: c.createdAt,
+    ...(c.suspendedAt ? { suspendedAt: c.suspendedAt } : {}),
   }
 }
 
@@ -166,7 +167,19 @@ async function applyChanges(db: Database, changes: SyncBatch, editedSince: (row:
       if (t) await db.deletions.delete(t.id!)
       const [local] = await db.cards.where('uid', [w.uid])
       if (local && editedSince(local)) continue
-      const row: Flashcard = { uid: w.uid, updatedAt: w.updatedAt, syncedVersion: w.updatedAt, lessonId: id, kind: w.kind, front: w.front, reading: w.reading, context: w.context, card: fromWireCard(w), createdAt: w.createdAt }
+      const row: Flashcard = {
+        uid: w.uid,
+        updatedAt: w.updatedAt,
+        syncedVersion: w.updatedAt,
+        lessonId: id,
+        kind: w.kind,
+        front: w.front,
+        reading: w.reading,
+        context: w.context,
+        card: fromWireCard(w),
+        createdAt: w.createdAt,
+        ...(typeof w.suspendedAt === 'number' ? { suspendedAt: w.suspendedAt } : {}),
+      }
       if (local) await db.cards.put({ ...row, id: local.id })
       else await db.cards.add(row)
     }

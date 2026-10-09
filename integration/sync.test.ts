@@ -410,6 +410,31 @@ describe('sync between a Mac (SQLite) and a phone (IndexedDB)', () => {
   })
 })
 
+describe('suspended cards between a Mac (SQLite) and a phone (IndexedDB)', () => {
+  it('carries a suspension across, and back when resumed, with edits', async () => {
+    const env = await server()
+    const mac = await device(env, 'mac', sqliteBackend)
+    const phone = await device(env, 'phone', BACKENDS[0])
+    const id = await mac.store.createLesson({ title: '散歩', sentences: [{ start: null, end: null, text: 'おはよう。' }] })
+    const card = await mac.store.addCard({ lessonId: id, kind: 'word', front: '散歩', reading: 'さんぽ', context: 'おはよう。' })
+    await mac.store.setSuspended(card, true)
+    await mac.store.editCard(card, { reading: 'さんぽ（する）' })
+    await mac.sync()
+
+    await phone.sync()
+    const [onPhone] = await phone.db.cards.all()
+    expect([onPhone.suspendedAt, onPhone.reading]).toEqual([(await mac.db.cards.get(card))!.suspendedAt, 'さんぽ（する）'])
+    expect(onPhone.suspendedAt).toBeGreaterThan(0)
+    expect(await phone.store.dueCards()).toEqual([])
+
+    await phone.store.setSuspended(onPhone.id!, false)
+    await phone.sync()
+    await mac.sync()
+    expect((await mac.db.cards.get(card))!.suspendedAt).toBeUndefined()
+    expect((await mac.store.dueCards()).map((c) => c.front)).toEqual(['散歩'])
+  })
+})
+
 describe('core words between a Mac (SQLite) and a phone (IndexedDB)', () => {
   it('carries a reviewed core card, which belongs to no lesson, across', async () => {
     const env = await server()

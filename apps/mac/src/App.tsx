@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { engineOf } from '@kikitori/core/voices'
 import { withEngineVoice } from './audio/voices'
 import { AppContext, type App as AppValue, type AppDeps, type Route, type WordPick } from './context'
+import { CardList } from './screens/CardList'
 import { Cards } from './screens/Cards'
 import { Import } from './screens/Import'
 import { Library } from './screens/Library'
@@ -21,8 +22,9 @@ const SPEAKER_RETRY_MS = 30_000
 
 type Tab = 'today' | 'library' | 'cards' | 'stats' | 'settings'
 
-/** The tab a route belongs to (a lesson, its study and Import live under Library). */
-const tabOf = (route: Route): Tab => (route.name === 'lesson' || route.name === 'study' || route.name === 'import' ? 'library' : route.name)
+/** The tab a route belongs to (a lesson, its study and Import live under Library; All cards under Cards). */
+const tabOf = (route: Route): Tab =>
+  route.name === 'lesson' || route.name === 'study' || route.name === 'import' ? 'library' : route.name === 'cardList' ? 'cards' : route.name
 
 function TabBar({ route, navigate, labels }: { route: Route; navigate: (r: Route) => void; labels: [Tab, string][] }) {
   const current = tabOf(route)
@@ -58,6 +60,8 @@ function Screen({ route }: { route: Route }) {
       return <Import />
     case 'cards':
       return <Cards />
+    case 'cardList':
+      return <CardList />
     case 'stats':
       return <Stats />
     case 'settings':

@@ -248,6 +248,161 @@ describe.runIf(hasNativeTestRenderer)('import, cards, stats and settings', () =>
     }
   })
 
+  it('browses all cards from Cards: filters, search, and a suspended card left out of review until resumed', { timeout: 30000 }, async () => {
+    const o = await open({ newWordsPerDay: 10 })
+    const { app, click, shows, appears, db, deps } = o
+    await click('tab-cards')
+    await shows('1 of 10')
+    await click('all-cards')
+    await appears('card-search')
+    await shows(STRINGS.en.allCards)
+    await shows('10 cards')
+    const cards = await db.cards.all()
+    const byRank = (rank: number) => cards.find((c) => coreRank(c) === rank)!.id!
+    for (const c of cards) await appears(`card-row-${c.id}`)
+    await shows('Core 3,500 · #6')
+    await shows('ひと') // 人's reading, which differs from it
+    await shows(STRINGS.en.newCard)
+
+    // Search folds katakana, and filters combine with it.
+    await app.getByTestId('card-search').fill('スル')
+    await shows('1 card')
+    expect(await app.getByTestId(`card-row-${byRank(1)}`).count()).toBe(1)
+    expect(await app.getByTestId(`card-row-${byRank(2)}`).count()).toBe(0)
+    await click('card-filter-saved')
+    await shows('0 cards')
+    await shows(STRINGS.en.noMatchingCards)
+    await app.getByTestId('card-search').fill('')
+    await shows('0 cards') // no saved cards
+    await click('card-filter-core')
+    await shows('10 cards')
+
+    // Suspended: out of the due filter, and out of review.
+    await click('card-filter-due')
+    await shows('10 cards')
+    await click(`card-row-${byRank(1)}`)
+    await click(`suspend-${byRank(1)}`)
+    await shows('9 cards')
+    expect(await app.getByTestId(`card-row-${byRank(1)}`).count()).toBe(0)
+    expect((await db.cards.get(byRank(1)))!.suspendedAt).toBeGreaterThan(0)
+    await click('card-filter-suspended')
+    await shows('1 card')
+    expect(await app.getByTestId(`card-row-${byRank(1)}`).textContent()).toContain(STRINGS.en.suspended)
+
+    // The review's keys don't reach the browser.
+    const before = await db.cards.all()
+    deps.keys.emit('space')
+    deps.keys.emit('3')
+    deps.keys.emit('u')
+    deps.keys.emit('1')
+    await app.getByTestId('card-search').fill('3 ')
+    await shows(STRINGS.en.noMatchingCards)
+    expect(await db.cards.all()).toEqual(before)
+    expect(await app.getByTestId('card-back').count()).toBe(0)
+    expect(await app.getByTestId('undo').count()).toBe(0)
+    await app.getByTestId('card-search').fill('')
+
+    await click('back-to-cards')
+    await shows('1 of 9')
+    await shows('Core 3,500 · #2')
+    await click('tab-today')
+    await shows('9 cards to review')
+
+    // Resumed: due again.
+    await click('tab-cards')
+    await click('all-cards')
+    await click('card-filter-suspended')
+    await click(`card-row-${byRank(1)}`)
+    await shows(STRINGS.en.resume)
+    await click(`suspend-${byRank(1)}`)
+    await shows(STRINGS.en.noMatchingCards)
+    expect((await db.cards.get(byRank(1)))!.suspendedAt).toBeUndefined()
+    await click('back-to-cards')
+    await shows('1 of 10')
+    await shows('Core 3,500 · #1')
+  })
+
+  it('edits and deletes cards in the browser, keeping a core word’s spelling', { timeout: 30000 }, async () => {
+    const o = await open({ newWordsPerDay: 10 })
+    const { app, click, shows, hides, appears, db, store, lessonId } = o
+    await shows('私の朝')
+    const saved = await store.addCard({ lessonId: await lessonId('私の朝'), kind: 'word', front: '毎朝', reading: 'まいあさ', context: '私は毎朝六時に起きます。' })
+    await click('tab-cards')
+    await shows('1 of 11')
+    await click('all-cards')
+    await shows('11 cards')
+    await click('card-filter-saved')
+    await shows('1 card')
+    await app.getByTestId('card-search').fill('六時') // its sentence
+    await shows('1 card')
+
+    // Edit its reading; Cancel keeps what was there.
+    await click(`card-row-${saved}`)
+    await click(`edit-${saved}`)
+    await appears('edit-reading')
+    await app.getByTestId('edit-reading').fill('まいちょう')
+    await click('save-card')
+    await appears(`edit-${saved}`) // saved, and closed
+    await shows('まいちょう')
+    expect((await db.cards.get(saved))!).toMatchObject({ front: '毎朝', reading: 'まいちょう', context: '私は毎朝六時に起きます。' })
+    await click(`edit-${saved}`)
+    await app.getByTestId('edit-reading').fill('まいあさ')
+    await click('cancel-edit')
+    await appears(`edit-${saved}`)
+    expect((await db.cards.get(saved))!.reading).toBe('まいちょう')
+
+    // A core word's spelling can't change; its reading can.
+    await app.getByTestId('card-search').fill('')
+    await click('card-filter-core')
+    const core = (await db.cards.all()).find((c) => coreRank(c) === 6)!
+    await click(`card-row-${core.id}`)
+    await click(`edit-${core.id}`)
+    await shows(STRINGS.en.coreFrontFixed)
+    await app.getByTestId('edit-front').fill('大人')
+    await app.getByTestId('edit-reading').fill('ヒト')
+    await shows('ヒト')
+    expect(o.painted()).not.toContain('大人')
+    await click('save-card')
+    await appears(`edit-${core.id}`)
+    await shows('ヒト')
+    expect((await db.cards.get(core.id!))!).toMatchObject({ front: '人', reading: 'ヒト' })
+
+    // Deleting takes a second press; a core word says it won't come back.
+    await click(`delete-${core.id}`)
+    await shows(STRINGS.en.confirmDeleteCard)
+    await shows(STRINGS.en.coreDeleteNote)
+    expect(await db.cards.get(core.id!)).toBeDefined()
+    await click(`card-row-${core.id}`) // closed: no longer confirming
+    await hides(STRINGS.en.coreDeleteNote)
+    await click('card-filter-saved')
+    await click(`card-row-${saved}`)
+    await click(`delete-${saved}`)
+    await shows(STRINGS.en.confirmDeleteCard)
+    await hides(STRINGS.en.coreDeleteNote) // a saved card's
+    expect(await db.cards.get(saved)).toBeDefined()
+    await click(`delete-${saved}`)
+    await shows(STRINGS.en.noMatchingCards)
+    expect(await db.cards.get(saved)).toBeUndefined()
+    await click('card-filter-all')
+    await shows('10 cards')
+  })
+
+  it('shows a hundred cards at a time', { timeout: 30000 }, async () => {
+    const o = await open()
+    const { click, shows, hides, appears, store } = o
+    for (let n = 0; n < 130; n++) await store.addCard({ lessonId: 0, kind: 'word', front: `語${n}`, reading: `ご${n}`, context: '' })
+    await click('tab-cards')
+    await click('all-cards')
+    await shows('130 cards')
+    await appears('show-more')
+    await shows(STRINGS.en.showMoreCards(30))
+    await shows('語99')
+    expect(o.painted()).not.toContain('語100')
+    await click('show-more')
+    await hides(STRINGS.en.showMoreCards(30))
+    await shows('語129')
+  })
+
   it('speaks in an AivisSpeech or VOICEVOX voice chosen in Settings, credited, and in the Mac’s own when chosen back', { timeout: 30000 }, async () => {
     const engines = {
       aivis: [{ name: 'まお', styles: [{ name: 'ノーマル', id: 888753760 }, { name: 'おちつき', id: 888753763 }] }],

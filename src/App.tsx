@@ -12,6 +12,7 @@ import { MovedBanner } from './components/MovedBanner'
 import { seedOnce } from '@kikitori/core/seed'
 import { store } from './lib/store'
 import { About } from './pages/About'
+import { CardBrowser } from './pages/CardBrowser'
 import { Cards } from './pages/Cards'
 import { Import } from './pages/Import'
 import { LessonPage } from './pages/LessonPage'
@@ -74,6 +75,7 @@ function Shell() {
           <Route path="/lesson/:id/study" element={<Study />} />
           <Route path="/lesson/:id/practice/:step" element={<Study />} />
           <Route path="/cards" element={<Cards />} />
+          <Route path="/cards/all" element={<CardBrowser />} />
           <Route path="/stats" element={<Stats />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/about" element={<About />} />
