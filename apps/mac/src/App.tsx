@@ -14,7 +14,7 @@ import { Study } from './screens/Study'
 import { Today } from './screens/Today'
 import { writeSettings, type MacSettings } from './settings'
 import { Col, Pressable, Row, Text } from './ui/primitives'
-import { C } from './ui/theme'
+import { C, PAGE_PADDING, PAGE_WIDTH } from './ui/theme'
 import { WordSheet } from './ui/WordSheet'
 
 /** How often to ask a closed engine again for the chosen voice's character. */
@@ -139,9 +139,10 @@ export function App({ deps, initialRoute = { name: 'today' } }: { deps: AppDeps;
           ]}
         />
         {/* One scroll area per screen: the key resets the scroll position on navigation. minHeight 0
-            lets it shrink below its content (unlike CSS, the layout engine doesn't imply it). */}
-        <Col testId="scroll" key={routeKey(route)} style={{ flexGrow: 1, flexBasis: 0, minHeight: 0, overflowY: 'scroll' }}>
-          <Col style={{ padding: 28, paddingBottom: 60, maxWidth: 860, width: '100%' }}>
+            lets it shrink below its content (unlike CSS, the layout engine doesn't imply it). The
+            page is a centred column, however wide the window. */}
+        <Col testId="scroll" key={routeKey(route)} style={{ flexGrow: 1, flexBasis: 0, minHeight: 0, overflowY: 'scroll', alignItems: 'center' }}>
+          <Col style={{ padding: PAGE_PADDING, paddingBottom: 60, maxWidth: PAGE_WIDTH, width: '100%' }}>
             <Screen route={route} />
           </Col>
         </Col>
