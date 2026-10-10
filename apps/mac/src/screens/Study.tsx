@@ -20,12 +20,12 @@ const INPUT_STEPS: Step[] = ['intensive', 'blind']
 const MAX_LOGGED_MS = 20 * 60_000
 
 export function Study({ id, free }: { id: number; free?: Step }) {
-  const { db, store, mediaPath } = useApp()
+  const { db, store, prefs, mediaPath } = useApp()
   const lesson = useQuery(() => db.lessons.get(id), [id])
   // A private chapter's word cards join the reviews once the learner studies it.
   useEffect(() => {
-    void releaseChapterCards(store, id)
-  }, [store, id])
+    void releaseChapterCards(store, id, prefs)
+  }, [store, id, prefs])
   // The audio file is looked up once per lesson (a sync can link it later; the runner restarts then).
   const media = useQuery(async () => {
     const l = await db.lessons.get(id)
