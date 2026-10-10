@@ -61,6 +61,17 @@ describe.runIf(hasNativeTestRenderer)('import, cards, stats and settings', () =>
     await o.shows(STRINGS.en.macNotAudio)
   })
 
+  it('shows the meaning a card came with (a private lesson’s word list) on its back', { timeout: 30000 }, async () => {
+    const o = await open()
+    const { click, shows, store, lessonId } = o
+    await shows('私の朝')
+    await store.addCard({ lessonId: await lessonId('私の朝'), kind: 'word', front: '毎朝', reading: 'まいあさ', context: '', gloss: 'every single morning' })
+    await click('tab-cards')
+    await click('show-answer')
+    await shows('every single morning')
+    await shows('1. every morning · noun, adverb') // the dictionary's too
+  })
+
   it('reviews a due card from Today’s banner, then schedules it', { timeout: 30000 }, async () => {
     const o = await open()
     const { click, shows, appears, store, db, lessonId } = o
@@ -72,6 +83,7 @@ describe.runIf(hasNativeTestRenderer)('import, cards, stats and settings', () =>
     await shows('1 of 1')
     await click('show-answer')
     await shows('1. every morning · noun, adverb')
+    expect(await o.app.getByTestId('card-gloss').count()).toBe(0) // none of its own
     // Its example sentence, with its translation and source; played in the chosen voice.
     await shows('I get up at six every morning.')
     await shows('Tatoeba #1234')

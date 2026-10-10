@@ -1,4 +1,5 @@
 import { exportBackup, parseBackup, restoreBackup, type Backup } from '@kikitori/core/backup'
+import { forgetPrivateLessons } from '@kikitori/core/privateLessons'
 import { basename, join } from 'node:path'
 import { useEffect, useState } from 'react'
 import type { AudioStatus } from '../audio/audio'
@@ -20,7 +21,7 @@ function backupName(dir: string, exists: (p: string) => boolean, now = new Date(
 }
 
 export function Settings() {
-  const { t, settings, updateSettings, audio, db, files, navigate } = useApp()
+  const { t, settings, updateSettings, audio, db, files, navigate, prefs } = useApp()
   const [speech, setSpeech] = useState<AudioStatus | null>(null)
   const [pending, setPending] = useState<{ backup: Backup; name: string } | null>(null)
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
@@ -62,6 +63,8 @@ export function Settings() {
     run(async () => {
       if (!pending) return
       await restoreBackup(db, pending.backup)
+      // The backup's private lessons may be older than MongoDB's: compare them all at next start.
+      forgetPrivateLessons(prefs)
       if (pending.backup.settings) updateSettings(sanitizeSettings(pending.backup.settings, settings))
       setPending(null)
       navigate({ name: 'library' }) // what was on screen may be gone

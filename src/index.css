@@ -304,6 +304,7 @@ ruby rt { font-size: 0.5em; color: var(--muted); letter-spacing: 0; }
 .card-context mark { background: var(--accent-soft); color: var(--ink); border-radius: 4px; padding: 0 2px; }
 .card-back { border-top: 1px dashed var(--line); padding-top: 12px; width: 100%; }
 .card-reading { font-size: 1.2rem; color: var(--accent); }
+.card-gloss { font-size: 1.1rem; margin: 4px 0 8px; }
 .grades { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .grade-btn { flex-direction: column; gap: 0; border-radius: 12px; padding: 10px 4px; }
 .grade-btn small { color: var(--muted); font-size: 0.72rem; }

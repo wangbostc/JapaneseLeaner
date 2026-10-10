@@ -241,6 +241,11 @@ export function Cards() {
               {card.reading}
             </Text>
             {card.kind === 'word' && <PitchAccent word={card.front} reading={card.reading} />}
+            {card.gloss && (
+              <Text testId="card-gloss" size={18}>
+                {card.gloss}
+              </Text>
+            )}
             {card.kind === 'word' && <Meanings word={card.front} reading={card.reading} />}
             {translation && <Text color={C.dim}>{translation}</Text>}
             {card.kind === 'word' && <ExampleSentences word={card.front} reading={card.reading} />}

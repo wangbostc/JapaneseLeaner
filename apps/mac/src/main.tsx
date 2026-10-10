@@ -7,6 +7,7 @@ import { createExamples, type ExamplesData } from '@kikitori/core/examples'
 import { createDictionary, type DictData } from '@kikitori/core/jmdict'
 import { createAccentTable } from '@kikitori/core/pitch'
 import { introduceCoreWords } from '@kikitori/core/coreWords'
+import { addPrivateLessons } from '@kikitori/core/privateLessons'
 import { seedOnce } from '@kikitori/core/seed'
 import { createStore } from '@kikitori/core/store'
 import { loadAnalyzer } from '@kikitori/core/tokenizer'
@@ -19,6 +20,7 @@ import { keyEvents } from './keys'
 import { nodeFiles } from './platform/files'
 import { mediaCache } from './platform/media'
 import { filePrefs } from './platform/prefs'
+import { audioFiles, readPrivateLessons } from './platform/privateLessons'
 import { promptForPaths } from './platform/dialog'
 import { WindowBridge } from './platform/window'
 import { readSettings } from './settings'
@@ -101,6 +103,19 @@ await seedOnce(store, () => prefs).catch((e) => console.error('[seed]', e))
 const settings = readSettings(prefs, Intl.DateTimeFormat().resolvedOptions().locale)
 // Today's new core words, so Today counts them (Cards adds them too, if the day turns meanwhile).
 await introduceCoreWords(db, settings.newWordsPerDay)
+// The learner's private lessons from the local MongoDB (a textbook of their own), in the
+// background: the app doesn't wait on MongoDB, and runs the same without it.
+if (process.env.KIKITORI_PRIVATE_LESSONS !== '0') {
+  void readPrivateLessons()
+    .then(async (read) => {
+      // No MongoDB (most computers) is normal: said once, quietly.
+      if ('error' in read) return console.log(`[private] not read: ${read.error}`)
+      const r = await addPrivateLessons(store, read.docs, audioFiles, prefs)
+      if (r.added || r.updated || r.cards) console.log(`[private] ${r.added} added, ${r.updated} updated, ${r.cards} cards`)
+      for (const p of r.problems) console.warn(`[private] ${p}`)
+    })
+    .catch((e) => console.error('[private]', e))
+}
 const analyzer = await loadAnalyzer((file) => Bun.file(join(resources.dict, file)).arrayBuffer())
 const keys = keyEvents()
 

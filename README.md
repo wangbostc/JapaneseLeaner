@@ -293,6 +293,41 @@ bun run lessons:import   # samples.json → MongoDB: adds lessons it lacks (a fr
 sample's id on every device, so a renamed lesson arrives as a new one. Devices
 that already have a lesson keep their copy when it's edited or removed here.
 
+### Private lessons (macOS app, local MongoDB)
+
+Material that must not be published, like a textbook you have rights to (Genki), goes in the
+same local MongoDB but in its own collection, `kikitori.privateLessons`. The macOS app reads
+it at start, in the background, and adds the lessons to its database. If MongoDB isn't
+running it does nothing. These lessons are never committed or built into the web app, and sync
+never sends them, their cards, audio, practice time or deletions (their ids start
+`private:`), even if a Mac backup brings them to a synced device. A backup file does contain
+them, so keep backups private too; and if one is restored in the web app, playing those
+lessons there sends their sentences to your own server's voices (and AI explanations, if
+asked), as for any lesson. `lessons:export` never reads this collection, and it
+refuses to export a lesson in `lessons` that looks private (`book`, `chapter`, `label`,
+`audio` or `vocab` fields, or a Genki or Tobira title).
+
+```js
+{
+  title: 'Genki I L3 会話',               // unique: the lesson's identity
+  book: 'Genki I', chapter: 3,           // shown as "Genki I · L3" (or set `label`)
+  audio: '/Users/you/Genki/L3.mp3',      // optional; used when every line has start and end
+  lines: [{ ja: '…', en: '…', zh: '…', start: 1.2, end: 3.4 }],
+  vocab: [{ word: '週末', reading: 'しゅうまつ', en: 'weekend' }],   // optional: flashcards
+}
+```
+
+```bash
+bun apps/mac/scripts/private-lessons.ts   # check them: what each becomes, and what's wrong (reads only)
+```
+
+How changes reach the app:
+- **Edited in MongoDB:** the lesson updates the next time the app starts, keeping your progress. An unchanged lesson's audio isn't read again, and one lesson that fails (an audio file the app isn't allowed to read, say) doesn't stop the rest.
+- **Audio in ~/Documents, ~/Desktop or ~/Downloads:** macOS may ask to allow Kikitori to read it, or refuse. If a lesson says it can't read its audio, move the files elsewhere (e.g. ~/Music/Genki).
+- **Word lists:** become flashcards with the book's English on the back, which Recall mode asks with.
+- **Deleted in the app:** a lesson or card stays deleted.
+- **Another server or database:** `KIKITORI_MONGO_URL` and `KIKITORI_MONGO_DB` point elsewhere, and `KIKITORI_PRIVATE_LESSONS=0` turns it off.
+
 The kuromoji dictionary is served gzipped. The loader checks the gzip magic bytes
 itself, so it works whether or not the host also sends `Content-Encoding: gzip`
 (`vite preview` does).

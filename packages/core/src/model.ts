@@ -64,6 +64,8 @@ export interface Flashcard extends Partial<Synced> {
   createdAt: number
   /** When it was suspended: kept, but never due, until resumed. Absent for a card in review. */
   suspendedAt?: number
+  /** Its meaning as its source gives it (a private lesson's word list), shown before the dictionary's. */
+  gloss?: string
 }
 
 export interface PracticeLog extends Partial<Synced> {
