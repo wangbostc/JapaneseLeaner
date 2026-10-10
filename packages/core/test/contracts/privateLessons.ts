@@ -11,7 +11,8 @@ function memoryPrefs(): KeyValueStore & { map: Map<string, string> } {
   return { map, getItem: (k) => map.get(k) ?? null, setItem: (k, v) => void map.set(k, v) }
 }
 
-/** Audio "files": a path maps to bytes (the stamp changes with them); `locked` ones fail to read. */
+/** Audio "files": a path maps to bytes (the stamp changes with them); `locked` ones can be
+ *  stat'ed but not read (as macOS privacy refuses), so read gives null, as the real one does. */
 function files(initial: Record<string, string> = {}) {
   const fs = new Map(Object.entries(initial))
   const locked = new Set<string>()
@@ -20,7 +21,7 @@ function files(initial: Record<string, string> = {}) {
     stamp: async (path) => fs.get(path) ?? null,
     read: async (path) => {
       reads.push(path)
-      if (locked.has(path)) throw new Error(`EACCES: permission denied, open '${path}'`)
+      if (locked.has(path)) return null
       const bytes = fs.get(path)
       return bytes === undefined ? null : { blob: new Blob([bytes], { type: 'audio/mpeg' }), name: path.split('/').at(-1)! }
     },
@@ -87,15 +88,29 @@ export function privateLessonsContract(backend: Backend) {
       const after = { ...chapter, title: 'L7', vocab: [] }
       const f = files({ '/book/locked.mp3': 'x', '/book/L3.mp3': 'abc' })
       f.locked.add('/book/locked.mp3')
-      const r = await addPrivateLessons(s, [untimed, missing, locked, after], f.audio, memoryPrefs(), T0)
+      const prefs = memoryPrefs()
+      const r = await addPrivateLessons(s, [untimed, missing, locked, after], f.audio, prefs, T0)
       expect(r.problems).toEqual([
         'L4: its audio needs a start and end on every line; read aloud for now',
         "L5: can't read /book/none.mp3; read aloud for now",
-        "L6: not added (EACCES: permission denied, open '/book/locked.mp3')",
+        "L6: can't read /book/locked.mp3; read aloud for now",
       ])
-      expect(r.added).toBe(3)
-      for (const uid of ['private:L4', 'private:L5']) expect((await byUid(uid))!.mediaId).toBeUndefined()
+      expect(r.added).toBe(4)
+      for (const uid of ['private:L4', 'private:L5', 'private:L6']) expect((await byUid(uid))!.mediaId).toBeUndefined()
       expect((await byUid('private:L7'))!.mediaId).toBeDefined() // the one after still came in
+
+      // Allowed later (the file itself unchanged): its audio comes in at the next start.
+      f.locked.delete('/book/locked.mp3')
+      expect(await addPrivateLessons(s, [untimed, missing, locked, after], f.audio, prefs, T0)).toMatchObject({ updated: 1 })
+      const l6 = (await byUid('private:L6'))!
+      expect([await (await s.db.media.get(l6.mediaId!))!.blob.text(), l6.sentences[0].start]).toEqual(['x', 0.5])
+
+      // Refused again after an edit: the audio it has stays, with its timings.
+      f.locked.add('/book/locked.mp3')
+      const edited = { ...locked, lines: [{ ...locked.lines[0], en: 'Where’s the station?' }, locked.lines[1]] }
+      await addPrivateLessons(s, [untimed, missing, edited, after], f.audio, prefs, T0)
+      const kept = (await byUid('private:L6'))!
+      expect([kept.mediaId, kept.sentences[0].translations?.en, kept.sentences[0].start]).toEqual([l6.mediaId, 'Where’s the station?', 0.5])
     })
 
     it('updates a lesson changed in MongoDB, keeping its progress', async () => {
@@ -126,6 +141,12 @@ export function privateLessonsContract(backend: Backend) {
       await addPrivateLessons(s, [words], audio, prefs, T0)
       expect((await s.db.cards.all()).find((c) => c.front === '駅')!.gloss).toBe('railway station')
       expect(await s.db.cards.count()).toBe(2)
+
+      // A card corrected here keeps its correction while the document doesn't change.
+      const station = (await s.db.cards.all()).find((c) => c.front === '駅')!
+      await s.editCard(station.id!, { reading: 'エキ' })
+      await addPrivateLessons(s, [words], audio, prefs, T0)
+      expect((await s.db.cards.get(station.id!))!.reading).toBe('エキ')
     })
 
     it('compares every lesson again once told to forget (after restoring a backup)', async () => {

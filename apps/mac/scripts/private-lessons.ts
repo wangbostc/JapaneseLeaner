@@ -15,7 +15,7 @@ const { lessons, problems } = checkPrivateLessons(docs)
 console.log(`${docs.length} documents: ${lessons.length} usable`)
 for (const l of lessons) {
   const timed = l.lines.every((x) => x.start !== undefined && x.end !== undefined)
-  const audio = !l.audio ? 'read aloud' : !timed ? 'read aloud (audio needs start and end on every line)' : (await audioFiles.stamp(l.audio)) ? 'with audio' : `read aloud (can't read ${l.audio})`
+  const audio = !l.audio ? 'read aloud' : !timed ? 'read aloud (audio needs start and end on every line)' : (await audioFiles.read(l.audio)) ? 'with audio' : `read aloud (can't read ${l.audio})`
   console.log(`- ${labelOf(l) ?? '(no label)'} · ${l.title}: ${l.lines.length} lines, ${audio}, ${l.vocab?.length ?? 0} words`)
 }
 for (const p of problems) console.log(`! ${p}`)

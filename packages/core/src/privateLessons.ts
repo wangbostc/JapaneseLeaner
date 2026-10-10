@@ -174,14 +174,24 @@ async function addOne(store: Store, doc: PrivateLessonDoc, audioFiles: ReadAudio
   }
   const print = fingerprint([labelOf(doc), doc.lines, stamp, doc.vocab ?? []])
   const [existing] = await db.lessons.where('uid', [uid])
-  if (!existing || ledger[uid] !== print) {
+  const changed = !existing || ledger[uid] !== print
+  // Remembered only when its audio came in as asked: audio that couldn't be read (macOS not
+  // yet allowing it, say) is tried again next start, though the file itself hasn't changed.
+  let complete = true
+  if (changed) {
     // The audio's bytes only now: an unchanged lesson costs a file stat, not a read.
     const audio = stamp ? await audioFiles.read(doc.audio!) : null
-    if (stamp && !audio) result.problems.push(`${doc.title}: can't read ${doc.audio}; read aloud for now`)
+    if (stamp && !audio) {
+      result.problems.push(`${doc.title}: can't read ${doc.audio}; read aloud for now`)
+      complete = false
+    }
+    // Audio already there that just couldn't be read again stays, with its timings.
+    const keep = !audio && !complete && !!existing?.mediaId
+    const timedNow = !!audio || keep
     const sentences: Sentence[] = doc.lines.map((l) => ({
       text: l.ja,
-      start: audio ? l.start! : null,
-      end: audio ? l.end! : null,
+      start: timedNow ? l.start! : null,
+      end: timedNow ? l.end! : null,
       translations: { ...(l.en ? { en: l.en } : {}), ...(l.zh ? { zh: l.zh } : {}) },
     }))
     if (!existing) {
@@ -192,27 +202,34 @@ async function addOne(store: Store, doc: PrivateLessonDoc, audioFiles: ReadAudio
       await db.transaction(async () => {
         const lesson = await db.lessons.get(existing.id!)
         if (!lesson) return
-        const mediaId = audio ? await db.media.add(audio) : undefined
-        const media = mediaId ? await db.media.get(mediaId) : undefined
-        if (lesson.mediaId) await db.media.delete([lesson.mediaId])
+        let { mediaId, mediaUid } = lesson
+        if (!keep) {
+          const added = audio ? await db.media.add(audio) : undefined
+          mediaUid = added ? (await db.media.get(added))?.uid : undefined
+          if (lesson.mediaId) await db.media.delete([lesson.mediaId])
+          mediaId = added
+        }
         // Lines changed in number leave the old places meaningless.
         const same = lesson.sentences.length === sentences.length
-        await db.lessons.update(lesson.id!, { level: labelOf(doc), sentences, mediaId, mediaUid: media?.uid, hard: same ? lesson.hard : [], resume: same ? lesson.resume : null })
+        await db.lessons.update(lesson.id!, { level: labelOf(doc), sentences, mediaId, mediaUid, hard: same ? lesson.hard : [], resume: same ? lesson.resume : null })
       })
       result.updated++
     }
   }
+  // Cards follow the document when it changes (a card edited here keeps its edit otherwise);
+  // one missing is added back unless it was deleted here.
   const [lesson] = await db.lessons.where('uid', [uid])
   for (const w of doc.vocab ?? []) {
     const cardUid = wordUid(doc.title, w.word)
     if (deleted.has(cardUid)) continue
     const [card] = await db.cards.where('uid', [cardUid])
     if (card) {
-      if (card.reading !== (w.reading ?? '') || card.gloss !== w.en) await db.cards.update(card.id!, { reading: w.reading ?? '', gloss: w.en })
+      if (changed && (card.reading !== (w.reading ?? '') || card.gloss !== w.en)) await db.cards.update(card.id!, { reading: w.reading ?? '', gloss: w.en })
       continue
     }
     await store.addCard({ uid: cardUid, lessonId: lesson.id!, kind: 'word', front: w.word, reading: w.reading ?? '', context: '', gloss: w.en }, now)
     result.cards++
   }
-  ledger[uid] = print
+  if (complete) ledger[uid] = print
+  else delete ledger[uid]
 }

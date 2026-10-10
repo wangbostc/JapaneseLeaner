@@ -301,7 +301,9 @@ it at start, in the background, and adds the lessons to its database. If MongoDB
 running it does nothing. These lessons are never committed or built into the web app, and sync
 never sends them, their cards, audio, practice time or deletions (their ids start
 `private:`), even if a Mac backup brings them to a synced device. A backup file does contain
-them, so keep backups private too. `lessons:export` never reads this collection, and it
+them, so keep backups private too; and if one is restored in the web app, playing those
+lessons there sends their sentences to your own server's voices (and AI explanations, if
+asked), as for any lesson. `lessons:export` never reads this collection, and it
 refuses to export a lesson in `lessons` that looks private (`book`, `chapter`, `label`,
 `audio` or `vocab` fields, or a Genki or Tobira title).
 

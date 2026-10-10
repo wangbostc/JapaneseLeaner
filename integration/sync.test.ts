@@ -420,9 +420,16 @@ describe('private lessons (a textbook of the learner’s own)', () => {
     await web.store.addCard({ uid: 'private:Test book L1|はい', lessonId: id, kind: 'word', front: 'はい', reading: 'はい', context: '', gloss: 'yes' })
     await web.store.log({ lessonId: id, step: 'intensive', mode: 'input', ms: 60_000, at: Date.now() })
     await web.store.createLesson({ title: 'shared', sentences: [{ start: null, end: null, text: 'いいえ。' }] })
-    await web.sync()
+    // Every request this device makes, to see that the private audio never leaves either.
+    const requests: string[] = []
+    const watched: Api = (path, init) => (requests.push(`${init?.method ?? 'GET'} ${path}`), apiFor(web)(path, init))
+    const sync = async () => web.setState((await syncOnce(web.db, watched, web.state())).state)
+    await sync()
+    await sync()
+    const privateAudio = (await web.db.lessons.get(id))!.mediaUid!
+    expect(requests.filter((r) => r.includes(privateAudio))).toEqual([])
     await web.store.deleteLesson(id)
-    await web.sync()
+    await sync()
 
     await other.sync()
     expect((await other.db.lessons.all()).map((l) => l.title)).toEqual(['shared'])

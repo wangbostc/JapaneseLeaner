@@ -75,11 +75,15 @@ const fromWireCard = (c: WireCard): Flashcard['card'] =>
  */
 const isPrivate = (uid: string | null | undefined) => !!uid?.startsWith('private:')
 
+/** The audio of private lessons (by media uid): never listed, never uploaded. */
+const privateMediaOf = async (db: Database) =>
+  new Set((await db.lessons.all()).filter((l) => isPrivate(l.uid) && l.mediaUid).map((l) => l.mediaUid!))
+
 async function gatherChanges(db: Database, state: SyncState): Promise<SyncBatch> {
   // (Each record's updatedAt as gathered is recorded by the caller from the batch.)
   const since = state.pushedAt
   const lessons = (await db.lessons.all()).filter((l) => !isPrivate(l.uid))
-  const privateMedia = new Set((await db.lessons.all()).filter((l) => isPrivate(l.uid) && l.mediaUid).map((l) => l.mediaUid!))
+  const privateMedia = await privateMediaOf(db)
   const lessonUid = new Map(lessons.map((l) => [l.id!, l.uid!]))
   const mediaUidById = new Map((await db.media.all()).map((m) => [m.id!, m.uid!]))
   const batch = emptyBatch()
@@ -256,8 +260,9 @@ async function downloadMedia(db: Database, api: Api, wanted: WireMedia[]): Promi
 
 /** Uploads the bytes of local audio the server doesn't have yet. */
 async function uploadMedia(db: Database, api: Api, uploaded: Set<string>) {
+  const privateMedia = await privateMediaOf(db)
   for (const m of await db.media.all()) {
-    if (!m.uid || uploaded.has(m.uid)) continue
+    if (!m.uid || uploaded.has(m.uid) || privateMedia.has(m.uid)) continue
     const res = await api(`/api/media/${encodeURIComponent(m.uid)}`, {
       method: 'PUT',
       headers: { 'Content-Type': m.blob.type || 'application/octet-stream', 'Content-Length': String(m.blob.size) },
