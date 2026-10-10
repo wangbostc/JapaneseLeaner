@@ -68,10 +68,18 @@ const fromWireCard = (c: WireCard): Flashcard['card'] =>
   ({ ...c.card, due: new Date(c.card.due), ...(c.card.last_review ? { last_review: new Date(c.card.last_review) } : {}) }) as Flashcard['card']
 
 /** Everything changed locally since the last push, in wire form. */
+/**
+ * A private lesson's records (the learner's own textbook, from the macOS app; see
+ * privateLessons.ts) never leave the device, even when a backup brought them here. Their uids
+ * carry the lesson's title, so their deletions stay too.
+ */
+const isPrivate = (uid: string | null | undefined) => !!uid?.startsWith('private:')
+
 async function gatherChanges(db: Database, state: SyncState): Promise<SyncBatch> {
   // (Each record's updatedAt as gathered is recorded by the caller from the batch.)
   const since = state.pushedAt
-  const lessons = await db.lessons.all()
+  const lessons = (await db.lessons.all()).filter((l) => !isPrivate(l.uid))
+  const privateMedia = new Set((await db.lessons.all()).filter((l) => isPrivate(l.uid) && l.mediaUid).map((l) => l.mediaUid!))
   const lessonUid = new Map(lessons.map((l) => [l.id!, l.uid!]))
   const mediaUidById = new Map((await db.media.all()).map((m) => [m.id!, m.uid!]))
   const batch = emptyBatch()
@@ -81,13 +89,15 @@ async function gatherChanges(db: Database, state: SyncState): Promise<SyncBatch>
   batch.lessons = lessons.filter(unsynced).map((l) => toWireLesson(l, mediaUidById))
   batch.cards = (await db.cards.changedSince(since))
     .filter(unsynced)
-    // A card of no lesson (lessonId 0) travels with lessonUid null; one whose lesson is gone doesn't.
+    .filter((c) => !isPrivate(c.uid))
+    // A card of no lesson (lessonId 0) travels with lessonUid null; one whose lesson is gone (or
+    // is private) doesn't.
     .filter((c) => c.lessonId === 0 || lessonUid.has(c.lessonId))
     .map((c) => toWireCard(c, c.lessonId === 0 ? null : lessonUid.get(c.lessonId)!))
-  batch.logs = (await db.logs.changedSince(since)).map(
+  batch.logs = (await db.logs.changedSince(since)).filter((l) => !isPrivate(l.lessonUid)).map(
     (l): WireLog => ({ uid: l.uid!, updatedAt: l.updatedAt!, lessonUid: l.lessonUid ?? null, step: l.step, mode: l.mode, ms: l.ms, at: l.at }),
   )
-  batch.media = (await db.media.changedSince(since)).map((m) => ({
+  batch.media = (await db.media.changedSince(since)).filter((m) => !privateMedia.has(m.uid!)).map((m) => ({
     uid: m.uid!,
     updatedAt: m.updatedAt!,
     name: m.name,
@@ -95,7 +105,7 @@ async function gatherChanges(db: Database, state: SyncState): Promise<SyncBatch>
     size: m.blob.size,
   }))
   batch.words = (await db.words.all()).filter((w) => w.firstSeen > since)
-  batch.deletions = (await db.deletions.all()).filter((d: Deletion) => d.at > since).map(({ uid, table, at }) => ({ uid, table, at }))
+  batch.deletions = (await db.deletions.all()).filter((d: Deletion) => d.at > since && !isPrivate(d.uid)).map(({ uid, table, at }) => ({ uid, table, at }))
   return batch
 }
 

@@ -298,10 +298,12 @@ that already have a lesson keep their copy when it's edited or removed here.
 Material that must not be published, like a textbook you have rights to (Genki), goes in the
 same local MongoDB but in its own collection, `kikitori.privateLessons`. The macOS app reads
 it at start, in the background, and adds the lessons to its database. If MongoDB isn't
-running it does nothing. These lessons are never committed, built into the web app or
-synced: they stay on that Mac. `lessons:export` never reads this collection, and it refuses
-to export a lesson in `lessons` that looks private (`book`, `chapter`, `label`, `audio` or
-`vocab` fields, or a Genki or Tobira title).
+running it does nothing. These lessons are never committed or built into the web app, and sync
+never sends them, their cards, audio, practice time or deletions (their ids start
+`private:`), even if a Mac backup brings them to a synced device. A backup file does contain
+them, so keep backups private too. `lessons:export` never reads this collection, and it
+refuses to export a lesson in `lessons` that looks private (`book`, `chapter`, `label`,
+`audio` or `vocab` fields, or a Genki or Tobira title).
 
 ```js
 {
@@ -318,7 +320,8 @@ bun apps/mac/scripts/private-lessons.ts   # check them: what each becomes, and w
 ```
 
 How changes reach the app:
-- **Edited in MongoDB:** the lesson updates the next time the app starts, keeping your progress.
+- **Edited in MongoDB:** the lesson updates the next time the app starts, keeping your progress. An unchanged lesson's audio isn't read again, and one lesson that fails (an audio file the app isn't allowed to read, say) doesn't stop the rest.
+- **Audio in ~/Documents, ~/Desktop or ~/Downloads:** macOS may ask to allow Kikitori to read it, or refuse. If a lesson says it can't read its audio, move the files elsewhere (e.g. ~/Music/Genki).
 - **Word lists:** become flashcards with the book's English on the back, which Recall mode asks with.
 - **Deleted in the app:** a lesson or card stays deleted.
 - **Another server or database:** `KIKITORI_MONGO_URL` and `KIKITORI_MONGO_DB` point elsewhere, and `KIKITORI_PRIVATE_LESSONS=0` turns it off.

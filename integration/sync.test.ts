@@ -410,6 +410,29 @@ describe('sync between a Mac (SQLite) and a phone (IndexedDB)', () => {
   })
 })
 
+describe('private lessons (a textbook of the learner’s own)', () => {
+  it('never leave the device by sync, even brought to a synced one by a backup', async () => {
+    const env = await server()
+    const web = await device(env, 'web', BACKENDS[0])
+    const other = await device(env, 'other', sqliteBackend)
+    const audio = new Blob([new Uint8Array([1, 2, 3])], { type: 'audio/mpeg' })
+    const id = await web.store.createLesson({ title: 'Test book L1', uid: 'private:Test book L1', sentences: [{ start: 0, end: 1, text: 'はい。' }], media: { blob: audio, name: 'L1.mp3' } })
+    await web.store.addCard({ uid: 'private:Test book L1|はい', lessonId: id, kind: 'word', front: 'はい', reading: 'はい', context: '', gloss: 'yes' })
+    await web.store.log({ lessonId: id, step: 'intensive', mode: 'input', ms: 60_000, at: Date.now() })
+    await web.store.createLesson({ title: 'shared', sentences: [{ start: null, end: null, text: 'いいえ。' }] })
+    await web.sync()
+    await web.store.deleteLesson(id)
+    await web.sync()
+
+    await other.sync()
+    expect((await other.db.lessons.all()).map((l) => l.title)).toEqual(['shared'])
+    expect(await other.db.cards.count()).toBe(0)
+    expect(await other.db.media.count()).toBe(0)
+    expect(await other.db.logs.count()).toBe(0)
+    expect((await other.db.deletions.all()).filter((d) => d.uid.startsWith('private:'))).toEqual([])
+  })
+})
+
 describe('suspended cards between a Mac (SQLite) and a phone (IndexedDB)', () => {
   it('carries a suspension across, and back when resumed, with edits', async () => {
     const env = await server()

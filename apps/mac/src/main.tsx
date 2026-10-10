@@ -20,7 +20,7 @@ import { keyEvents } from './keys'
 import { nodeFiles } from './platform/files'
 import { mediaCache } from './platform/media'
 import { filePrefs } from './platform/prefs'
-import { readAudioFile, readPrivateLessons } from './platform/privateLessons'
+import { audioFiles, readPrivateLessons } from './platform/privateLessons'
 import { promptForPaths } from './platform/dialog'
 import { WindowBridge } from './platform/window'
 import { readSettings } from './settings'
@@ -107,9 +107,10 @@ await introduceCoreWords(db, settings.newWordsPerDay)
 // background: the app doesn't wait on MongoDB, and runs the same without it.
 if (process.env.KIKITORI_PRIVATE_LESSONS !== '0') {
   void readPrivateLessons()
-    .then((docs) => docs && addPrivateLessons(store, docs, readAudioFile, prefs))
-    .then((r) => {
-      if (!r) return
+    .then(async (read) => {
+      // No MongoDB (most computers) is normal: said once, quietly.
+      if ('error' in read) return console.log(`[private] not read: ${read.error}`)
+      const r = await addPrivateLessons(store, read.docs, audioFiles, prefs)
       if (r.added || r.updated || r.cards) console.log(`[private] ${r.added} added, ${r.updated} updated, ${r.cards} cards`)
       for (const p of r.problems) console.warn(`[private] ${p}`)
     })

@@ -52,11 +52,12 @@ const perLevel = (lessons) => LEVELS.map((lv) => `${lv} ${lessons.filter((l) => 
 
 /** Fields only a private lesson has, and the books whose text mustn't be published. */
 const PRIVATE_FIELDS = ['book', 'chapter', 'label', 'audio', 'vocab', 'private']
-const PRIVATE_TITLE = /genki|げんき|tobira|とびら/i
+const PRIVATE_TITLE = /genki|げんき|ゲンキ|tobira|とびら|トビラ/i
 
 /** Throws naming any lesson that looks private, before anything is written to samples.json. */
 function refusePrivate(docs) {
-  const found = docs.filter((d) => PRIVATE_FIELDS.some((f) => f in d) || PRIVATE_TITLE.test(d.title ?? ''))
+  // NFKC: full-width ＧＥＮＫＩ reads as GENKI.
+  const found = docs.filter((d) => PRIVATE_FIELDS.some((f) => f in d) || PRIVATE_TITLE.test((d.title ?? '').normalize('NFKC')))
   if (found.length)
     throw new Error(
       `not exported: ${found.map((d) => d.title).join(', ')} look like private lessons, and samples.json is public. Keep them in the privateLessons collection.`,

@@ -62,26 +62,33 @@ export function checkPrivateLessons(docs: unknown[]): { lessons: PrivateLessonDo
   const seen = new Set<string>()
   docs.forEach((raw, i) => {
     const d = (raw ?? {}) as Record<string, unknown>
-    const name = text(d.title) ? (d.title as string) : `#${i + 1}`
+    // Trimmed, as the uid is: "Dup" and "Dup " are one lesson.
+    const title = text(d.title) ? (d.title as string).trim() : ''
+    const name = title || `#${i + 1}`
     const wrong: string[] = []
-    if (!text(d.title)) wrong.push('missing title')
-    else if (seen.has(d.title as string)) wrong.push('duplicate title')
+    if (!title) wrong.push('missing title')
+    else if (seen.has(title)) wrong.push('duplicate title')
     if (!Array.isArray(d.lines) || d.lines.length === 0) wrong.push('no lines')
     const lines = Array.isArray(d.lines) ? (d.lines as Record<string, unknown>[]) : []
     lines.forEach((l, j) => {
       if (!text(l?.ja)) wrong.push(`line ${j + 1} has no "ja"`)
+      for (const key of ['en', 'zh'] as const) if (l?.[key] !== undefined && typeof l[key] !== 'string') wrong.push(`line ${j + 1}: "${key}" must be text`)
       if ((l?.start !== undefined && !seconds(l.start)) || (l?.end !== undefined && !seconds(l.end))) wrong.push(`line ${j + 1} has a bad start or end`)
     })
     if (d.audio !== undefined && !text(d.audio)) wrong.push('"audio" must be a file path')
     if (d.vocab !== undefined && !Array.isArray(d.vocab)) wrong.push('"vocab" must be a list')
     const vocab = Array.isArray(d.vocab) ? (d.vocab as Record<string, unknown>[]) : []
+    const words = new Set<string>()
     vocab.forEach((w, j) => {
-      if (!text(w?.word) || !text(w?.en)) wrong.push(`word ${j + 1} needs "word" and "en"`)
+      if (!text(w?.word) || !text(w?.en)) return wrong.push(`word ${j + 1} needs "word" and "en"`)
+      // One card per word in a lesson (its id): a second entry would overwrite the first.
+      if (words.has((w.word as string).trim())) wrong.push(`word ${j + 1} (${w.word}) is listed twice`)
+      words.add((w.word as string).trim())
     })
     if (wrong.length) return problems.push(`${name}: ${wrong.join('; ')}`)
-    seen.add(d.title as string)
+    seen.add(title)
     lessons.push({
-      title: (d.title as string).trim(),
+      title,
       book: text(d.book) ? (d.book as string) : undefined,
       chapter: typeof d.chapter === 'number' ? d.chapter : undefined,
       label: text(d.label) ? (d.label as string) : undefined,
@@ -93,11 +100,24 @@ export function checkPrivateLessons(docs: unknown[]): { lessons: PrivateLessonDo
   return { lessons, problems }
 }
 
-/** A lesson's audio, read from disk; `stamp` changes when the file does. Null if unreadable. */
-export type ReadAudio = (path: string) => Promise<{ blob: Blob; name: string; stamp: string } | null>
+/**
+ * A lesson's audio on disk: `stamp` is cheap (size and modification time, changing when the file
+ * does), `read` loads it, only for a lesson being added or updated. Each gives null for a file
+ * that's missing or can't be read.
+ */
+export interface ReadAudio {
+  stamp(path: string): Promise<string | null>
+  read(path: string): Promise<{ blob: Blob; name: string } | null>
+}
 
 /** What each private lesson looked like when last added or updated, by uid. */
 const LEDGER = 'kikitori.privateLessons'
+
+/**
+ * Forgets what was added, so the next start compares every lesson afresh: after restoring a
+ * backup, whose lessons may be older than what's in MongoDB.
+ */
+export const forgetPrivateLessons = (prefs: KeyValueStore) => prefs.setItem(LEDGER, '{}')
 
 /** A short, stable fingerprint (FNV-1a), to notice a lesson that changed in MongoDB. */
 function fingerprint(value: unknown): string {
@@ -116,10 +136,10 @@ export interface PrivateResult {
 /**
  * Adds the private lessons this device hasn't got, and updates those changed in MongoDB since
  * (their progress kept). A lesson or card deleted here stays deleted. Audio is attached only when
- * every line has a start and an end; otherwise the lesson is read aloud.
+ * every line has a start and an end; otherwise the lesson is read aloud. One lesson that fails
+ * (its audio unreadable, say) is reported and skipped; the rest still come in.
  */
-export async function addPrivateLessons(store: Store, docs: unknown[], readAudio: ReadAudio, prefs: KeyValueStore, now = Date.now()): Promise<PrivateResult> {
-  const { db } = store
+export async function addPrivateLessons(store: Store, docs: unknown[], audioFiles: ReadAudio, prefs: KeyValueStore, now = Date.now()): Promise<PrivateResult> {
   const { lessons, problems } = checkPrivateLessons(docs)
   let ledger: Record<string, string> = {}
   try {
@@ -128,63 +148,71 @@ export async function addPrivateLessons(store: Store, docs: unknown[], readAudio
     // start afresh: every lesson is compared with what's stored
   }
   const result: PrivateResult = { added: 0, updated: 0, cards: 0, problems }
-  const deleted = new Set((await db.deletions.all()).map((d) => d.uid))
-
+  const deleted = new Set((await store.db.deletions.all()).map((d) => d.uid))
   for (const doc of lessons) {
-    const uid = privateUid(doc.title)
-    if (deleted.has(uid)) continue
-    const timed = doc.lines.every((l) => l.start !== undefined && l.end !== undefined)
-    let audio = null
-    if (doc.audio && !timed) problems.push(`${doc.title}: its audio needs a start and end on every line; read aloud for now`)
-    else if (doc.audio) {
-      audio = await readAudio(doc.audio)
-      if (!audio) problems.push(`${doc.title}: can't read ${doc.audio}; read aloud for now`)
+    try {
+      await addOne(store, doc, audioFiles, ledger, deleted, result, now)
+    } catch (e) {
+      problems.push(`${doc.title}: not added (${e instanceof Error ? e.message : String(e)})`)
     }
-    const print = fingerprint([labelOf(doc), doc.lines, audio?.stamp ?? null, doc.vocab ?? []])
+    // Saved as it goes: a lesson done isn't redone if a later one stops the app.
+    prefs.setItem(LEDGER, JSON.stringify(ledger))
+  }
+  return result
+}
+
+async function addOne(store: Store, doc: PrivateLessonDoc, audioFiles: ReadAudio, ledger: Record<string, string>, deleted: Set<string>, result: PrivateResult, now: number) {
+  const { db } = store
+  const uid = privateUid(doc.title)
+  if (deleted.has(uid)) return
+  const timed = doc.lines.every((l) => l.start !== undefined && l.end !== undefined)
+  let stamp: string | null = null
+  if (doc.audio && !timed) result.problems.push(`${doc.title}: its audio needs a start and end on every line; read aloud for now`)
+  else if (doc.audio) {
+    stamp = await audioFiles.stamp(doc.audio)
+    if (!stamp) result.problems.push(`${doc.title}: can't read ${doc.audio}; read aloud for now`)
+  }
+  const print = fingerprint([labelOf(doc), doc.lines, stamp, doc.vocab ?? []])
+  const [existing] = await db.lessons.where('uid', [uid])
+  if (!existing || ledger[uid] !== print) {
+    // The audio's bytes only now: an unchanged lesson costs a file stat, not a read.
+    const audio = stamp ? await audioFiles.read(doc.audio!) : null
+    if (stamp && !audio) result.problems.push(`${doc.title}: can't read ${doc.audio}; read aloud for now`)
     const sentences: Sentence[] = doc.lines.map((l) => ({
       text: l.ja,
       start: audio ? l.start! : null,
       end: audio ? l.end! : null,
       translations: { ...(l.en ? { en: l.en } : {}), ...(l.zh ? { zh: l.zh } : {}) },
     }))
-
-    const [existing] = await db.lessons.where('uid', [uid])
-    let lessonId: number
     if (!existing) {
-      lessonId = await store.createLesson({ title: doc.title, level: labelOf(doc), sentences, uid, ...(audio ? { media: { blob: audio.blob, name: audio.name } } : {}) }, now)
+      await store.createLesson({ title: doc.title, level: labelOf(doc), sentences, uid, ...(audio ? { media: audio } : {}) }, now)
       result.added++
     } else {
-      lessonId = existing.id!
-      if (ledger[uid] === print) continue
-      const mediaId = audio ? await db.media.add({ blob: audio.blob, name: audio.name }) : undefined
-      const mediaUid = mediaId ? (await db.media.get(mediaId))?.uid : undefined
-      if (existing.mediaId) await db.media.delete([existing.mediaId])
-      // Sentences that changed in number leave the old places meaningless.
-      const same = existing.sentences.length === sentences.length
-      await db.lessons.update(lessonId, {
-        level: labelOf(doc),
-        sentences,
-        mediaId,
-        mediaUid,
-        hard: same ? existing.hard : existing.hard.filter((i) => i < sentences.length),
-        resume: same ? existing.resume : null,
+      // Read again inside the transaction: a sentence marked hard meanwhile isn't lost.
+      await db.transaction(async () => {
+        const lesson = await db.lessons.get(existing.id!)
+        if (!lesson) return
+        const mediaId = audio ? await db.media.add(audio) : undefined
+        const media = mediaId ? await db.media.get(mediaId) : undefined
+        if (lesson.mediaId) await db.media.delete([lesson.mediaId])
+        // Lines changed in number leave the old places meaningless.
+        const same = lesson.sentences.length === sentences.length
+        await db.lessons.update(lesson.id!, { level: labelOf(doc), sentences, mediaId, mediaUid: media?.uid, hard: same ? lesson.hard : [], resume: same ? lesson.resume : null })
       })
       result.updated++
     }
-
-    for (const w of doc.vocab ?? []) {
-      const cardUid = wordUid(doc.title, w.word)
-      if (deleted.has(cardUid)) continue
-      const [card] = await db.cards.where('uid', [cardUid])
-      if (card) {
-        if (card.reading !== (w.reading ?? '') || card.gloss !== w.en) await db.cards.update(card.id!, { reading: w.reading ?? '', gloss: w.en })
-        continue
-      }
-      await store.addCard({ uid: cardUid, lessonId, kind: 'word', front: w.word, reading: w.reading ?? '', context: '', gloss: w.en }, now)
-      result.cards++
-    }
-    ledger[uid] = print
   }
-  prefs.setItem(LEDGER, JSON.stringify(ledger))
-  return result
+  const [lesson] = await db.lessons.where('uid', [uid])
+  for (const w of doc.vocab ?? []) {
+    const cardUid = wordUid(doc.title, w.word)
+    if (deleted.has(cardUid)) continue
+    const [card] = await db.cards.where('uid', [cardUid])
+    if (card) {
+      if (card.reading !== (w.reading ?? '') || card.gloss !== w.en) await db.cards.update(card.id!, { reading: w.reading ?? '', gloss: w.en })
+      continue
+    }
+    await store.addCard({ uid: cardUid, lessonId: lesson.id!, kind: 'word', front: w.word, reading: w.reading ?? '', context: '', gloss: w.en }, now)
+    result.cards++
+  }
+  ledger[uid] = print
 }
