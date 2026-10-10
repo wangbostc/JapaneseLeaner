@@ -18,12 +18,16 @@ export interface Shelf {
   lessons: Lesson[]
 }
 
-const SEP = ' · '
-const bookOf = (l: Lesson) => (l.level?.includes(SEP) ? l.level.slice(0, l.level.indexOf(SEP)).trim() : null)
+const SEP = /\s*·\s*/
+/** "Genki II · L13 読み書き" -> ["Genki II", "L13 読み書き"]; a level with no "·" is just a name. */
+const split = (level: string): [string, string | null] => {
+  const at = SEP.exec(level)
+  return at ? [level.slice(0, at.index).trim(), level.slice(at.index + at[0].length).trim()] : [level.trim(), null]
+}
 
-/** Within a book: "L13 読み書き" -> { chapter: 13, reading: true }; a part with no number ("あいさつ") comes first. */
+/** Within a book: "L13 読み書き" -> { chapter: 13, reading: true }; a part with no number ("あいさつ"), or none, comes first. */
 export function partOf(level: string) {
-  const part = level.slice(level.indexOf(SEP) + SEP.length)
+  const part = split(level)[1] ?? ''
   const n = /^L(\d+)/.exec(part)
   return { chapter: n ? Number(n[1]) : -1, reading: /読み書き$/.test(part), heading: part.replace(/\s*読み書き$/, '') }
 }
@@ -43,8 +47,13 @@ export function shelvesOf(lessons: Lesson[]): Shelf[] {
   const books = new Map<string, Lesson[]>()
   const builtIn: Lesson[] = []
   const mine: Lesson[] = []
+  // A book is named by its "<book> · <chapter>" levels; a lesson labelled with the book's name
+  // alone (a private document with a book but no chapter) goes on that shelf too, at its front.
+  const names = new Set(lessons.flatMap((l) => (l.level && split(l.level)[1] !== null ? [split(l.level)[0]] : [])))
   for (const l of lessons) {
-    const book = bookOf(l)
+    const name = l.level ? split(l.level)[0] : ''
+    // (Not a starter: its "N3" stays a starter even if the learner has an "N3 · …" book.)
+    const book = name && names.has(name) && !(l.builtIn && split(l.level!)[1] === null) ? name : null
     if (book) books.set(book, [...(books.get(book) ?? []), l])
     else if (l.builtIn) builtIn.push(l)
     else mine.push(l)
@@ -58,6 +67,15 @@ export function shelvesOf(lessons: Lesson[]): Shelf[] {
 }
 
 export const PAGE_SIZE = 20
+
+/** Where a lesson is: its shelf and the page it's on (after an import, the library opens there). */
+export function placeOf(lessons: Lesson[], id: number): Place {
+  for (const shelf of shelvesOf(lessons)) {
+    const i = shelf.lessons.findIndex((l) => l.id === id)
+    if (i >= 0) return { shelf: shelf.key, page: Math.floor(i / PAGE_SIZE) }
+  }
+  return { shelf: null, page: 0 }
+}
 
 export const pageCount = (n: number) => Math.max(1, Math.ceil(n / PAGE_SIZE))
 

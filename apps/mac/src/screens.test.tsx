@@ -29,6 +29,10 @@ describe.runIf(hasNativeTestRenderer)('import, cards, stats and settings', () =>
       ['明日は晴れます。', null, 'It will be sunny tomorrow.'],
     ])
     expect(lesson.mediaId).toBeUndefined()
+    // Back in the library: on its shelf (My lessons, not the starters shown before).
+    await click('tab-library')
+    await shows('貼り付け')
+    await shows('My lessons')
   })
 
   it('imports audio with timed subtitles, and plays each cue from the cached file', { timeout: 30000 }, async () => {

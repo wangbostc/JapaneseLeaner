@@ -3,6 +3,7 @@ import { parseTranscript } from '@kikitori/core/subtitles'
 import { basename } from 'node:path'
 import { useMemo, useState } from 'react'
 import { useApp } from '../context'
+import { placeOf, savePlace } from '../library'
 import { audioTypeOf } from '../platform/media'
 import { Field, TextArea, TextField } from '../ui/form'
 import { Button, Row, Text } from '../ui/primitives'
@@ -11,7 +12,7 @@ import { C } from '../ui/theme'
 const TRANSCRIPT = /\.(srt|vtt|lrc|txt)$/i
 
 export function Import() {
-  const { t, settings, store, files, navigate } = useApp()
+  const { t, settings, store, db, prefs, files, navigate } = useApp()
   const [title, setTitle] = useState('')
   const [level, setLevel] = useState('')
   const [audio, setAudio] = useState<{ path: string; type: string } | null>(null)
@@ -54,6 +55,8 @@ export function Import() {
     try {
       const media = audio ? await files.readBlob(audio.path, audio.type) : undefined
       const id = await store.createLesson({ title: title.trim(), level: level.trim() || undefined, sentences, media })
+      // Back in the library, it's on screen: its shelf, its page.
+      savePlace(prefs, placeOf(await db.lessons.all(), id))
       navigate({ name: 'lesson', id })
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))

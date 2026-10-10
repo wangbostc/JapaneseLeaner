@@ -14,9 +14,11 @@ export function Library() {
   // Where the learner moved to (in the route, so a new page starts at its top), else where they
   // last were: back from a lesson, the library opens on the same shelf and page.
   const place = route.name === 'library' && route.page !== undefined ? { shelf: route.shelf ?? null, page: route.page } : loadPlace(prefs)
-  const shelf = shelves.find((s) => s.key === place.shelf) ?? shelves[0]
+  // A shelf that's gone (its lessons deleted, or a backup restored without them): the first, from its start.
+  const kept = shelves.find((s) => s.key === place.shelf)
+  const shelf = kept ?? shelves[0]
   const pages = pageCount(shelf?.lessons.length ?? 0)
-  const page = Math.min(Math.max(0, place.page), pages - 1)
+  const page = kept ? Math.min(Math.max(0, place.page), pages - 1) : 0
   const move = (to: ShelfKey, p: number) => {
     savePlace(prefs, { shelf: to, page: p })
     navigate({ name: 'library', shelf: to, page: p })
@@ -39,7 +41,7 @@ export function Library() {
         <Button testId="import" label={`+ ${t.importLesson}`} variant="primary" onPress={() => navigate({ name: 'import' })} />
       </Row>
       {shelf && (
-        <Row style={{ justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+        <Row style={{ justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           {shelves.length > 1 ? (
             <Choice testId="shelf" value={shelf.key} onChange={(k) => move(k, 0)} options={shelves.map((s): [ShelfKey, string] => [s.key, name(s)])} />
           ) : (

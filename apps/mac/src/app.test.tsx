@@ -41,6 +41,7 @@ describe.runIf(hasNativeTestRenderer)('macOS app', () => {
     const order = ['L1', '本 L1 会話', 'L2', '本 L2 会話', '本 L2 読み物', 'L10', '本 L10 会話'].map((s) => text.indexOf(s))
     expect(order.every((i, k) => i >= 0 && (k === 0 || i > order[k - 1]))).toBe(true)
     expect(text).toContain('24 lessons')
+    expect(['L1', 'L2', 'L10'].map((h) => text.filter((s) => s === h).length)).toEqual([1, 1, 1]) // one heading a chapter
     expect(text).not.toContain('本 L46 会話') // the 21st: on page 2
     expect(text).not.toContain('私の朝') // the starters have their own shelf
     await click('page-2')
