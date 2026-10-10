@@ -13,14 +13,19 @@ import type { StepProps } from '../study/types'
 import { Button, Col, Row, Text } from '../ui/primitives'
 import { C } from '../ui/theme'
 import { VoiceCredit } from '../ui/VoiceCredit'
+import { releaseChapterCards } from '@kikitori/core/privateLessons'
 
 const INPUT_STEPS: Step[] = ['intensive', 'blind']
 /** Longer than this without moving on is treated as the learner walking away. */
 const MAX_LOGGED_MS = 20 * 60_000
 
 export function Study({ id, free }: { id: number; free?: Step }) {
-  const { db, mediaPath } = useApp()
+  const { db, store, mediaPath } = useApp()
   const lesson = useQuery(() => db.lessons.get(id), [id])
+  // A private chapter's word cards join the reviews once the learner studies it.
+  useEffect(() => {
+    void releaseChapterCards(store, id)
+  }, [store, id])
   // The audio file is looked up once per lesson (a sync can link it later; the runner restarts then).
   const media = useQuery(async () => {
     const l = await db.lessons.get(id)

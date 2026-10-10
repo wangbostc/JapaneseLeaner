@@ -52,6 +52,38 @@ const wordUid = (title: string, word: string) => `private:${title}|${word}`
 export const labelOf = (d: Pick<PrivateLessonDoc, 'label' | 'book' | 'chapter'>) =>
   d.label ?? (d.book && d.chapter !== undefined ? `${d.book} · L${d.chapter}` : d.book)
 
+/**
+ * A lesson's chapter, from its label: "Genki I · L3" for both "Genki I · L3" (its dialogues) and
+ * "Genki I · L3 読み書き" (its readings), so studying either brings in the chapter's words.
+ */
+const chapterOf = (level: string | undefined) => level?.replace(/\s*読み書き$/, '') || null
+
+/**
+ * A private lesson's word cards wait until the learner first studies that chapter (hundreds of
+ * new cards at once would bury the reviews). They wait suspended, marked by a suspension at the
+ * card's own creation time, so bringing them in never resumes a card the learner suspended.
+ */
+const waiting = (c: { suspendedAt?: number; createdAt: number }) => c.suspendedAt === c.createdAt
+
+/** Whether any lesson of `chapter` has been studied (a round finished, or one under way). */
+async function studied(store: Store, chapter: string | null) {
+  if (!chapter) return true
+  const lessons = (await store.db.lessons.all()).filter((l) => l.uid?.startsWith('private:') && chapterOf(l.level) === chapter)
+  return lessons.some((l) => l.progress.roundsDone > 0 || l.resume !== null)
+}
+
+/** Brings in the waiting word cards of `lessonId`'s chapter: called as the learner starts studying it. */
+export async function releaseChapterCards(store: Store, lessonId: number): Promise<number> {
+  const { db } = store
+  const lesson = await db.lessons.get(lessonId)
+  if (!lesson?.uid?.startsWith('private:')) return 0
+  const chapter = chapterOf(lesson.level)
+  const ids = new Set((await db.lessons.all()).filter((l) => l.uid?.startsWith('private:') && chapterOf(l.level) === chapter).map((l) => l.id!))
+  const cards = (await db.cards.all()).filter((c) => ids.has(c.lessonId) && waiting(c))
+  for (const c of cards) await db.cards.update(c.id!, { suspendedAt: undefined })
+  return cards.length
+}
+
 const text = (v: unknown) => typeof v === 'string' && v.trim() !== ''
 const seconds = (v: unknown) => typeof v === 'number' && Number.isFinite(v) && v >= 0
 
@@ -219,15 +251,19 @@ async function addOne(store: Store, doc: PrivateLessonDoc, audioFiles: ReadAudio
   // Cards follow the document when it changes (a card edited here keeps its edit otherwise);
   // one missing is added back unless it was deleted here.
   const [lesson] = await db.lessons.where('uid', [uid])
+  const open = await studied(store, chapterOf(labelOf(doc)))
   for (const w of doc.vocab ?? []) {
     const cardUid = wordUid(doc.title, w.word)
     if (deleted.has(cardUid)) continue
     const [card] = await db.cards.where('uid', [cardUid])
     if (card) {
       if (changed && (card.reading !== (w.reading ?? '') || card.gloss !== w.en)) await db.cards.update(card.id!, { reading: w.reading ?? '', gloss: w.en })
+      // Added due by an earlier version: waits too, if never reviewed and its chapter not studied.
+      if (!open && !card.suspendedAt && card.card.reps === 0) await db.cards.update(card.id!, { suspendedAt: card.createdAt })
       continue
     }
-    await store.addCard({ uid: cardUid, lessonId: lesson.id!, kind: 'word', front: w.word, reading: w.reading ?? '', context: '', gloss: w.en }, now)
+    const id = await store.addCard({ uid: cardUid, lessonId: lesson.id!, kind: 'word', front: w.word, reading: w.reading ?? '', context: '', gloss: w.en }, now)
+    if (!open) await db.cards.update(id, { suspendedAt: (await db.cards.get(id))!.createdAt })
     result.cards++
   }
   if (complete) ledger[uid] = print
