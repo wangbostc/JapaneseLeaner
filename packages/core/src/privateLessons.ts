@@ -52,6 +52,78 @@ const wordUid = (title: string, word: string) => `private:${title}|${word}`
 export const labelOf = (d: Pick<PrivateLessonDoc, 'label' | 'book' | 'chapter'>) =>
   d.label ?? (d.book && d.chapter !== undefined ? `${d.book} · L${d.chapter}` : d.book)
 
+/**
+ * A lesson's chapter, from its label: "Genki I · L3" for both "Genki I · L3" (its dialogues) and
+ * "Genki I · L3 読み書き" (its readings), so studying either brings in the chapter's words. Labels
+ * group exactly: a label shared by several chapters makes them one, a dialogue labelled otherwise
+ * than "<chapter>" isn't grouped with its "<chapter> 読み書き" reading, and a document with
+ * neither label nor book has no chapter (its words come in at once).
+ */
+const chapterOf = (level: string | undefined) => level?.replace(/\s*読み書き$/, '') || null
+
+/**
+ * A private lesson's word cards wait until the learner first studies that chapter (hundreds of
+ * new cards at once would bury the reviews). They wait suspended, marked by a suspension at the
+ * card's own creation time, so bringing them in never resumes a card the learner suspended.
+ */
+const waiting = (c: { suspendedAt?: number; createdAt: number }) => c.suspendedAt === c.createdAt
+
+/** The chapters the learner has opened (their words brought in), kept so a later start agrees. */
+const OPENED = 'kikitori.privateChapters'
+const openedChapters = (prefs: KeyValueStore): Set<string> => {
+  try {
+    return new Set(JSON.parse(prefs.getItem(OPENED) ?? '[]'))
+  } catch {
+    return new Set()
+  }
+}
+
+/** Every private chapter that counts as studied: opened here, or with a round finished. */
+async function studiedChapters(store: Store, prefs: KeyValueStore): Promise<Set<string>> {
+  const studied = openedChapters(prefs)
+  for (const l of await store.db.lessons.all()) {
+    const chapter = chapterOf(l.level)
+    if (chapter && l.uid?.startsWith('private:') && l.progress.roundsDone > 0) studied.add(chapter)
+  }
+  return studied
+}
+
+/** Brings in the waiting word cards of the given chapters, in one pass. */
+async function release(store: Store, chapters: Set<string>): Promise<number> {
+  const { db } = store
+  const ids = new Set(
+    (await db.lessons.all())
+      .filter((l) => {
+        const chapter = chapterOf(l.level)
+        return l.uid?.startsWith('private:') && chapter !== null && chapters.has(chapter)
+      })
+      .map((l) => l.id!),
+  )
+  const cards = (await db.cards.all()).filter((c) => ids.has(c.lessonId) && waiting(c))
+  for (const c of cards) await db.cards.update(c.id!, { suspendedAt: undefined })
+  return cards.length
+}
+
+/**
+ * Opens `lessonId`'s chapter: its waiting word cards join the reviews, and it's remembered as
+ * opened, so no later start puts them back. Called as the learner starts studying any of its
+ * lessons (free practice too).
+ */
+export async function releaseChapterCards(store: Store, lessonId: number, prefs: KeyValueStore): Promise<number> {
+  const lesson = await store.db.lessons.get(lessonId)
+  const chapter = lesson?.uid?.startsWith('private:') ? chapterOf(lesson.level) : null
+  if (!chapter) return 0
+  const opened = openedChapters(prefs)
+  if (!opened.has(chapter)) prefs.setItem(OPENED, JSON.stringify([...opened.add(chapter)]))
+  return release(store, new Set([chapter]))
+}
+
+/**
+ * Set once cards added due by the first version have been made to wait: done a single time, so
+ * it can never undo a chapter opened, or a card the learner resumed, since.
+ */
+const BACKFILLED = 'kikitori.privateCardsWaiting'
+
 const text = (v: unknown) => typeof v === 'string' && v.trim() !== ''
 const seconds = (v: unknown) => typeof v === 'number' && Number.isFinite(v) && v >= 0
 
@@ -141,6 +213,8 @@ export interface PrivateResult {
  */
 export async function addPrivateLessons(store: Store, docs: unknown[], audioFiles: ReadAudio, prefs: KeyValueStore, now = Date.now()): Promise<PrivateResult> {
   const { lessons, problems } = checkPrivateLessons(docs)
+  const studied = await studiedChapters(store, prefs)
+  const backfill = prefs.getItem(BACKFILLED) !== '1'
   let ledger: Record<string, string> = {}
   try {
     ledger = JSON.parse(prefs.getItem(LEDGER) ?? '{}')
@@ -151,17 +225,31 @@ export async function addPrivateLessons(store: Store, docs: unknown[], audioFile
   const deleted = new Set((await store.db.deletions.all()).map((d) => d.uid))
   for (const doc of lessons) {
     try {
-      await addOne(store, doc, audioFiles, ledger, deleted, result, now)
+      await addOne(store, doc, audioFiles, ledger, deleted, result, now, studied, backfill)
     } catch (e) {
       problems.push(`${doc.title}: not added (${e instanceof Error ? e.message : String(e)})`)
     }
     // Saved as it goes: a lesson done isn't redone if a later one stops the app.
     prefs.setItem(LEDGER, JSON.stringify(ledger))
   }
+  prefs.setItem(BACKFILLED, '1')
+  // Opened chapters' cards still waiting (added as a chapter was opened, or put back by the
+  // one-time backfill as it was) come in now, read afresh: one pass, not one per lesson.
+  await release(store, await studiedChapters(store, prefs))
   return result
 }
 
-async function addOne(store: Store, doc: PrivateLessonDoc, audioFiles: ReadAudio, ledger: Record<string, string>, deleted: Set<string>, result: PrivateResult, now: number) {
+async function addOne(
+  store: Store,
+  doc: PrivateLessonDoc,
+  audioFiles: ReadAudio,
+  ledger: Record<string, string>,
+  deleted: Set<string>,
+  result: PrivateResult,
+  now: number,
+  studied: Set<string>,
+  backfill: boolean,
+) {
   const { db } = store
   const uid = privateUid(doc.title)
   if (deleted.has(uid)) return
@@ -219,15 +307,24 @@ async function addOne(store: Store, doc: PrivateLessonDoc, audioFiles: ReadAudio
   // Cards follow the document when it changes (a card edited here keeps its edit otherwise);
   // one missing is added back unless it was deleted here.
   const [lesson] = await db.lessons.where('uid', [uid])
+  const chapter = chapterOf(labelOf(doc))
+  const open = !chapter || studied.has(chapter)
   for (const w of doc.vocab ?? []) {
     const cardUid = wordUid(doc.title, w.word)
     if (deleted.has(cardUid)) continue
     const [card] = await db.cards.where('uid', [cardUid])
     if (card) {
       if (changed && (card.reading !== (w.reading ?? '') || card.gloss !== w.en)) await db.cards.update(card.id!, { reading: w.reading ?? '', gloss: w.en })
+      // Added due by the first version: waits too (once), if never reviewed and its chapter not studied.
+      if (backfill && !open && !card.suspendedAt && card.card.reps === 0) await db.cards.update(card.id!, { suspendedAt: card.createdAt })
       continue
     }
-    await store.addCard({ uid: cardUid, lessonId: lesson.id!, kind: 'word', front: w.word, reading: w.reading ?? '', context: '', gloss: w.en }, now)
+    const id = await store.addCard({ uid: cardUid, lessonId: lesson.id!, kind: 'word', front: w.word, reading: w.reading ?? '', context: '', gloss: w.en }, now)
+    // addCard gives back a card of the lesson with that front if there is one (one the learner
+    // saved themselves, say): that one is theirs, left as it is.
+    const added = await db.cards.get(id)
+    if (added?.uid !== cardUid) continue
+    if (!open) await db.cards.update(id, { suspendedAt: added.createdAt })
     result.cards++
   }
   if (complete) ledger[uid] = print

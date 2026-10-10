@@ -142,6 +142,8 @@ export function createStore(database: Database) {
     /** Saves a word or sentence card once per lesson; returns the existing id if already saved. */
     async addCard(input: Omit<Flashcard, 'id' | 'card' | 'createdAt'>, now = Date.now()) {
       const existing = (await database.cards.where('lessonId', [input.lessonId])).find((c) => c.front === input.front)
+      // One waiting to be brought in (a private chapter's word; see privateLessons.ts) comes in when saved.
+      if (existing?.suspendedAt !== undefined && existing.suspendedAt === existing.createdAt) await database.cards.update(existing.id!, { suspendedAt: undefined })
       if (existing) return existing.id!
       return database.cards.add({ ...input, card: newCard(new Date(now)), createdAt: now })
     },

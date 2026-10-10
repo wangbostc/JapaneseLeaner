@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { addPrivateLessons, forgetPrivateLessons, type ReadAudio } from '../../src/privateLessons'
+import { addPrivateLessons, forgetPrivateLessons, releaseChapterCards, type ReadAudio } from '../../src/privateLessons'
 import type { KeyValueStore } from '../../src/seed'
 import { createStore, type Store } from '../../src/store'
 import type { Backend } from './backend'
@@ -175,6 +175,94 @@ export function privateLessonsContract(backend: Backend) {
       prefs.map.clear() // even with what it remembered gone
       expect(await addPrivateLessons(s, [chapter], audio, prefs, T0)).toMatchObject({ added: 0, cards: 0 })
       expect(await s.db.lessons.count()).toBe(0)
+    })
+
+    it('keeps a chapter’s word cards waiting until the chapter is studied', async () => {
+      const prefs = memoryPrefs()
+      const { audio } = files({ '/book/L3.mp3': 'abc' })
+      const reading = { title: 'Test book L3 読み物', book: 'Test book', chapter: 3, label: 'Test book · L3 読み書き', lines: [{ ja: '駅は近いです。' }] }
+      const next = { ...chapter, title: 'Test book L4 会話', chapter: 4, vocab: [{ word: '近い', reading: 'ちかい', en: 'near' }] }
+      await addPrivateLessons(s, [chapter, reading, next], audio, prefs, T0)
+      expect(await s.dueCards(T0 + 1)).toEqual([]) // nothing yet: no chapter studied
+      const cards = await s.db.cards.all()
+      expect(cards.every((c) => c.suspendedAt === c.createdAt)).toBe(true)
+
+      // One the learner suspends themselves stays suspended when the chapter opens.
+      const there = cards.find((c) => c.front === 'あそこ')!
+      await s.setSuspended(there.id!, false, T0)
+      await s.setSuspended(there.id!, true, T0 + 5)
+
+      // Studying the chapter's reading brings in its words (on the dialogue's cards), not L4's.
+      expect(await releaseChapterCards(s, (await byUid('private:Test book L3 読み物'))!.id!, prefs)).toBe(1)
+      expect((await s.dueCards(T0 + 1)).map((c) => c.front)).toEqual(['駅'])
+      expect((await s.db.cards.get(there.id!))!.suspendedAt).toBe(T0 + 5)
+      expect(await releaseChapterCards(s, (await byUid('private:Test book L3 読み物'))!.id!, prefs)).toBe(0) // once
+
+      // A chapter already studied takes new words straight in.
+      const l3 = (await byUid('private:Test book L3 会話'))!
+      await s.finishRound(l3.id!, 0, T0)
+      const more = { ...chapter, vocab: [...chapter.vocab, { word: '銀行', reading: 'ぎんこう', en: 'bank' }] }
+      await addPrivateLessons(s, [more, reading, next], audio, prefs, T0)
+      expect((await s.dueCards(T0 + 1)).map((c) => c.front).sort()).toEqual(['銀行', '駅'].sort())
+    })
+
+    it('keeps a chapter opened, and a card resumed by hand, as they are at the next start', async () => {
+      const prefs = memoryPrefs()
+      const { audio } = files({ '/book/L3.mp3': 'abc' })
+      const next = { ...chapter, title: 'Test book L4 会話', chapter: 4, vocab: [{ word: '近い', reading: 'ちかい', en: 'near' }] }
+      await addPrivateLessons(s, [chapter, next], audio, prefs, T0)
+      // Study opened and left at once (no resume point), then the app restarts.
+      await releaseChapterCards(s, (await byUid('private:Test book L3 会話'))!.id!, prefs)
+      // A waiting card of another chapter resumed by hand in the card browser.
+      const near = (await s.db.cards.all()).find((c) => c.front === '近い')!
+      await s.setSuspended(near.id!, false, T0 + 10)
+      await addPrivateLessons(s, [chapter, next], audio, prefs, T0 + 20)
+      expect((await s.dueCards(T0 + 30)).map((c) => c.front).sort()).toEqual(['あそこ', '近い', '駅'].sort())
+    })
+
+    it('leaves a card the learner saved themselves alone when the word list has the word too', async () => {
+      const prefs = memoryPrefs()
+      const { audio } = files({ '/book/L3.mp3': 'abc' })
+      await addPrivateLessons(s, [{ ...chapter, vocab: [] }], audio, prefs, T0)
+      const l = (await byUid('private:Test book L3 会話'))!
+      const mine = await s.addCard({ lessonId: l.id!, kind: 'word', front: '駅', reading: 'えき', context: '駅はどこですか。' }, T0 + 1)
+      await s.gradeCard(mine, 3, T0 + 2)
+      const suspended = await s.addCard({ lessonId: l.id!, kind: 'word', front: 'あそこ', reading: 'あそこ', context: '' }, T0 + 3)
+      await s.setSuspended(suspended, true, T0 + 70)
+      const r = await addPrivateLessons(s, [chapter], audio, prefs, T0 + 100)
+      expect(r.cards).toBe(0)
+      expect((await s.db.cards.get(mine))!.suspendedAt).toBeUndefined()
+      expect((await s.db.cards.get(suspended))!.suspendedAt).toBe(T0 + 70)
+      await releaseChapterCards(s, l.id!, prefs)
+      expect((await s.db.cards.get(suspended))!.suspendedAt).toBe(T0 + 70) // still theirs to resume
+    })
+
+    it('brings a waiting word in when the learner saves it from the lesson', async () => {
+      const prefs = memoryPrefs()
+      await addPrivateLessons(s, [{ ...chapter, audio: undefined }], files().audio, prefs, T0)
+      const l = (await byUid('private:Test book L3 会話'))!
+      await s.addCard({ lessonId: l.id!, kind: 'word', front: '駅', reading: 'えき', context: '駅はどこですか。' }, T0 + 5)
+      expect((await s.dueCards(T0 + 10)).map((c) => c.front)).toEqual(['駅'])
+    })
+
+    it('makes cards an earlier version added due wait too, if never reviewed and the chapter not studied', async () => {
+      const prefs = memoryPrefs()
+      const { audio } = files({ '/book/L3.mp3': 'abc' })
+      await addPrivateLessons(s, [chapter], audio, prefs, T0)
+      for (const c of await s.db.cards.all()) await s.db.cards.update(c.id!, { suspendedAt: undefined }) // as before
+      prefs.map.delete('kikitori.privateCardsWaiting') // as on the first start with this version
+      const [first] = await s.db.cards.all()
+      await s.gradeCard(first.id!, 3, T0)
+      await addPrivateLessons(s, [chapter], audio, prefs, T0)
+      const after = await s.db.cards.all()
+      expect(after.find((c) => c.id === first.id)!.suspendedAt).toBeUndefined() // reviewed: left alone
+      expect(after.filter((c) => c.id !== first.id).every((c) => c.suspendedAt === c.createdAt)).toBe(true)
+
+      // Once only: a card resumed by hand since isn't put back at a later start.
+      const other = after.find((c) => c.id !== first.id)!
+      await s.setSuspended(other.id!, false, T0 + 5)
+      await addPrivateLessons(s, [chapter], audio, prefs, T0 + 10)
+      expect((await s.db.cards.get(other.id!))!.suspendedAt).toBeUndefined()
     })
 
     it('names what’s wrong with a document, and adds the rest', async () => {

@@ -5,6 +5,7 @@ import { formatDuration, STRINGS } from '@kikitori/core/i18n'
 import { hasNativeTestRenderer } from '@gpuix/react/testing'
 import { describe, expect, it } from 'vitest'
 import type { FakeEngines } from './audio/fakeEngines'
+import { addPrivateLessons } from '@kikitori/core/privateLessons'
 import { open } from './testing'
 
 const FIXTURES = join(import.meta.dirname, '../../../e2e/fixtures')
@@ -59,6 +60,21 @@ describe.runIf(hasNativeTestRenderer)('import, cards, stats and settings', () =>
     await o.click('import')
     await o.click('choose-audio')
     await o.shows(STRINGS.en.macNotAudio)
+  })
+
+  it('brings a private chapter’s words into the reviews when one of its lessons is first studied', { timeout: 30000 }, async () => {
+    const o = await open()
+    const { click, shows, store, prefs, appears } = o
+    await shows('私の朝')
+    const none = { stamp: async () => null, read: async () => null }
+    await addPrivateLessons(store, [{ title: 'Test book L1 会話', book: 'Test book', chapter: 1, lines: [{ ja: '駅はどこですか。', en: 'Where is the station?' }], vocab: [{ word: '駅', reading: 'えき', en: 'station' }] }], none, prefs)
+    expect(await store.dueCards()).toEqual([])
+    const lesson = (await store.db.lessons.all()).find((l) => l.title === 'Test book L1 会話')!
+    await click('tab-library')
+    await click(`lesson-${lesson.id}`)
+    await click('start')
+    await appears('step-title')
+    await expect.poll(async () => (await store.dueCards()).map((c) => c.front)).toEqual(['駅'])
   })
 
   it('shows the meaning a card came with (a private lesson’s word list) on its back', { timeout: 30000 }, async () => {
