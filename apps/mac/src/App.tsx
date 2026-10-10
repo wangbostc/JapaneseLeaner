@@ -73,7 +73,12 @@ function Screen({ route }: { route: Route }) {
   }
 }
 
-const routeKey = (route: Route) => (route.name === 'lesson' || route.name === 'study' ? `${route.name}-${route.id}-${'free' in route ? route.free : ''}` : route.name)
+const routeKey = (route: Route) =>
+  route.name === 'lesson' || route.name === 'study'
+    ? `${route.name}-${route.id}-${'free' in route ? route.free : ''}`
+    : route.name === 'library'
+      ? `library-${route.shelf ?? ''}-${route.page ?? ''}` // a new page starts at its top
+      : route.name
 
 export function App({ deps, initialRoute = { name: 'today' } }: { deps: AppDeps; initialRoute?: Route }) {
   const [route, setRoute] = useState<Route>(initialRoute)

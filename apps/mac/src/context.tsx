@@ -40,7 +40,8 @@ export interface AppDeps {
 
 export type Route =
   | { name: 'today' }
-  | { name: 'library' }
+  /** With a shelf and page when the learner moved there; without, where they last were. */
+  | { name: 'library'; shelf?: string; page?: number }
   | { name: 'import' }
   | { name: 'cards' }
   /** Every card, to search, suspend, edit or delete. */

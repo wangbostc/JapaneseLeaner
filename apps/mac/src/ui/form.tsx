@@ -53,7 +53,7 @@ export function Toggle({ label, on, onChange, testId }: { label: string; on: boo
 /** One choice of a few, as joined buttons. */
 export function Choice<T extends string | number>({ options, value, onChange, testId }: { options: [T, string][]; value: T; onChange: (v: T) => void; testId?: string }) {
   return (
-    <Row testId={testId} style={{ gap: 2, padding: 2, borderRadius: 9, backgroundColor: C.panel, alignSelf: 'flex-start' }}>
+    <Row testId={testId} style={{ gap: 2, padding: 2, borderRadius: 9, backgroundColor: C.panel, alignSelf: 'flex-start', flexWrap: 'wrap' }}>
       {options.map(([v, label]) => (
         <Pressable
           key={String(v)}
