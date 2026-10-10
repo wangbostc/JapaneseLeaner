@@ -54,7 +54,10 @@ export const labelOf = (d: Pick<PrivateLessonDoc, 'label' | 'book' | 'chapter'>)
 
 /**
  * A lesson's chapter, from its label: "Genki I · L3" for both "Genki I · L3" (its dialogues) and
- * "Genki I · L3 読み書き" (its readings), so studying either brings in the chapter's words.
+ * "Genki I · L3 読み書き" (its readings), so studying either brings in the chapter's words. Labels
+ * group exactly: a label shared by several chapters makes them one, a dialogue labelled otherwise
+ * than "<chapter>" isn't grouped with its "<chapter> 読み書き" reading, and a document with
+ * neither label nor book has no chapter (its words come in at once).
  */
 const chapterOf = (level: string | undefined) => level?.replace(/\s*読み書き$/, '') || null
 
@@ -85,10 +88,17 @@ async function studiedChapters(store: Store, prefs: KeyValueStore): Promise<Set<
   return studied
 }
 
-/** Brings in the waiting word cards of a chapter (by one of its lessons' level). */
-async function release(store: Store, chapter: string): Promise<number> {
+/** Brings in the waiting word cards of the given chapters, in one pass. */
+async function release(store: Store, chapters: Set<string>): Promise<number> {
   const { db } = store
-  const ids = new Set((await db.lessons.all()).filter((l) => l.uid?.startsWith('private:') && chapterOf(l.level) === chapter).map((l) => l.id!))
+  const ids = new Set(
+    (await db.lessons.all())
+      .filter((l) => {
+        const chapter = chapterOf(l.level)
+        return l.uid?.startsWith('private:') && chapter !== null && chapters.has(chapter)
+      })
+      .map((l) => l.id!),
+  )
   const cards = (await db.cards.all()).filter((c) => ids.has(c.lessonId) && waiting(c))
   for (const c of cards) await db.cards.update(c.id!, { suspendedAt: undefined })
   return cards.length
@@ -105,7 +115,7 @@ export async function releaseChapterCards(store: Store, lessonId: number, prefs:
   if (!chapter) return 0
   const opened = openedChapters(prefs)
   if (!opened.has(chapter)) prefs.setItem(OPENED, JSON.stringify([...opened.add(chapter)]))
-  return release(store, chapter)
+  return release(store, new Set([chapter]))
 }
 
 /**
@@ -223,6 +233,9 @@ export async function addPrivateLessons(store: Store, docs: unknown[], audioFile
     prefs.setItem(LEDGER, JSON.stringify(ledger))
   }
   prefs.setItem(BACKFILLED, '1')
+  // Opened chapters' cards still waiting (added as a chapter was opened, or put back by the
+  // one-time backfill as it was) come in now, read afresh: one pass, not one per lesson.
+  await release(store, await studiedChapters(store, prefs))
   return result
 }
 
@@ -314,8 +327,6 @@ async function addOne(
     if (!open) await db.cards.update(id, { suspendedAt: added.createdAt })
     result.cards++
   }
-  // An opened chapter's cards that still wait (added as it was being opened) come in now.
-  if (open && chapter) await release(store, chapter)
   if (complete) ledger[uid] = print
   else delete ledger[uid]
 }
