@@ -24,13 +24,39 @@ describe.runIf(hasNativeTestRenderer)('macOS app', () => {
     expect((await app.getByTestId('word-sheet').bounds()).x).toBeCloseTo(inset, 0)
   })
 
-  it('lists the library newest first', async () => {
-    const { click, store, painted, shows } = await open()
-    await store.createLesson({ title: '新しいレッスン', sentences: [{ start: null, end: null, text: '雨です。' }] }, Date.now() + 1000)
+  it('shelves the library by textbook in lesson order, a page at a time, and comes back to the same page', async () => {
+    const { click, store, painted, shows, hides, appears, lessonId } = await open()
+    const at = Date.now()
+    const add = (title: string, level: string | undefined, k: number) => store.createLesson({ title, level, sentences: [{ start: null, end: null, text: '雨です。' }] }, at + k)
+    // Added out of order: L2's reading first, then L10, L1, L2's dialogue, then filler chapters.
+    await add('本 L2 読み物', 'テスト本 · L2 読み書き', 1)
+    await add('本 L10 会話', 'テスト本 · L10', 2)
+    await add('本 L1 会話', 'テスト本 · L1', 3)
+    await add('本 L2 会話', 'テスト本 · L2', 4)
+    for (let k = 0; k < 20; k++) await add(`本 L${30 + k} 会話`, `テスト本 · L${30 + k}`, 10 + k)
+    await add('自分のレッスン', undefined, 50)
     await click('tab-library')
-    await shows('新しいレッスン')
+    await shows('本 L1 会話')
     const text = painted()
-    expect(text.indexOf('新しいレッスン')).toBeLessThan(text.indexOf('私の朝'))
+    const order = ['L1', '本 L1 会話', 'L2', '本 L2 会話', '本 L2 読み物', 'L10', '本 L10 会話'].map((s) => text.indexOf(s))
+    expect(order.every((i, k) => i >= 0 && (k === 0 || i > order[k - 1]))).toBe(true)
+    expect(text).toContain('24 lessons')
+    expect(text).not.toContain('本 L46 会話') // the 21st: on page 2
+    expect(text).not.toContain('私の朝') // the starters have their own shelf
+    await click('page-2')
+    await shows('本 L46 会話')
+    await hides('本 L1 会話')
+    // A lesson and back: still page 2.
+    await click(`lesson-${await lessonId('本 L46 会話')}`)
+    await click('tab-library')
+    await shows('本 L46 会話')
+    await click('shelf-starters')
+    await shows('私の朝')
+    const starters = painted()
+    expect(starters.indexOf('私の朝')).toBeLessThan(starters.indexOf('「間」の文化')) // N5 before N1
+    await click('shelf-mine')
+    await shows('自分のレッスン')
+    await appears('library')
   })
 
   it('shows a lesson with furigana and translations', async () => {
