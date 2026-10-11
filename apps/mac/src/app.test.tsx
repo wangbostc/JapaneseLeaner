@@ -68,7 +68,7 @@ describe.runIf(hasNativeTestRenderer)('macOS app', () => {
     expect(painted()).toEqual(expect.arrayContaining(['わたし', '私', 'まいあさ', '毎朝']))
   })
 
-  it('keeps the transcript as drawn while the word sheet opens and closes', async () => {
+  it('doesn’t analyse the transcript again while the word sheet opens and closes', async () => {
     const { click, deps, shows, hides, lessonId } = await open()
     await shows('私の朝')
     const tokenized: string[] = []
@@ -82,7 +82,8 @@ describe.runIf(hasNativeTestRenderer)('macOS app', () => {
     await shows('Save word')
     deps.keys.emit('escape')
     await hides('Save word')
-    // The sheet tokenizes its own example sentence; no lesson sentence is drawn again.
+    // The sheet tokenizes its own example sentence; no lesson sentence is tokenized again. (This
+    // guards the per-text analysis cache; the memoised sentences that skip redrawing aren't counted.)
     const lesson = new Set(tokenized.slice(0, drawn))
     expect(tokenized.slice(drawn).filter((t) => lesson.has(t))).toEqual([])
   })
