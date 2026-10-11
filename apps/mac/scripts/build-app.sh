@@ -10,7 +10,9 @@ VERSION=$(node -p "require('$ROOT/package.json').version")
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources/pitch" "$APP/Contents/Resources/jmdict" "$APP/Contents/Frameworks"
 
-bun build --compile src/entry.ts --outfile "$APP/Contents/MacOS/kikitori"
+# React and gpuix's reconciler in their production builds: the development ones check every
+# render and are several times slower on a long lesson.
+bun build --compile --define process.env.NODE_ENV='"production"' src/entry.ts --outfile "$APP/Contents/MacOS/kikitori"
 # The audio helper: speech, playback, and the microphone recognised live.
 swiftc -O -swift-version 5 -o "$APP/Contents/MacOS/kikitori-audio" helper/main.swift 2>&1 | grep -v "warning:" || true
 test -x "$APP/Contents/MacOS/kikitori-audio"
