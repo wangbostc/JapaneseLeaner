@@ -68,6 +68,25 @@ describe.runIf(hasNativeTestRenderer)('macOS app', () => {
     expect(painted()).toEqual(expect.arrayContaining(['わたし', '私', 'まいあさ', '毎朝']))
   })
 
+  it('keeps the transcript as drawn while the word sheet opens and closes', async () => {
+    const { click, deps, shows, hides, lessonId } = await open()
+    await shows('私の朝')
+    const tokenized: string[] = []
+    const tokenize = deps.analyzer.tokenize.bind(deps.analyzer)
+    deps.analyzer.tokenize = (text) => (tokenized.push(text), tokenize(text))
+    await click(`lesson-${await lessonId('私の朝')}`)
+    await shows('毎朝')
+    const drawn = tokenized.length
+    expect(drawn).toBeGreaterThan(0)
+    await click('word-0-2')
+    await shows('Save word')
+    deps.keys.emit('escape')
+    await hides('Save word')
+    // The sheet tokenizes its own example sentence; no lesson sentence is drawn again.
+    const lesson = new Set(tokenized.slice(0, drawn))
+    expect(tokenized.slice(drawn).filter((t) => lesson.has(t))).toEqual([])
+  })
+
   it('looks up a tapped word, saves it as a card, and closes on Escape', async () => {
     const { click, db, deps, shows, hides, lessonId } = await open()
     await shows('私の朝')

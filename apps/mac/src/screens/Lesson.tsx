@@ -1,6 +1,7 @@
 import { relativeTime } from '@kikitori/core/i18n'
 import { dueAt, isGraduated, ROUNDS, type Step } from '@kikitori/core/schedule'
-import { useState } from 'react'
+import type { Analyzer, Token } from '@kikitori/core/tokenizer'
+import { memo, useCallback, useState } from 'react'
 import { useApp, useQuery } from '../context'
 import { JapaneseText } from '../ui/JapaneseText'
 import { RoundDots } from '../ui/LessonRow'
@@ -13,6 +14,8 @@ export function Lesson({ id }: { id: number }) {
   const lesson = useQuery(() => db.lessons.get(id), [id])
   const [now] = useState(() => Date.now())
   const [confirming, setConfirming] = useState(false)
+  // Stable, so a tap's word sheet (app state) doesn't redraw the sentences.
+  const onWord = useCallback((token: Token, context: string) => showWord({ token, lessonId: id, context }), [id, showWord])
   if (!lesson) return null
 
   const round = ROUNDS[lesson.progress.roundsDone]
@@ -76,17 +79,17 @@ export function Lesson({ id }: { id: number }) {
       </Col>
       <Col testId="transcript" style={{ gap: 18 }}>
         {lesson.sentences.map((s, i) => (
-          <Col key={i} style={{ gap: 4, padding: 10, borderRadius: 8, ...(lesson.hard.includes(i) ? { backgroundColor: C.hard } : {}) }}>
-            <JapaneseText
-              text={s.text}
-              analyzer={analyzer}
-              furigana={settings.furigana}
-              chunked={settings.chunks}
-              testIdPrefix={`word-${i}`}
-              onWord={(token) => showWord({ token, lessonId: id, context: s.text })}
-            />
-            {settings.translation && s.translations?.[settings.lang] && <Text color={C.dim}>{s.translations[settings.lang]}</Text>}
-          </Col>
+          <Sentence
+            key={i}
+            index={i}
+            text={s.text}
+            translation={settings.translation ? s.translations?.[settings.lang] : undefined}
+            hard={lesson.hard.includes(i)}
+            analyzer={analyzer}
+            furigana={settings.furigana}
+            chunked={settings.chunks}
+            onWord={onWord}
+          />
         ))}
       </Col>
       <Row style={{ marginTop: 12 }}>
@@ -95,3 +98,25 @@ export function Lesson({ id }: { id: number }) {
     </Col>
   )
 }
+
+interface SentenceProps {
+  index: number
+  text: string
+  translation?: string
+  hard: boolean
+  analyzer: Analyzer
+  furigana: boolean
+  chunked: boolean
+  onWord: (token: Token, context: string) => void
+}
+
+/** One sentence of the transcript, redrawn only when it or how it's shown changes. */
+const Sentence = memo(function Sentence({ index, text, translation, hard, analyzer, furigana, chunked, onWord }: SentenceProps) {
+  const tap = useCallback((token: Token) => onWord(token, text), [onWord, text])
+  return (
+    <Col style={{ gap: 4, padding: 10, borderRadius: 8, ...(hard ? { backgroundColor: C.hard } : {}) }}>
+      <JapaneseText text={text} analyzer={analyzer} furigana={furigana} chunked={chunked} testIdPrefix={`word-${index}`} onWord={tap} />
+      {translation && <Text color={C.dim}>{translation}</Text>}
+    </Col>
+  )
+})
