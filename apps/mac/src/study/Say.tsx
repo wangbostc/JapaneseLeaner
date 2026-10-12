@@ -36,10 +36,11 @@ function SaySentence({ lesson, player, onPosition, onDone, indices, p }: StepPro
   // The answer shows once an attempt is over, or when the learner gives up and asks for it.
   const revealed = shown || attempt.phase === 'done'
 
+  // Heard after every attempt (the mic is closed by then), and when the answer is asked for.
   useEffect(() => {
-    if (revealed) void player.play(s, settings.rate)
+    if (attempt.phase === 'done') void player.play(s, settings.rate)
     // oxlint-disable-next-line react-hooks/exhaustive-deps
-  }, [revealed])
+  }, [attempt.phase])
   useEffect(() => () => player.stop(), [player])
 
   const scored = useMemo(
@@ -63,12 +64,16 @@ function SaySentence({ lesson, player, onPosition, onDone, indices, p }: StepPro
         </Card>
       )}
       {result && <AttemptResult result={result} transcript={attempt.transcript} />}
-      {attempt.phase === 'done' && <SelfRate prompt={!attempt.canScore ? t.noRecognition : scored ? t.sayOwnWay : t.selfRate} onRate={(k) => setSelfRated(selfRating(k))} />}
+      {attempt.phase === 'done' && scored?.grade !== 'S' && <SelfRate prompt={!attempt.canScore ? t.noRecognition : scored ? t.sayOwnWay : t.selfRate} onRate={(k) => setSelfRated(selfRating(k))} />}
       <Row style={{ gap: 8 }}>
         {revealed ? (
           <Button testId="replay" label={t.replay} onPress={() => void player.play(s, settings.rate)} disabled={attempt.busy} />
         ) : (
-          <Button testId="show-answer" label={t.showAnswer} variant="ghost" onPress={() => setShown(true)} disabled={attempt.busy} />
+          <Button testId="show-answer" label={t.showAnswer} variant="ghost" onPress={() => {
+              setShown(true)
+              void player.play(s, settings.rate)
+            }}
+            disabled={attempt.busy} />
         )}
       </Row>
       <AttemptControls

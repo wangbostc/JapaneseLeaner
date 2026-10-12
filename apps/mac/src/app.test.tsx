@@ -294,7 +294,25 @@ describe.runIf(hasNativeTestRenderer)('macOS app', () => {
       await shows('Said it another way? Rate yourself:')
       await click('rate-good')
       await shows('90')
+      await click('next') // past the sentence: anything it wrote has landed
+      await shows('2 of 6')
       expect((await db.lessons.get(id))!.hard).toEqual([])
+    })
+
+    it('says only the translated sentences, in English when the interface language has none', { timeout: 30000 }, async () => {
+      const o = await open({ settings: { lang: 'zh' } })
+      const { click, shows, appears, painted, store } = o
+      const sentence = (text: string, en?: string) => ({ start: null, end: null, text, translations: en ? { en } : undefined })
+      const id = await store.createLesson({ title: '天気', sentences: [sentence('雨です。', 'It rains.'), sentence('晴れです。'), sentence('雪です。', 'It snows.')] }, Date.now())
+      await click(`lesson-${id}`) // due at once, so it's on Today
+      await click('practice-say')
+      await shows('It rains.')
+      await click('next')
+      await shows('It snows.')
+      await click('show-answer')
+      await appears('answer')
+      await shows('雪')
+      expect(painted()).not.toContain('晴れ')
     })
 
     it('shows the answer on request, and offers Say it only for a lesson with translations', { timeout: 30000 }, async () => {
