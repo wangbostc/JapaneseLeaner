@@ -276,6 +276,7 @@ describe.runIf(hasNativeTestRenderer)('macOS app', () => {
       await appears('answer')
       await shows('毎朝')
       await shows('100')
+      expect(await o.app.getByTestId('self-rate').count()).toBe(0) // nothing to rate after a perfect match
       expect(spoken).toEqual([SENTENCES[0]])
       const lesson = (await db.lessons.get(id))!
       expect(lesson.progress.roundsDone).toBe(0)
