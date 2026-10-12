@@ -1,3 +1,4 @@
+import type { ShadowingResult } from '@kikitori/core/scoring'
 import type { ReactNode } from 'react'
 import { useApp } from '../context'
 import { Button, Col, Row, Text } from '../ui/primitives'
@@ -45,5 +46,37 @@ export function SelfRate({ prompt, onRate }: { prompt: string; onRate: (k: 'good
         <Button testId="rate-bad" label={t.rateBad} onPress={() => onRate('bad')} />
       </Row>
     </Col>
+  )
+}
+
+const GRADE_COLOR = { S: C.good, A: C.good, B: C.ruby, C: C.danger } as const
+
+/** A scored attempt: its grade and score, the kana heard or missed, and what was recognised. */
+export function AttemptResult({ result, transcript }: { result: ShadowingResult; transcript: string | null }) {
+  return (
+    <Row testId="shadow-result" style={{ gap: 16, alignItems: 'center', padding: 14, borderRadius: 10, backgroundColor: C.raised }}>
+      <Text size={36} weight={700} color={GRADE_COLOR[result.grade]}>
+        {result.grade}
+      </Text>
+      <Col style={{ gap: 4 }}>
+        <Text size={18} weight={600}>
+          {String(result.score)}
+        </Text>
+        {result.marks.length > 0 && (
+          <Row style={{ flexWrap: 'wrap' }}>
+            {result.marks.map((m, k) => (
+              <Text key={k} ja size={16} color={m.hit ? C.good : C.danger}>
+                {m.char}
+              </Text>
+            ))}
+          </Row>
+        )}
+        {transcript && (
+          <Text ja color={C.dim}>
+            {`「${transcript}」`}
+          </Text>
+        )}
+      </Col>
+    </Row>
   )
 }

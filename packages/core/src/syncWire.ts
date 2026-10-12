@@ -1,6 +1,6 @@
 // Self-contained on purpose: the Worker imports this, and it can't pull in Dexie's DOM types.
 
-type Step = 'intensive' | 'shadowing' | 'blind' | 'hardSentences' | 'retell'
+type Step = 'intensive' | 'shadowing' | 'blind' | 'hardSentences' | 'retell' | 'say'
 
 export interface WireSentence {
   start: number | null

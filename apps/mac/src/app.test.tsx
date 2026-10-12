@@ -260,5 +260,78 @@ describe.runIf(hasNativeTestRenderer)('macOS app', () => {
       await appears('shadow-result')
       await expect.poll(async () => (await db.lessons.get(id))!.hard).toEqual([])
     })
+
+    it('says a sentence from its meaning: the Japanese hidden until the attempt, then shown, played and scored', { timeout: 30000 }, async () => {
+      const o = await open({ transcripts: [SENTENCES[0]] })
+      const { click, shows, appears, painted, deps, db, lessonId } = o
+      const id = await lessonId('私の朝')
+      await shows('私の朝')
+      await click(`lesson-${id}`)
+      await click('practice-say')
+      await shows('I get up at six every morning.')
+      expect(painted()).not.toContain('毎朝')
+      const spoken = (deps.audio as ReturnType<typeof fakeAudio>).spoken
+      expect(spoken).toEqual([]) // hearing it would answer it
+      await speak(o)
+      await appears('answer')
+      await shows('毎朝')
+      await shows('100')
+      expect(await o.app.getByTestId('self-rate').count()).toBe(0) // nothing to rate after a perfect match
+      expect(spoken).toEqual([SENTENCES[0]])
+      const lesson = (await db.lessons.get(id))!
+      expect(lesson.progress.roundsDone).toBe(0)
+      expect(lesson.resume).toBeNull()
+    })
+
+    it('doesn’t mark a sentence hard for a miss in Say it, and lets the learner rate an answer said another way', { timeout: 30000 }, async () => {
+      const o = await open({ transcripts: ['ぜんぜんちがう'] })
+      const { click, shows, appears, db, lessonId } = o
+      const id = await lessonId('私の朝')
+      await shows('私の朝')
+      await click(`lesson-${id}`)
+      await click('practice-say')
+      await speak(o)
+      await appears('shadow-result')
+      await shows('Said it another way? Rate yourself:')
+      await click('rate-good')
+      await shows('90')
+      await click('next') // past the sentence: anything it wrote has landed
+      await shows('2 of 6')
+      expect((await db.lessons.get(id))!.hard).toEqual([])
+    })
+
+    it('says only the translated sentences, in English when the interface language has none', { timeout: 30000 }, async () => {
+      const o = await open({ settings: { lang: 'zh' } })
+      const { click, shows, appears, painted, store } = o
+      const sentence = (text: string, en?: string) => ({ start: null, end: null, text, translations: en ? { en } : undefined })
+      const id = await store.createLesson({ title: '天気', sentences: [sentence('雨です。', 'It rains.'), sentence('晴れです。'), sentence('雪です。', 'It snows.')] }, Date.now())
+      await click(`lesson-${id}`) // due at once, so it's on Today
+      await click('practice-say')
+      await shows('It rains.')
+      await click('next')
+      await shows('It snows.')
+      await click('show-answer')
+      await appears('answer')
+      await shows('雪')
+      expect(painted()).not.toContain('晴れ')
+    })
+
+    it('shows the answer on request, and offers Say it only for a lesson with translations', { timeout: 30000 }, async () => {
+      const o = await open()
+      const { click, shows, appears, app, deps, store, lessonId } = o
+      await shows('私の朝')
+      await click(`lesson-${await lessonId('私の朝')}`)
+      await click('practice-say')
+      await click('show-answer')
+      await appears('answer')
+      await shows('毎朝')
+      expect((deps.audio as ReturnType<typeof fakeAudio>).spoken).toEqual([SENTENCES[0]])
+      const bare = await store.createLesson({ title: '訳なし', sentences: [{ start: null, end: null, text: '雨です。' }] }, Date.now())
+      await click('leave')
+      await click('tab-today') // due at once, so it's on Today
+      await click(`lesson-${bare}`)
+      await appears('practice-shadowing')
+      expect(await app.getByTestId('practice-say').count()).toBe(0)
+    })
   })
 })

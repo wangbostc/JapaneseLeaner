@@ -8,6 +8,7 @@ import { useApp, useQuery } from '../context'
 import { Blind } from '../study/Blind'
 import { Intensive } from '../study/Intensive'
 import { Retell } from '../study/Retell'
+import { Say } from '../study/Say'
 import { Shadow } from '../study/Shadow'
 import type { StepProps } from '../study/types'
 import { Button, Col, Row, Text } from '../ui/primitives'
@@ -172,6 +173,7 @@ function Runner({ lesson, media, free }: RunnerProps) {
           </Col>
         ))}
       {step === 'retell' && <Retell key={step} {...props} />}
+      {step === 'say' && <Say key={step} {...props} />}
     </Col>
   )
 }
