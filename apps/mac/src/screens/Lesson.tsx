@@ -8,6 +8,7 @@ import { RoundDots } from '../ui/LessonRow'
 import { Button, Col, Pill, Row, Text } from '../ui/primitives'
 import { C } from '../ui/theme'
 import { VoiceCredit } from '../ui/VoiceCredit'
+import { sayable } from '../study/sayable'
 
 export function Lesson({ id }: { id: number }) {
   const { t, db, store, analyzer, settings, navigate, showWord } = useApp()
@@ -70,8 +71,8 @@ export function Lesson({ id }: { id: number }) {
           {t.freePracticeHint}
         </Text>
         <Row style={{ gap: 8, flexWrap: 'wrap' }}>
-          {(['intensive', 'shadowing', 'blind', 'retell', 'hardSentences'] as Step[])
-            .filter((s) => s !== 'hardSentences' || lesson.hard.length > 0)
+          {(['intensive', 'shadowing', 'blind', 'retell', 'say', 'hardSentences'] as Step[])
+            .filter((s) => (s === 'hardSentences' ? lesson.hard.length > 0 : s === 'say' ? sayable(lesson, settings.lang).length > 0 : true))
             .map((s) => (
               <Button key={s} testId={`practice-${s}`} label={t.steps[s]} onPress={() => navigate({ name: 'study', id, free: s })} />
             ))}

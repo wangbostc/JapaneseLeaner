@@ -4,7 +4,7 @@
  * actually completed, so a late review pushes every later round back.
  */
 
-export type Step = 'intensive' | 'shadowing' | 'blind' | 'hardSentences' | 'retell'
+export type Step = 'intensive' | 'shadowing' | 'blind' | 'hardSentences' | 'retell' | 'say'
 
 export interface Round {
   index: number
