@@ -26,8 +26,20 @@ test('intensive listening fits a 320px screen: the hidden sentence wraps inside 
   })
   expect(fit.inside).toBe(true)
   expect(fit.lines).toBeGreaterThan(1)
-  // Every control's label fits its button.
-  for (const b of await page.locator('.controls > .btn').all()) {
-    expect(await b.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true)
-  }
+
+  // Every control's label stays inside its button: in this machine's font, and set wider than any
+  // likely font (Android's and Linux's make "sentence" wider than Apple's do). Measured from the
+  // text itself, as a centred label spills out of both sides.
+  const spills = () =>
+    page.locator('.controls > .btn').evaluateAll((els) =>
+      els.flatMap((el) => {
+        const box = el.getBoundingClientRect()
+        const range = document.createRange()
+        range.selectNodeContents(el.querySelector('span')!)
+        return [...range.getClientRects()].some((r) => r.left < box.left || r.right > box.right) ? [el.textContent] : []
+      }),
+    )
+  expect(await spills()).toEqual([])
+  await page.addStyleTag({ content: ".controls span { font-family: Verdana, 'DejaVu Sans', sans-serif; letter-spacing: 0.3em; }" })
+  expect(await spills()).toEqual([])
 })
