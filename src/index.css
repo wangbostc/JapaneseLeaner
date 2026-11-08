@@ -489,3 +489,10 @@ ruby rt { font-size: 0.5em; color: var(--muted); letter-spacing: 0; }
 @media (min-width: 880px) {
   .shelf-tabs, .chapter-tabs { flex-wrap: wrap; overflow: visible; margin: 0; padding: 0; }
 }
+
+/* Prepare all lessons (a computer running AivisSpeech or VOICEVOX). */
+.prepare-all { display: flex; flex-direction: column; gap: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+.prepare-all p { margin: 0; }
+.prepare-all > .btn { align-self: flex-start; }
+.prepare-all-head { justify-content: space-between; align-items: center; flex-wrap: nowrap; }
+.prepare-all progress { width: 100%; height: 8px; accent-color: var(--accent); }

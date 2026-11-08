@@ -325,3 +325,45 @@ test('a tab that found syncing held syncs again once the holding tab is gone', a
   await laptop.goto('./#/library')
   await expect(laptop.getByRole('link', { name: /保留のあと/ })).toBeVisible()
 })
+
+test('"Prepare all lessons" makes every read-aloud sentence once, and a second run makes nothing new', async ({ browser }) => {
+  const voicevox = `http://127.0.0.1:${process.env.E2E_VOICEVOX_PORT ?? 50121}`
+  const aivis = `http://127.0.0.1:${process.env.E2E_AIVIS_PORT ?? 10111}`
+  const mac = await newDevice(browser, 'Mac all')
+  await mac.evaluate(([v, a]) => (localStorage.setItem('kikitori.voicevox', v), localStorage.setItem('kikitori.aivis', a)), [voicevox, aivis])
+  await mac.reload()
+  await mac.getByTestId('voice-select').selectOption('aivis:888753763') // まお（おちつき）: no clips yet from other tests
+  await syncNow(mac) // lessons other tests made have arrived
+  await mac.goto('./#/library')
+  // The lessons this device reads aloud, and their sentences.
+  const { lessons, sentences } = await mac.evaluate(
+    () =>
+      new Promise<{ lessons: number; sentences: number }>((resolve) => {
+        const open = indexedDB.open('kikitori')
+        open.onsuccess = () => {
+          const req = open.result.transaction('lessons').objectStore('lessons').getAll()
+          req.onsuccess = () => {
+            const aloud = (req.result as { mediaId?: number; sentences: { text: string }[] }[]).filter((l) => !l.mediaId && l.sentences.length)
+            resolve({ lessons: aloud.length, sentences: new Set(aloud.flatMap((l) => l.sentences.map((s) => s.text.trim())).filter(Boolean)).size })
+          }
+        }
+      }),
+  )
+  const uploads: string[] = []
+  mac.on('request', (r) => r.method() === 'PUT' && r.url().includes('/api/tts/clip') && uploads.push(new URL(r.url()).searchParams.get('text')!))
+
+  const panel = mac.getByTestId('prepare-all')
+  await expect(panel).toContainText(`In まお（おちつき）, for your other devices: ${lessons} lessons.`)
+  await panel.getByRole('button', { name: 'Prepare all lessons' }).click()
+  await expect(panel).toContainText(`All ${lessons} lessons ready on your other devices.`, { timeout: 60_000 })
+  expect(uploads).toHaveLength(sentences)
+  expect(new Set(uploads).size).toBe(sentences)
+
+  // Again: the server already has them all, so nothing is made or uploaded.
+  const asked = mac.waitForResponse((r) => r.url().endsWith('/api/tts/missing'))
+  await panel.getByRole('button', { name: 'Prepare all lessons' }).click()
+  expect((await (await asked).json()).missing).toEqual([])
+  await expect(panel.getByRole('button', { name: 'Stop' })).toHaveCount(0)
+  await expect(panel).toContainText(`All ${lessons} lessons ready on your other devices.`)
+  expect(uploads).toHaveLength(sentences)
+})

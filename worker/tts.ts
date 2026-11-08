@@ -98,6 +98,25 @@ export async function speech(env: Env, body: Record<string, unknown> | null, fet
   return audio(bytes, type)
 }
 
+/** At most this many sentences are checked per request (a lesson is a few dozen; Prepare all sends batches). */
+export const MAX_MISSING_TEXTS = 200
+
+/**
+ * Which of these sentences have no clip yet in an engine voice: POST /api/tts/missing
+ * { voice, texts }, answered { missing } (trimmed, in the order given). Lets the learner's
+ * computer prepare only what the server lacks.
+ */
+export async function missingClips(env: Env, body: Record<string, unknown> | null): Promise<Response> {
+  const voice = body?.voice
+  const texts = body?.texts
+  if (typeof voice !== 'string' || !isEngineVoiceId(voice) || !Array.isArray(texts) || texts.length > MAX_MISSING_TEXTS || !texts.every((t) => typeof t === 'string')) {
+    return fail(400, 'invalid')
+  }
+  const unique = [...new Set((texts as string[]).map((t) => t.trim()).filter((t) => t && t.length <= MAX_TTS_CHARS))]
+  const found = await Promise.all(unique.map(async (t) => !!(await env.FILES.head(await cacheKey(voice, t)))))
+  return Response.json({ missing: unique.filter((_, i) => !found[i]) }, { headers: { 'Cache-Control': 'no-store' } })
+}
+
 /**
  * Stores an engine clip (VOICEVOX or AivisSpeech) made on the learner's computer: PUT /api/tts/clip?voice=&text=[&name=&speaker=]
  * with the audio as the body. `name` and `speaker` put the voice on the list other devices choose from.
