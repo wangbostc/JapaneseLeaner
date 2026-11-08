@@ -1,6 +1,6 @@
 import { useEffect, useSyncExternalStore } from 'react'
 import { setNeuralSynth, type NeuralSynth } from '../lib/speech'
-import { DEFAULT_ENGINE_VOICES, DEFAULT_NEURAL_VOICE, engineOf, isEngineVoiceId, type EngineKind, type EngineVoice, type EngineVoiceId, type NaturalVoiceId, type NeuralVoice } from '@kikitori/core/voices'
+import { DEFAULT_ENGINE_VOICES, DEFAULT_NEURAL_VOICE, engineOf, isEngineVoiceId, MAX_TTS_CHARS, type EngineKind, type EngineVoice, type EngineVoiceId, type NaturalVoiceId, type NeuralVoice } from '@kikitori/core/voices'
 import type { Api } from '@kikitori/core/sync'
 import { storedDeviceApi, useSyncStatus } from './sync'
 import { engineUrls, probeEngines, synthesize } from './engines'
@@ -295,6 +295,88 @@ export async function prepareClips(
   if (store) await trim(store, MAX_CACHED).catch(() => undefined)
   // The server now lists this voice for the other devices.
   await refresh()
+}
+
+/** How many sentences are asked about at once (the server's limit is 200). */
+const MISSING_BATCH = 200
+
+export interface PrepareProgress {
+  /** Sentences done: already on the server, or made and uploaded now. */
+  done: number
+  total: number
+  /** Sentences that couldn't be made or uploaded (skipped; the rest carry on). */
+  failed: number
+}
+
+/**
+ * Prepares many lessons' sentences in an engine voice, making only those the server doesn't have
+ * yet (so running it again after adding lessons is quick). A sentence that fails is counted and
+ * skipped; the engine stopping, or the device losing its connection, ends the run. `signal`
+ * stops it between sentences. Clips aren't kept in this device's cache: thousands would push out
+ * what it plays.
+ */
+export async function prepareMissing(
+  texts: string[],
+  voice: EngineVoiceId,
+  onProgress: (p: PrepareProgress) => void,
+  { api = storedDeviceApi(), eng = currentEngine(), cache = openCache, refresh = refreshNeuralVoices, signal }: { api?: Api | null; eng?: Engine | null; cache?: () => Promise<Cache | null>; refresh?: () => Promise<void>; signal?: AbortSignal } = {},
+): Promise<PrepareProgress> {
+  const engineUrl = eng?.urls[engineOf(voice)]
+  if (!api || !eng || !engineUrl) throw new Error(api ? 'engineOff' : 'notConnected')
+  const store = await cache()
+  const unique = [...new Set(texts.map((t) => t.trim()).filter(Boolean))]
+  const progress: PrepareProgress = { done: 0, total: unique.length, failed: 0 }
+  // Too long for the server to keep (as the one-lesson button finds out on upload): failed, not made.
+  const fits = unique.filter((t) => t.length <= MAX_TTS_CHARS)
+  progress.done = progress.failed = unique.length - fits.length
+  onProgress({ ...progress })
+  /** A step that failed outright (fetch throws): the engine for synthesis, the network for our server. */
+  const step = async <T,>(run: () => Promise<T>, unreachable: string): Promise<T> => {
+    try {
+      return await run()
+    } catch (e) {
+      if (signal?.aborted) throw e
+      if (e instanceof TypeError) throw new Error(unreachable)
+      if (e instanceof Error && /unauthorized|HTTP 401/.test(e.message)) throw new Error('notConnected')
+      throw e
+    }
+  }
+  const stops = new Set(['engineOff', 'offline', 'notConnected'])
+  let uploaded = 0
+  try {
+    for (let i = 0; i < fits.length; i += MISSING_BATCH) {
+      signal?.throwIfAborted()
+      const batch = fits.slice(i, i + MISSING_BATCH)
+      const res = await step(() => api('/api/tts/missing', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ voice, texts: batch }), signal }), 'offline')
+      if (res.status === 401) throw new Error('notConnected')
+      // Only a server from before /api/tts/missing (404) gets everything made again; any other error stops the run.
+      if (!res.ok && res.status !== 404) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? `HTTP ${res.status}`)
+      const missing = res.ok ? ((await res.json()) as { missing: string[] }).missing : batch
+      progress.done += batch.length - missing.length
+      onProgress({ ...progress })
+      for (const text of missing) {
+        signal?.throwIfAborted()
+        try {
+          const url = store ? await cacheUrl(voice, text) : null
+          const hit = url ? await store!.match(url) : undefined
+          const blob = hit ? await hit.blob() : await step(() => synthesize(engineUrl, voice, text, signal), 'engineOff')
+          await step(() => upload(api, eng.voices, voice, text, blob), 'offline')
+          notPrepared.delete(`${voice}\n${text}`)
+          uploaded++
+        } catch (e) {
+          // The engine gone, this computer offline, or its token revoked: no point going on.
+          if (signal?.aborted || (e instanceof Error && stops.has(e.message))) throw e
+          progress.failed++
+        }
+        progress.done++
+        onProgress({ ...progress })
+      }
+    }
+  } finally {
+    // The server now lists this voice for the other devices.
+    if (uploaded) await refresh().catch(() => undefined)
+  }
+  return progress
 }
 
 // Last, once everything above is defined: a device opened offline starts with what it knew last time,

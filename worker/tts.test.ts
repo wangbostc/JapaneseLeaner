@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { handleApi } from './index'
-import { putClip, speech, ssml, ttsInfo } from './tts'
+import { MAX_MISSING_TEXTS, missingClips, putClip, speech, ssml, ttsInfo } from './tts'
 import { testEnv } from './testEnv'
 
 let dispose: (() => Promise<void>) | null = null
@@ -182,6 +182,20 @@ describe('VOICEVOX clips', () => {
     const e = await env({ SETUP_CODE: 'tts-test-setup-code' })
     const res = await handleApi(new Request('https://k.test/api/tts/clip?voice=voicevox:3&text=x', { method: 'PUT', body: 'x', headers: { 'Content-Type': 'audio/wav' } }), e)
     expect(res.status).toBe(401)
+  })
+  it('says which sentences have no clip yet in a voice, so only those are prepared', async () => {
+    const e = await env()
+    await put(e, { voice: 'voicevox:3', text: '一。' })
+    await put(e, { voice: 'voicevox:30', text: '二。' }) // another voice's clip doesn't count
+    const missing = async (body: unknown) => {
+      const res = await missingClips(e, body as Record<string, unknown>)
+      return res.ok ? ((await res.json()) as { missing: string[] }).missing : res.status
+    }
+    expect(await missing({ voice: 'voicevox:3', texts: [' 一。', '二。', '三。', '二。', ''] })).toEqual(['二。', '三。'])
+    expect(await missing({ voice: 'voicevox:3', texts: [] })).toEqual([])
+    expect(await missing({ voice: 'ja-JP-NanamiNeural', texts: ['一。'] })).toBe(400) // engine voices only
+    expect(await missing({ voice: 'voicevox:3', texts: '一。' })).toBe(400)
+    expect(await missing({ voice: 'voicevox:3', texts: Array.from({ length: MAX_MISSING_TEXTS + 1 }, (_, i) => `${i}。`) })).toBe(400)
   })
 })
 

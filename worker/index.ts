@@ -2,7 +2,7 @@ import { authenticate, registerDevice, type Device } from './auth'
 import type { Env } from './env'
 import { aiEnabled, explain, translate } from './ai'
 import { sendDueReminders, subscribe } from './push'
-import { putClip, speech, ttsInfo } from './tts'
+import { missingClips, putClip, speech, ttsInfo } from './tts'
 import { privateLessons, privateLessonsEnabled } from './privateLessons'
 import { BadRequest, getMedia, parseSyncRequest, putMedia, sync } from './sync'
 
@@ -39,6 +39,7 @@ const routes: [string, RegExp, Handler][] = [
   ['POST', /^\/api\/ai\/translate$/, async (req, env) => translate(env, await readJson(req))],
   ['GET', /^\/api\/tts$/, async (_req, env) => json(await ttsInfo(env))],
   ['PUT', /^\/api\/tts\/clip$/, (req, env) => putClip(env, req)],
+  ['POST', /^\/api\/tts\/missing$/, async (req, env) => missingClips(env, await readJson(req))],
   ['POST', /^\/api\/tts$/, async (req, env) => speech(env, await readJson(req))],
   ['GET', /^\/api\/push\/key$/, async (_req, env) => (env.VAPID_PUBLIC_KEY ? json({ key: env.VAPID_PUBLIC_KEY }) : error(503, 'push is not configured'))],
   ['POST', /^\/api\/push\/subscriptions$/, async (req, env, device) => subscribe(env, device.id, await readJson(req))],

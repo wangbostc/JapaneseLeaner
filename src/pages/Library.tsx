@@ -7,6 +7,7 @@ import { prefs } from '../app/privateLessons'
 import { loadChapters, saveChapter } from '../app/libraryPlace'
 import { Icon } from '../components/Icon'
 import { LessonRow } from '../components/LessonRow'
+import { PrepareAllVoices } from '../components/PrepareAllVoices'
 import { db } from '../lib/db'
 
 /**
@@ -63,6 +64,7 @@ export function Library() {
           <Icon name="plus" /> {t.importLesson}
         </Link>
       </div>
+      <PrepareAllVoices />
       {shelves.length > 1 && (
         <div className="shelf-tabs" role="group" aria-label={t.navLibrary} ref={shelfRow}>
           {shelves.map((s) => (

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cacheUrl, defaultVoice, neuralSynth, parseRemembered, prepareClips } from './neuralVoice'
+import { cacheUrl, defaultVoice, neuralSynth, parseRemembered, prepareClips, prepareMissing, type PrepareProgress } from './neuralVoice'
 import { NEURAL_VOICES } from '@kikitori/core/voices'
 
 /** Just enough of Cache Storage: match/put by URL. */
@@ -260,5 +260,126 @@ describe('prepareClips', () => {
     await expect(prepareClips(['一。'], 'voicevox:30', () => {}, { api, eng: null })).rejects.toThrow('engineOff')
     // Only AivisSpeech is running: a VOICEVOX voice can't be prepared here.
     await expect(prepareClips(['一。'], 'voicevox:30', () => {}, { api, eng: { urls: { aivis: 'http://127.0.0.1:10101' }, voices: [] } })).rejects.toThrow('engineOff')
+  })
+})
+
+describe('prepareMissing', () => {
+  const engine = { urls: { voicevox: 'http://127.0.0.1:50021' }, voices: [{ id: 'voicevox:3' as const, name: 'ずんだもん（ノーマル）', speaker: 'ずんだもん' }] }
+  const noCache = async () => null
+
+  /** A server that already has `have`, an engine that fails on `bad`; records uploads and engine calls. */
+  function setup({ have = [] as string[], bad = [] as string[], missingEndpoint = true, engineDown = false, missingStatus = 200, serverDown = false } = {}) {
+    const uploaded: string[] = []
+    const synthesised: string[] = []
+    const asked: number[] = []
+    const realFetch = globalThis.fetch
+    globalThis.fetch = (async (url: string) => {
+      if (engineDown) throw new TypeError('Failed to fetch')
+      const text = new URLSearchParams(String(url).split('?')[1]).get('text')
+      if (text) synthesised.push(text)
+      if (text && bad.includes(text)) return new Response('', { status: 500 })
+      return String(url).includes('audio_query') ? Response.json({}) : new Response(new Blob(['wav'], { type: 'audio/wav' }))
+    }) as typeof fetch
+    const api = async (path: string, init?: RequestInit) => {
+      if (serverDown && path !== '/api/tts/missing') throw new TypeError('Failed to fetch') // the upload, offline
+      if (path === '/api/tts/missing') {
+        if (!missingEndpoint) return Response.json({ error: 'not found' }, { status: 404 })
+        if (missingStatus !== 200) return Response.json({ error: 'busy' }, { status: missingStatus })
+        const { texts } = JSON.parse(String(init!.body)) as { texts: string[] }
+        asked.push(texts.length)
+        return Response.json({ missing: texts.filter((t) => !have.includes(t)) })
+      }
+      uploaded.push(new URLSearchParams(path.split('?')[1]).get('text')!)
+      return Response.json({ stored: true }, { status: 201 })
+    }
+    return { api, uploaded, synthesised, asked, restore: () => (globalThis.fetch = realFetch) }
+  }
+
+  it('makes only what the server lacks, in batches, and counts the rest as done', async () => {
+    const texts = Array.from({ length: 450 }, (_, i) => `文${i}。`)
+    const s = setup({ have: texts.slice(0, 448) })
+    try {
+      const seen: PrepareProgress[] = []
+      const result = await prepareMissing([...texts, ' 文0。', ''], 'voicevox:3', (p) => seen.push(p), { api: s.api, eng: engine, cache: noCache, refresh: async () => {} })
+      expect(result).toEqual({ done: 450, total: 450, failed: 0 })
+      expect(s.asked).toEqual([200, 200, 50])
+      expect(s.uploaded).toEqual(['文448。', '文449。'])
+      expect(seen.at(-1)).toEqual(result)
+    } finally {
+      s.restore()
+    }
+  })
+
+  it('skips a sentence that fails and carries on', async () => {
+    const s = setup({ bad: ['二。'] })
+    try {
+      const result = await prepareMissing(['一。', '二。', '三。'], 'voicevox:3', () => {}, { api: s.api, eng: engine, cache: noCache, refresh: async () => {} })
+      expect(result).toEqual({ done: 3, total: 3, failed: 1 })
+      expect(s.uploaded).toEqual(['一。', '三。'])
+    } finally {
+      s.restore()
+    }
+  })
+
+  it('stops when the engine goes away', async () => {
+    const s = setup({ engineDown: true })
+    try {
+      await expect(prepareMissing(['一。'], 'voicevox:3', () => {}, { api: s.api, eng: engine, cache: noCache, refresh: async () => {} })).rejects.toThrow('engineOff')
+    } finally {
+      s.restore()
+    }
+  })
+
+  it('stops between sentences when asked', async () => {
+    const s = setup()
+    const stop = new AbortController()
+    try {
+      const run = prepareMissing(['一。', '二。', '三。'], 'voicevox:3', (p) => p.done === 1 && stop.abort(), { api: s.api, eng: engine, cache: noCache, refresh: async () => {}, signal: stop.signal })
+      await expect(run).rejects.toThrow()
+      expect(s.uploaded).toEqual(['一。'])
+    } finally {
+      s.restore()
+    }
+  })
+
+  it('says the computer is offline, not the engine, when an upload can’t reach the server', async () => {
+    const s = setup({ serverDown: true })
+    try {
+      await expect(prepareMissing(['一。'], 'voicevox:3', () => {}, { api: s.api, eng: engine, cache: noCache, refresh: async () => {} })).rejects.toThrow('offline')
+      expect(s.synthesised).toEqual(['一。']) // the engine answered
+    } finally {
+      s.restore()
+    }
+  })
+
+  it('counts a sentence too long for the server as failed, without making it', async () => {
+    const s = setup()
+    const long = 'あ'.repeat(1001)
+    try {
+      expect(await prepareMissing(['一。', long], 'voicevox:3', () => {}, { api: s.api, eng: engine, cache: noCache, refresh: async () => {} })).toEqual({ done: 2, total: 2, failed: 1 })
+      expect(s.synthesised).toEqual(['一。'])
+    } finally {
+      s.restore()
+    }
+  })
+
+  it('stops on a server error, rather than making a whole batch again', async () => {
+    const s = setup({ missingStatus: 503 })
+    try {
+      await expect(prepareMissing(['一。', '二。'], 'voicevox:3', () => {}, { api: s.api, eng: engine, cache: noCache, refresh: async () => {} })).rejects.toThrow('busy')
+      expect(s.uploaded).toEqual([])
+    } finally {
+      s.restore()
+    }
+  })
+
+  it('makes everything on a server that can’t say what it has', async () => {
+    const s = setup({ missingEndpoint: false })
+    try {
+      expect(await prepareMissing(['一。', '二。'], 'voicevox:3', () => {}, { api: s.api, eng: engine, cache: noCache, refresh: async () => {} })).toEqual({ done: 2, total: 2, failed: 0 })
+      expect(s.uploaded).toEqual(['一。', '二。'])
+    } finally {
+      s.restore()
+    }
   })
 })
