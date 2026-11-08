@@ -24,6 +24,21 @@ describe('speech engines on this computer', () => {
     ])
   })
 
+  it("counts VOICEVOX 0.26's streaming_talk styles as voices, but not its singing ones", async () => {
+    // As VOICEVOX 0.26.1 answers: every talking style is 'streaming_talk'.
+    const v026 = [
+      { name: 'ずんだもん', styles: [{ name: 'ノーマル', id: 3, type: 'streaming_talk' }, { name: 'あまあま', id: 1, type: 'streaming_talk' }] },
+      { name: '波音リツ', styles: [{ name: 'ノーマル', id: 6000, type: 'singing_teacher' }, { name: 'ノーマル', id: 3065, type: 'frame_decode' }, { name: 'ノーマル', id: 3066, type: 'sing' }] },
+    ]
+    vi.stubGlobal('fetch', async () => Response.json(v026))
+    expect(await probeEngine('voicevox', 'http://127.0.0.1:50021')).toEqual([
+      { id: 'voicevox:3', name: 'ずんだもん（ノーマル）', speaker: 'ずんだもん' },
+      { id: 'voicevox:1', name: 'ずんだもん（あまあま）', speaker: 'ずんだもん' },
+    ])
+    const found = await probeEngines({ voicevox: 'http://127.0.0.1:50021', aivis: 'http://127.0.0.1:10101' })
+    expect(found.up).toEqual(['aivis', 'voicevox'])
+  })
+
   it('asks both engines, AivisSpeech first, and reports which answered', async () => {
     vi.stubGlobal('fetch', async (url: string) => {
       if (url.startsWith('http://127.0.0.1:50021')) throw new TypeError('Failed to fetch')
