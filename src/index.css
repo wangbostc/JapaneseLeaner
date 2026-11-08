@@ -429,3 +429,34 @@ ruby rt { font-size: 0.5em; color: var(--muted); letter-spacing: 0; }
 .moved p { margin: 6px 0 10px; font-size: 0.92rem; }
 
 .voice-credit { display: block; margin-top: 0.75rem; font-size: 0.75rem; }
+
+/* ---------- phones ---------- */
+
+@media (max-width: 879px) {
+  /* Every step fits: long names wrap onto two lines instead of scrolling off the right edge. */
+  .stepper li { flex: 1 1 0; min-width: 0; font-size: 0.7rem; line-height: 1.25; padding: 6px 2px 2px; }
+
+  /* Study controls in one even row (Replay · Slow · Show text · Hard · Save), no orphan on a second line. */
+  .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(62px, 1fr)); gap: 8px; }
+  .controls .btn.round { min-width: 0; padding: 10px 4px; line-height: 1.2; text-align: center; }
+
+  /* Back / Next stay under the thumb at the bottom of the screen. */
+  .shell.studying main { padding-bottom: 0; min-height: 100dvh; display: flex; flex-direction: column; }
+  .shell.studying .study, .shell.studying .step { flex: 1; }
+  .shell.studying .nav-row {
+    position: sticky; bottom: 0; z-index: 5; margin: auto -16px 0;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+    background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(12px);
+    border-top: 1px solid var(--line);
+  }
+  .shell.studying .nav-row .btn { min-height: 48px; padding-inline: 22px; }
+
+  /* Lesson rows: level + New badges stay together, and the progress dots take less width. */
+  .lesson-title .pill { white-space: nowrap; }
+  .lesson-row .round-dots { gap: 3px; }
+  .lesson-row .round-dots span { width: 6px; height: 6px; }
+
+  /* Active tab is easier to spot at a glance. */
+  .tab { min-height: 48px; justify-content: center; }
+  .tab.active { font-weight: 600; }
+}
