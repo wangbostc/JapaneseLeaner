@@ -215,7 +215,9 @@ ruby rt { font-size: 0.5em; color: var(--muted); letter-spacing: 0; }
 .jp-large { font-size: 1.5rem; line-height: 2.1; font-family: var(--font-jp-serif); }
 .conceal {
   font: inherit; font-size: 1.4rem; letter-spacing: 0.2em; color: var(--muted); background: none; border: 0; cursor: pointer; padding: 0;
-  text-align: left; word-break: break-all;
+  text-align: left; min-width: 0; max-width: 100%;
+  /* The dots (・) may not start a line, so they never wrap on their own: let them break anywhere. */
+  line-break: anywhere; overflow-wrap: anywhere;
 }
 
 .word {
@@ -441,6 +443,8 @@ ruby rt { font-size: 0.5em; color: var(--muted); letter-spacing: 0; }
   .controls { flex-wrap: nowrap; gap: 8px; }
   .controls > .btn.round { flex: 1 1 0; min-width: 0; max-width: 112px; padding: 10px 4px; line-height: 1.2; text-align: center; }
   .controls > .btn.round.mic { flex-grow: 1.5; max-width: 168px; }
+  /* On the narrowest phones (320px) "Save sentence" would just spill out of its button. */
+  @media (max-width: 340px) { .controls > .btn.round { font-size: 0.68rem; } }
 
   /* Back / Next stay under the thumb at the bottom of the screen. */
   .shell.studying main { padding-bottom: 0; min-height: 100dvh; display: flex; flex-direction: column; }
