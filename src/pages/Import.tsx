@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { useSettings } from '../app/useSettings'
 import type { Sentence } from '@kikitori/core/model'
 import { store } from '../lib/store'
+import { db } from '../lib/db'
+import { rememberLesson } from '../app/libraryPlace'
 import { parseTranscript } from '@kikitori/core/subtitles'
 import { TranscribeError, WHISPER_MODELS, type WhisperModelId } from '../lib/transcribe'
 import { transcribeToSrt, type TranscribeProgress } from '../lib/transcriber'
@@ -83,6 +85,8 @@ export function Import() {
         sentences,
         media: audio ? { blob: audio, name: audio.name } : undefined,
       })
+      // Back in the library, it's on screen: its shelf (and chapter).
+      await db.lessons.toArray().then((all) => rememberLesson(all, id)).catch(() => {}) // the lesson is saved either way
       navigate(`/lesson/${id}`)
     } catch (e) {
       // e.g. an IndexedDB quota error for a large audio file on iOS.

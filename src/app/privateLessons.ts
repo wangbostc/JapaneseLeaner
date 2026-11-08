@@ -40,7 +40,8 @@ let loading: Promise<void> | null = null
 export function loadPrivateLessons(api: Api): Promise<void> {
   loading ??= exclusive(async () => {
     try {
-      const res = await api('/api/private-lessons')
+      // Bounded, so a server that stops answering can't hold the lock (and a restore waiting on it).
+      const res = await api('/api/private-lessons', { signal: AbortSignal.timeout(30_000) })
       if (!res.ok) return
       const { docs } = (await res.json()) as { docs?: unknown[] }
       if (!Array.isArray(docs) || !docs.length) return
@@ -56,8 +57,12 @@ export function loadPrivateLessons(api: Api): Promise<void> {
   return loading
 }
 
-/** After a backup restore: its private lessons may be older, so the next load compares every one again. */
-export const forgetPrivate = () => forgetPrivateLessons(prefs)
+/**
+ * After a backup restore: its private lessons may be older, so the next load compares every one
+ * again. Under the same lock as loading: a load running in this tab or another would otherwise
+ * write its ledger back after this.
+ */
+export const forgetPrivate = (): Promise<void> => exclusive(async () => forgetPrivateLessons(prefs))
 
 /** A private chapter's word cards join the reviews once the learner studies any of its lessons. */
 export const releaseChapter = (lessonId: number): Promise<number> =>

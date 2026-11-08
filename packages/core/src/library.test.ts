@@ -1,7 +1,12 @@
-import type { Lesson } from '@kikitori/core/model'
+import type { Lesson } from './model'
 import { describe, expect, it } from 'vitest'
-import { memoryPrefs } from './platform/prefs'
+import type { KeyValueStore } from './seed'
 import { loadPlace, pageCount, partOf, placeOf, savePlace, shelvesOf } from './library'
+
+const memoryPrefs = (): KeyValueStore => {
+  const values = new Map<string, string>()
+  return { getItem: (k) => values.get(k) ?? null, setItem: (k, v) => void values.set(k, v) }
+}
 
 let id = 0
 const lesson = (title: string, level?: string, extra: Partial<Lesson> = {}): Lesson => ({
