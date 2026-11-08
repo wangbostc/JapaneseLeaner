@@ -2,6 +2,8 @@ import { useSyncExternalStore } from 'react'
 import Dexie from 'dexie'
 import { database } from '../lib/store'
 import { initialSyncState, SyncError, syncOnce, type Api, type SyncState } from '@kikitori/core/sync'
+// The learner's own textbook, if this server offers it (most answer 404, and nothing changes).
+import { loadPrivateLessons } from './privateLessons'
 
 /**
  * Sync with the Kikitori server (same origin, /api). Only offered where the server exists:
@@ -95,6 +97,7 @@ export async function connect(setupCode: string, name: string): Promise<ConnectR
   write(STATE_KEY, initialSyncState())
   setStatus({ kind: 'idle', device: body.device.name, lastSyncedAt: null })
   void syncNow()
+  void loadPrivateLessons(authed(body.token))
   return { ok: true }
 }
 
@@ -259,4 +262,6 @@ export async function startAutoSync() {
   void syncNow()
   // Keep an existing push subscription matched to the server's current key and record.
   if (device()) void import('./reminders').then((r) => r.refreshPushSubscription())
+  const d = device()
+  if (d) void loadPrivateLessons(authed(d.token))
 }

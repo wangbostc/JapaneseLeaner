@@ -3,6 +3,7 @@ import type { Env } from './env'
 import { aiEnabled, explain, translate } from './ai'
 import { sendDueReminders, subscribe } from './push'
 import { putClip, speech, ttsInfo } from './tts'
+import { privateLessons, privateLessonsEnabled } from './privateLessons'
 import { BadRequest, getMedia, parseSyncRequest, putMedia, sync } from './sync'
 
 const json = (body: unknown, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } })
@@ -53,6 +54,8 @@ const routes: [string, RegExp, Handler][] = [
   ['PUT', /^\/api\/media\/([\w:-]+)$/, (req, env, _device, [uid]) => putMedia(env, uid, req)],
   ['GET', /^\/api\/media\/([\w:-]+)$/, (_req, env, _device, [uid]) => getMedia(env, uid)],
   ['GET', /^\/api\/me$/, async (_req, _env, device) => json({ device })],
+  // Off (as if absent) unless this server is the learner's own and says so; see env.ts.
+  ['GET', /^\/api\/private-lessons$/, async (_req, env) => (privateLessonsEnabled(env) ? privateLessons(env) : error(404, 'not found'))],
   [
     'GET',
     /^\/api\/devices$/,
