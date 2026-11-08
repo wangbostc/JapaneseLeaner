@@ -328,6 +328,22 @@ How changes reach the app:
 - **Deleted in the app:** a lesson or card stays deleted.
 - **Another server or database:** `KIKITORI_MONGO_URL` and `KIKITORI_MONGO_DB` point elsewhere, and `KIKITORI_PRIVATE_LESSONS=0` turns it off.
 
+#### On your phone, from a server of your own
+
+Your own local server (`wrangler dev`, reached over a private network such as Tailscale) can give these lessons to your connected devices:
+
+```bash
+node scripts/private-lessons.mjs upload   # MongoDB → this computer's local server (never Cloudflare)
+echo PRIVATE_LESSONS=1 >> .dev.vars       # turn the endpoint on (.dev.vars is gitignored)
+```
+
+Then restart `wrangler dev`. Each connected device adds the lessons on its next start, as the macOS app does:
+- **Words:** a chapter's words join the reviews once you study it.
+- **Audio:** none; audio paths are files on your computer, so these lessons are read aloud.
+- **Updates:** run the upload again after editing MongoDB.
+
+Without `PRIVATE_LESSONS=1`, which a deployed Worker never has, `/api/private-lessons` answers 404, and it always needs a connected device. Sync still never sends private lessons: progress on each device stays there.
+
 The kuromoji dictionary is served gzipped. The loader checks the gzip magic bytes
 itself, so it works whether or not the host also sends `Content-Encoding: gzip`
 (`vite preview` does).

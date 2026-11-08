@@ -17,6 +17,12 @@ export interface Env {
   AZURE_SPEECH_REGION?: string
   /** Only for tests: send speech requests to a fake server. */
   AZURE_SPEECH_ENDPOINT?: string
+  /**
+   * "1" serves the learner's private lessons (their own textbook; see scripts/private-lessons.mjs)
+   * to their connected devices. Only for a server of their own, such as `wrangler dev` reached over
+   * a private network: set it in .dev.vars, never in wrangler.jsonc or a deployed Worker.
+   */
+  PRIVATE_LESSONS?: string
   /** Contact for push services (mailto: or https:); defaults to the project URL. */
   VAPID_SUBJECT?: string
 }

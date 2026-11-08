@@ -4,6 +4,7 @@ import { Link, Navigate, useParams } from 'react-router-dom'
 import { relativeTime } from '@kikitori/core/i18n'
 import { useSettings } from '../app/useSettings'
 import { useAnalyzer } from '../app/useAnalyzer'
+import { releaseChapter } from '../app/privateLessons'
 import { AddToCalendar } from '../components/AddToCalendar'
 import { VoiceCredit } from '../components/VoiceCredit'
 import { Icon } from '../components/Icon'
@@ -31,6 +32,10 @@ export function Study() {
   const media = useLiveQuery(async () => (lesson?.mediaId ? ((await db.media.get(lesson.mediaId)) ?? null) : null), [lesson?.mediaId])
   const analyzer = useAnalyzer()
   const { t } = useSettings()
+  // A private chapter's word cards join the reviews once the learner studies it (free practice too).
+  useEffect(() => {
+    void releaseChapter(Number(id))
+  }, [id])
 
   if (lesson === undefined || media === undefined) return null
   if (!lesson) return <p className="empty">404</p>

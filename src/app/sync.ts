@@ -95,6 +95,7 @@ export async function connect(setupCode: string, name: string): Promise<ConnectR
   write(STATE_KEY, initialSyncState())
   setStatus({ kind: 'idle', device: body.device.name, lastSyncedAt: null })
   void syncNow()
+  void loadPrivate(authed(body.token))
   return { ok: true }
 }
 
@@ -120,6 +121,9 @@ export async function disconnect() {
   write(STATE_KEY, null)
   setStatus({ kind: 'disconnected' })
 }
+
+/** The learner's own textbook, if this server offers it (loaded apart: most servers don't). */
+const loadPrivate = (api: Api) => import('./privateLessons').then((m) => m.loadPrivateLessons(api))
 
 let running: Promise<void> | null = null
 let again = false
@@ -259,4 +263,6 @@ export async function startAutoSync() {
   void syncNow()
   // Keep an existing push subscription matched to the server's current key and record.
   if (device()) void import('./reminders').then((r) => r.refreshPushSubscription())
+  const d = device()
+  if (d) void loadPrivate(authed(d.token))
 }
