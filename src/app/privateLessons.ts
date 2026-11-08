@@ -1,4 +1,4 @@
-import { addPrivateLessons, releaseChapterCards, type ReadAudio } from '@kikitori/core/privateLessons'
+import { addPrivateLessons, forgetPrivateLessons, releaseChapterCards, type ReadAudio } from '@kikitori/core/privateLessons'
 import type { KeyValueStore } from '@kikitori/core/seed'
 import { store } from '../lib/store'
 import type { Api } from '@kikitori/core/sync'
@@ -31,10 +31,14 @@ export const prefs: KeyValueStore = {
   },
 }
 
+/** One tab at a time adds them (each keeps a ledger of what it added; two would overwrite each other's). */
+const exclusive = (run: () => Promise<void>): Promise<void> =>
+  typeof navigator !== 'undefined' && navigator.locks ? navigator.locks.request('kikitori-private-lessons', run) : run()
+
 let loading: Promise<void> | null = null
 /** Adds the server's private lessons this device lacks, and updates changed ones. One run at a time. */
 export function loadPrivateLessons(api: Api): Promise<void> {
-  loading ??= (async () => {
+  loading ??= exclusive(async () => {
     try {
       const res = await api('/api/private-lessons')
       if (!res.ok) return
@@ -45,12 +49,16 @@ export function loadPrivateLessons(api: Api): Promise<void> {
       for (const p of r.problems) console.warn(`[private] ${p}`)
     } catch (e) {
       console.warn('[private] not loaded', e)
-    } finally {
-      loading = null
     }
-  })()
+  }).finally(() => {
+    loading = null
+  })
   return loading
 }
 
+/** After a backup restore: its private lessons may be older, so the next load compares every one again. */
+export const forgetPrivate = () => forgetPrivateLessons(prefs)
+
 /** A private chapter's word cards join the reviews once the learner studies any of its lessons. */
-export const releaseChapter = (lessonId: number) => releaseChapterCards(store, lessonId, prefs)
+export const releaseChapter = (lessonId: number): Promise<number> =>
+  Number.isInteger(lessonId) ? releaseChapterCards(store, lessonId, prefs).catch(() => 0) : Promise.resolve(0)

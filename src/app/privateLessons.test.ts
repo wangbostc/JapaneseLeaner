@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { db } from '../lib/db'
-import { loadPrivateLessons, releaseChapter } from './privateLessons'
+import { forgetPrivate, loadPrivateLessons, releaseChapter } from './privateLessons'
 
 const doc = {
   title: 'Test book L3 会話',
@@ -14,6 +14,11 @@ const doc = {
 
 const api = (status: number, body?: unknown) => async () => new Response(body === undefined ? null : JSON.stringify(body), { status })
 const byUid = async (uid: string) => (await db.lessons.toArray()).find((l) => l.uid === uid)
+
+beforeEach(async () => {
+  await Promise.all([db.lessons.clear(), db.cards.clear(), db.deletions.clear()])
+  forgetPrivate()
+})
 
 describe('private lessons from the server', () => {
   it('changes nothing where the server has none to offer', async () => {
@@ -34,9 +39,16 @@ describe('private lessons from the server', () => {
     expect((await db.cards.get(card.id!))!.suspendedAt).toBeUndefined()
   })
 
-  it('adds each lesson once', async () => {
-    await loadPrivateLessons(api(200, { docs: [doc] }))
-    await loadPrivateLessons(api(200, { docs: [doc] }))
+  it('adds each lesson once, however often or at once it loads', async () => {
+    const calls = vi.fn(api(200, { docs: [doc] }))
+    await Promise.all([loadPrivateLessons(calls), loadPrivateLessons(calls)])
+    expect(calls).toHaveBeenCalledTimes(1)
+    await loadPrivateLessons(calls)
     expect((await db.lessons.toArray()).filter((l) => l.uid === 'private:Test book L3 会話')).toHaveLength(1)
+    expect(await db.cards.count()).toBe(1)
+  })
+
+  it("ignores a lesson id that isn't one", async () => {
+    expect(await releaseChapter(Number('nope'))).toBe(0)
   })
 })

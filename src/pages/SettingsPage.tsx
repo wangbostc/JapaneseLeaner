@@ -3,6 +3,7 @@ import { setAiKey, useAiKey } from '../app/aiKey'
 import { relativeTime } from '@kikitori/core/i18n'
 import { useServerAi } from '../app/serverAi'
 import { connect, disconnect, resetSyncCursor, syncNow, useSyncStatus } from '../app/sync'
+import { forgetPrivate } from '../app/privateLessons'
 import { backgroundRemindersOn, enablePushReminders, enableReminders, pushSubscribed, pushSupported, registerBackgroundCheck, reminderSupport, type ReminderSupport } from '../app/reminders'
 import { sanitizeSettings } from '../app/sanitizeSettings'
 import { Link } from 'react-router-dom'
@@ -79,6 +80,8 @@ export function SettingsPage() {
     if (!pending) return
     try {
       await restoreBackup(database, pending)
+      // The backup's private lessons may be older than the server's: compare them all again next start.
+      forgetPrivate()
       resetSyncCursor()
       update(sanitizeSettings(pending.settings))
       setMessage({ ok: true, text: t.restored(pending.lessons.length) })

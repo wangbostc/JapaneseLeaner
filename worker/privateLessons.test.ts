@@ -26,7 +26,8 @@ const doc = { title: 'Test book L3 会話', book: 'Test book', chapter: 3, lines
 
 describe('/api/private-lessons', () => {
   it("doesn't exist unless the server turns it on", async () => {
-    const { env, get } = await setup()
+    // Explicitly off: testEnv also reads a developer's .dev.vars, which may turn it on.
+    const { env, get } = await setup({ PRIVATE_LESSONS: undefined })
     await env.FILES.put(PRIVATE_LESSONS_KEY, JSON.stringify({ docs: [doc] }))
     expect((await get()).status).toBe(404)
   })
