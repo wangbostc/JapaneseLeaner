@@ -268,7 +268,7 @@ describe('prepareMissing', () => {
   const noCache = async () => null
 
   /** A server that already has `have`, an engine that fails on `bad`; records uploads and engine calls. */
-  function setup({ have = [] as string[], bad = [] as string[], missingEndpoint = true, engineDown = false } = {}) {
+  function setup({ have = [] as string[], bad = [] as string[], missingEndpoint = true, engineDown = false, missingStatus = 200, serverDown = false } = {}) {
     const uploaded: string[] = []
     const synthesised: string[] = []
     const asked: number[] = []
@@ -281,8 +281,10 @@ describe('prepareMissing', () => {
       return String(url).includes('audio_query') ? Response.json({}) : new Response(new Blob(['wav'], { type: 'audio/wav' }))
     }) as typeof fetch
     const api = async (path: string, init?: RequestInit) => {
+      if (serverDown && path !== '/api/tts/missing') throw new TypeError('Failed to fetch') // the upload, offline
       if (path === '/api/tts/missing') {
         if (!missingEndpoint) return Response.json({ error: 'not found' }, { status: 404 })
+        if (missingStatus !== 200) return Response.json({ error: 'busy' }, { status: missingStatus })
         const { texts } = JSON.parse(String(init!.body)) as { texts: string[] }
         asked.push(texts.length)
         return Response.json({ missing: texts.filter((t) => !have.includes(t)) })
@@ -335,6 +337,37 @@ describe('prepareMissing', () => {
       const run = prepareMissing(['一。', '二。', '三。'], 'voicevox:3', (p) => p.done === 1 && stop.abort(), { api: s.api, eng: engine, cache: noCache, refresh: async () => {}, signal: stop.signal })
       await expect(run).rejects.toThrow()
       expect(s.uploaded).toEqual(['一。'])
+    } finally {
+      s.restore()
+    }
+  })
+
+  it('says the computer is offline, not the engine, when an upload can’t reach the server', async () => {
+    const s = setup({ serverDown: true })
+    try {
+      await expect(prepareMissing(['一。'], 'voicevox:3', () => {}, { api: s.api, eng: engine, cache: noCache, refresh: async () => {} })).rejects.toThrow('offline')
+      expect(s.synthesised).toEqual(['一。']) // the engine answered
+    } finally {
+      s.restore()
+    }
+  })
+
+  it('counts a sentence too long for the server as failed, without making it', async () => {
+    const s = setup()
+    const long = 'あ'.repeat(1001)
+    try {
+      expect(await prepareMissing(['一。', long], 'voicevox:3', () => {}, { api: s.api, eng: engine, cache: noCache, refresh: async () => {} })).toEqual({ done: 2, total: 2, failed: 1 })
+      expect(s.synthesised).toEqual(['一。'])
+    } finally {
+      s.restore()
+    }
+  })
+
+  it('stops on a server error, rather than making a whole batch again', async () => {
+    const s = setup({ missingStatus: 503 })
+    try {
+      await expect(prepareMissing(['一。', '二。'], 'voicevox:3', () => {}, { api: s.api, eng: engine, cache: noCache, refresh: async () => {} })).rejects.toThrow('busy')
+      expect(s.uploaded).toEqual([])
     } finally {
       s.restore()
     }

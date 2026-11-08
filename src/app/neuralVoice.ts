@@ -1,6 +1,6 @@
 import { useEffect, useSyncExternalStore } from 'react'
 import { setNeuralSynth, type NeuralSynth } from '../lib/speech'
-import { DEFAULT_ENGINE_VOICES, DEFAULT_NEURAL_VOICE, engineOf, isEngineVoiceId, type EngineKind, type EngineVoice, type EngineVoiceId, type NaturalVoiceId, type NeuralVoice } from '@kikitori/core/voices'
+import { DEFAULT_ENGINE_VOICES, DEFAULT_NEURAL_VOICE, engineOf, isEngineVoiceId, MAX_TTS_CHARS, type EngineKind, type EngineVoice, type EngineVoiceId, type NaturalVoiceId, type NeuralVoice } from '@kikitori/core/voices'
 import type { Api } from '@kikitori/core/sync'
 import { storedDeviceApi, useSyncStatus } from './sync'
 import { engineUrls, probeEngines, synthesize } from './engines'
@@ -326,15 +326,31 @@ export async function prepareMissing(
   const store = await cache()
   const unique = [...new Set(texts.map((t) => t.trim()).filter(Boolean))]
   const progress: PrepareProgress = { done: 0, total: unique.length, failed: 0 }
+  // Too long for the server to keep (as the one-lesson button finds out on upload): failed, not made.
+  const fits = unique.filter((t) => t.length <= MAX_TTS_CHARS)
+  progress.done = progress.failed = unique.length - fits.length
   onProgress({ ...progress })
+  /** A step that failed outright (fetch throws): the engine for synthesis, the network for our server. */
+  const step = async <T,>(run: () => Promise<T>, unreachable: string): Promise<T> => {
+    try {
+      return await run()
+    } catch (e) {
+      if (signal?.aborted) throw e
+      if (e instanceof TypeError) throw new Error(unreachable)
+      if (e instanceof Error && /unauthorized|HTTP 401/.test(e.message)) throw new Error('notConnected')
+      throw e
+    }
+  }
+  const stops = new Set(['engineOff', 'offline', 'notConnected'])
   let uploaded = 0
   try {
-    for (let i = 0; i < unique.length; i += MISSING_BATCH) {
+    for (let i = 0; i < fits.length; i += MISSING_BATCH) {
       signal?.throwIfAborted()
-      const batch = unique.slice(i, i + MISSING_BATCH)
-      const res = await api('/api/tts/missing', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ voice, texts: batch }), signal })
+      const batch = fits.slice(i, i + MISSING_BATCH)
+      const res = await step(() => api('/api/tts/missing', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ voice, texts: batch }), signal }), 'offline')
       if (res.status === 401) throw new Error('notConnected')
-      // A server from before /api/tts/missing: everything is made again, as one lesson's button does.
+      // Only a server from before /api/tts/missing (404) gets everything made again; any other error stops the run.
+      if (!res.ok && res.status !== 404) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? `HTTP ${res.status}`)
       const missing = res.ok ? ((await res.json()) as { missing: string[] }).missing : batch
       progress.done += batch.length - missing.length
       onProgress({ ...progress })
@@ -343,14 +359,13 @@ export async function prepareMissing(
         try {
           const url = store ? await cacheUrl(voice, text) : null
           const hit = url ? await store!.match(url) : undefined
-          const blob = hit ? await hit.blob() : await synthesize(engineUrl, voice, text, signal)
-          await upload(api, eng.voices, voice, text, blob)
+          const blob = hit ? await hit.blob() : await step(() => synthesize(engineUrl, voice, text, signal), 'engineOff')
+          await step(() => upload(api, eng.voices, voice, text, blob), 'offline')
           notPrepared.delete(`${voice}\n${text}`)
           uploaded++
         } catch (e) {
-          if (signal?.aborted) throw e
-          // The engine gone (fetch fails) or this device disconnected: no point going on.
-          if (e instanceof TypeError || (e instanceof Error && /unauthorized|HTTP 401/.test(e.message))) throw new Error(e instanceof TypeError ? 'engineOff' : 'notConnected')
+          // The engine gone, this computer offline, or its token revoked: no point going on.
+          if (signal?.aborted || (e instanceof Error && stops.has(e.message))) throw e
           progress.failed++
         }
         progress.done++

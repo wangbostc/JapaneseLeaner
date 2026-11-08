@@ -17,45 +17,51 @@ export function PrepareAllVoices() {
   const sync = useSyncStatus()
   const job = usePrepareAll()
   const lessons = useLiveQuery(() => db.lessons.toArray(), [])
-  const voice = neuralChoice(settings.voiceURI)
+  const choice = neuralChoice(settings.voiceURI)
+  const voice = choice && isEngineVoiceId(choice) ? choice : null
   const connected = sync.kind === 'idle' || sync.kind === 'syncing' || sync.kind === 'error'
-  const ready = connected && !!voice && isEngineVoiceId(voice) && natural.enginesUp.includes(engineOf(voice))
-  // A run carries on (and stays shown) even if the voice or engine changes meanwhile.
-  if (!lessons || (!ready && job.kind !== 'running')) return null
+  const ready = connected && !!voice && natural.enginesUp.includes(engineOf(voice))
+  // A run, and how the last one ended, stay shown even if the engine or connection goes away
+  // meanwhile; until then the panel is only for a computer that can prepare.
+  if (!lessons || (!ready && job.kind === 'idle')) return null
   const count = preparable(lessons).length
-  if (!count && job.kind !== 'running') return null
+  if (!count && job.kind === 'idle') return null
   const name = (id: string) => natural.engineVoices?.find((v) => v.id === id)?.name ?? id
+  // How the last run ended, while it's still about the chosen voice.
+  const ended = (job.kind === 'done' || job.kind === 'error') && (job.voice === voice || !ready) ? job : null
 
-  return (
-    <section className="prepare-all" data-testid="prepare-all" aria-live="polite">
-      {job.kind === 'running' ? (
-        <>
-          <div className="row prepare-all-head">
-            <span className="small">{t.preparingAll(job.progress.done, job.progress.total)}</span>
-            <button className="btn" onClick={stopPrepareAll}>
-              {t.stopPreparing}
-            </button>
-          </div>
-          <progress max={job.progress.total || 1} value={job.progress.done} aria-label={name(job.voice)} />
-        </>
-      ) : (
-        <>
-          <button className="btn" onClick={() => ready && isEngineVoiceId(voice!) && void prepareAll(lessons, voice)} disabled={!ready}>
-            {t.prepareAll}
+  if (job.kind === 'running') {
+    return (
+      <section className="prepare-all" data-testid="prepare-all">
+        <div className="row prepare-all-head">
+          <span className="small">{t.preparingAll(job.progress.done, job.progress.total)}</span>
+          <button className="btn" onClick={stopPrepareAll}>
+            {t.stopPreparing}
           </button>
-          {job.kind === 'idle' && <p className="muted small">{t.prepareAllHint(name(voice!), count)}</p>}
-          {job.kind === 'done' && (
-            <p className="small">
-              {job.stopped ? t.preparedAllStopped(job.progress.done, job.progress.total) : t.preparedAll(job.lessons)}
-              {job.progress.failed > 0 && ` ${t.preparedAllFailed(job.progress.failed)}`}
-            </p>
-          )}
-          {job.kind === 'error' && (
-            <p className="error small" role="alert">
-              {t.prepareVoiceFailed} {t.prepareErrors[job.message] ?? job.message}
-            </p>
-          )}
-        </>
+        </div>
+        <progress max={job.progress.total || 1} value={job.progress.done} aria-label={`${t.prepareAll}: ${name(job.voice)}`} />
+      </section>
+    )
+  }
+  return (
+    <section className="prepare-all" data-testid="prepare-all">
+      <button className="btn" onClick={() => voice && void prepareAll(lessons, voice)} disabled={!ready}>
+        {t.prepareAll}
+      </button>
+      {!ended && voice && <p className="muted small">{t.prepareAllHint(name(voice), count)}</p>}
+      {ended?.kind === 'done' && (
+        <p className="small" role="status">
+          {ended.stopped
+            ? t.preparedAllStopped(ended.progress.done, ended.progress.total)
+            : ended.progress.failed > 0
+              ? t.preparedAllFailed(ended.lessons, ended.progress.failed)
+              : t.preparedAll(ended.lessons)}
+        </p>
+      )}
+      {ended?.kind === 'error' && (
+        <p className="error small" role="alert">
+          {t.prepareVoiceFailed} {t.prepareErrors[ended.message] ?? ended.message}
+        </p>
       )}
     </section>
   )
