@@ -21,14 +21,14 @@ export function PrepareAllVoices() {
   const voice = choice && isEngineVoiceId(choice) ? choice : null
   const connected = sync.kind === 'idle' || sync.kind === 'syncing' || sync.kind === 'error'
   const ready = connected && !!voice && natural.enginesUp.includes(engineOf(voice))
-  // A run, and how the last one ended, stay shown even if the engine or connection goes away
-  // meanwhile; until then the panel is only for a computer that can prepare.
-  if (!lessons || (!ready && job.kind === 'idle')) return null
+  // How the last run ended, while it's still about the chosen voice.
+  const ended = (job.kind === 'done' || job.kind === 'error') && job.voice === voice ? job : null
+  // For a computer that can prepare; a run, and how it ended, stay shown if the engine or the
+  // connection goes away meanwhile (not once another kind of voice is chosen).
+  if (!lessons || (!ready && job.kind !== 'running' && !ended)) return null
   const count = preparable(lessons).length
   if (!count && job.kind === 'idle') return null
   const name = (id: string) => natural.engineVoices?.find((v) => v.id === id)?.name ?? id
-  // How the last run ended, while it's still about the chosen voice.
-  const ended = (job.kind === 'done' || job.kind === 'error') && (job.voice === voice || !ready) ? job : null
 
   if (job.kind === 'running') {
     return (
@@ -52,7 +52,7 @@ export function PrepareAllVoices() {
       {ended?.kind === 'done' && (
         <p className="small" role="status">
           {ended.stopped
-            ? t.preparedAllStopped(ended.progress.done, ended.progress.total)
+            ? t.preparedAllStopped(ended.progress.done, ended.progress.total) + (ended.progress.failed > 0 ? ` ${t.preparedSomeFailed(ended.progress.failed)}` : '')
             : ended.progress.failed > 0
               ? t.preparedAllFailed(ended.lessons, ended.progress.failed)
               : t.preparedAll(ended.lessons)}

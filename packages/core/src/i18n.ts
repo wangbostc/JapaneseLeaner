@@ -160,6 +160,7 @@ const en = {
   preparedAllStopped: (done: number, total: number) => `Stopped after ${done.toLocaleString('en')} of ${total.toLocaleString('en')} sentences. Prepare again to carry on.`,
   preparedAllFailed: (lessons: number, n: number) =>
     `Finished ${lessons} lesson${lessons === 1 ? '' : 's'}, but ${n} sentence${n === 1 ? '' : 's'} couldn't be prepared and will use each device's own voice.`,
+  preparedSomeFailed: (n: number) => `${n} sentence${n === 1 ? '' : 's'} couldn't be prepared.`,
   stopPreparing: 'Stop',
   prepareVoiceFailed: 'Couldn’t prepare the audio:',
   prepareErrors: {
@@ -167,6 +168,7 @@ const en = {
     notConnected: 'this device isn’t connected to sync.',
     tooLong: 'a sentence is too long.',
     offline: 'this computer can’t reach your server. Check the connection and try again.',
+    serverError: 'your server had a problem. Try again in a moment.',
   } as Record<string, string>,
   voiceUnavailable: (id: string) => `${id} (not available here now)`,
   voiceNatural: 'Natural voices (server)',
@@ -511,6 +513,7 @@ const zh: Strings = {
   preparedAll: (lessons) => `全部 ${lessons} 课已可在其他设备上播放。`,
   preparedAllStopped: (done, total) => `已在 ${done.toLocaleString('zh')} / ${total.toLocaleString('zh')} 句处停止。再次生成即可继续。`,
   preparedAllFailed: (lessons, n) => `已完成 ${lessons} 课，但有 ${n} 句无法生成，将使用各设备自己的声音。`,
+  preparedSomeFailed: (n) => `有 ${n} 句无法生成。`,
   stopPreparing: '停止',
   prepareVoiceFailed: '无法生成音频：',
   prepareErrors: {
@@ -518,6 +521,7 @@ const zh: Strings = {
     notConnected: '本设备尚未连接同步。',
     tooLong: '有句子太长。',
     offline: '这台电脑无法连接你的服务器。请检查网络后重试。',
+    serverError: '你的服务器出了问题。请稍后重试。',
   },
   voiceUnavailable: (id) => `${id}（目前在此设备上不可用）`,
   voiceNatural: '自然语音（服务器）',

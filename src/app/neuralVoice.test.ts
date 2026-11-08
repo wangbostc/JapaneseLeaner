@@ -366,7 +366,7 @@ describe('prepareMissing', () => {
   it('stops on a server error, rather than making a whole batch again', async () => {
     const s = setup({ missingStatus: 503 })
     try {
-      await expect(prepareMissing(['一。', '二。'], 'voicevox:3', () => {}, { api: s.api, eng: engine, cache: noCache, refresh: async () => {} })).rejects.toThrow('busy')
+      await expect(prepareMissing(['一。', '二。'], 'voicevox:3', () => {}, { api: s.api, eng: engine, cache: noCache, refresh: async () => {} })).rejects.toThrow('serverError')
       expect(s.uploaded).toEqual([])
     } finally {
       s.restore()
