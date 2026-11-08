@@ -20,6 +20,12 @@ interface Speaker {
   styles: { name: string; id: number; type?: string }[]
 }
 
+/**
+ * Styles that speak text. VOICEVOX 0.26 marks every one 'streaming_talk' (synthesised the same
+ * way); singing styles ('sing', 'singing_teacher', 'frame_decode', 'humming') can't read a sentence.
+ */
+const TALKING = new Set(['talk', 'streaming_talk'])
+
 /** One engine's talking voices, one per character style, or null if it doesn't answer. */
 export async function probeEngine(kind: EngineKind, url: string, timeoutMs = PROBE_TIMEOUT_MS, fetchImpl?: Fetch): Promise<EngineVoice[] | null> {
   try {
@@ -28,7 +34,7 @@ export async function probeEngine(kind: EngineKind, url: string, timeoutMs = PRO
     const speakers = (await res.json()) as Speaker[]
     return speakers.flatMap((sp) =>
       sp.styles
-        .filter((st) => (st.type ?? 'talk') === 'talk')
+        .filter((st) => TALKING.has(st.type ?? 'talk'))
         .map((st) => ({ id: `${kind}:${st.id}` as EngineVoiceId, name: `${sp.name}（${st.name}）`, speaker: sp.name })),
     )
   } catch {
