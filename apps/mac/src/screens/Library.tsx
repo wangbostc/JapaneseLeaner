@@ -1,6 +1,6 @@
 import { Fragment, useMemo, useState } from 'react'
 import { useApp, useQuery } from '../context'
-import { loadPlace, PAGE_SIZE, pageCount, partOf, savePlace, shelvesOf, type Shelf, type ShelfKey } from '../library'
+import { loadPlace, PAGE_SIZE, pageCount, partOf, savePlace, shelvesOf, type Shelf, type ShelfKey } from '@kikitori/core/library'
 import { Choice } from '../ui/form'
 import { LessonRow } from '../ui/LessonRow'
 import { Button, Col, Row, Text } from '../ui/primitives'

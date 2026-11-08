@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { db } from '../lib/db'
-import { forgetPrivate, loadPrivateLessons, releaseChapter } from './privateLessons'
+import { forgetPrivate, loadPrivateLessons, prefs, releaseChapter } from './privateLessons'
 
 const doc = {
   title: 'Test book L3 会話',
@@ -17,7 +17,10 @@ const byUid = async (uid: string) => (await db.lessons.toArray()).find((l) => l.
 
 beforeEach(async () => {
   await Promise.all([db.lessons.clear(), db.cards.clear(), db.deletions.clear()])
-  forgetPrivate()
+  await forgetPrivate()
+  // Chapters opened and the one-time backfill, too: each test starts as a new device.
+  prefs.setItem('kikitori.privateChapters', '[]')
+  prefs.setItem('kikitori.privateCardsWaiting', '')
 })
 
 describe('private lessons from the server', () => {

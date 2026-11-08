@@ -464,3 +464,21 @@ ruby rt { font-size: 0.5em; color: var(--muted); letter-spacing: 0; }
   .tab { min-height: 48px; justify-content: center; }
   .tab.active { font-weight: 600; }
 }
+
+/* ---------- library shelves ---------- */
+
+/* Shelves (one per textbook, starters, mine) and a book's chapters: rows of chips that scroll sideways on a phone. */
+.shelf-tabs, .chapter-tabs {
+  display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 2px 16px;
+  scroll-snap-type: x proximity; scroll-padding-inline: 16px; -webkit-overflow-scrolling: touch;
+}
+.shelf-tabs::-webkit-scrollbar, .chapter-tabs::-webkit-scrollbar { display: none; }
+.shelf-tabs .btn, .chapter-tabs .btn { flex: none; scroll-snap-align: start; white-space: nowrap; min-height: 40px; }
+.shelf-tabs .btn[aria-selected='true'] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+.shelf-count { font-size: 0.75rem; opacity: 0.7; font-variant-numeric: tabular-nums; }
+.chapter-tabs .btn { padding: 6px 14px; font-size: 0.9rem; }
+.chapter-tabs .btn[aria-selected='true'] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.shelf-summary { margin: 0; }
+@media (min-width: 880px) {
+  .shelf-tabs, .chapter-tabs { flex-wrap: wrap; overflow: visible; margin: 0; padding: 0; }
+}

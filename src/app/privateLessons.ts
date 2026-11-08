@@ -56,8 +56,14 @@ export function loadPrivateLessons(api: Api): Promise<void> {
   return loading
 }
 
-/** After a backup restore: its private lessons may be older, so the next load compares every one again. */
-export const forgetPrivate = () => forgetPrivateLessons(prefs)
+/**
+ * After a backup restore: its private lessons may be older, so the next load compares every one
+ * again. A load still running would write its ledger back after this, so it's waited for first.
+ */
+export async function forgetPrivate(): Promise<void> {
+  await loading
+  forgetPrivateLessons(prefs)
+}
 
 /** A private chapter's word cards join the reviews once the learner studies any of its lessons. */
 export const releaseChapter = (lessonId: number): Promise<number> =>

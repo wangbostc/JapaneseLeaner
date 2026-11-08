@@ -81,7 +81,7 @@ export function SettingsPage() {
     try {
       await restoreBackup(database, pending)
       // The backup's private lessons may be older than the server's: compare them all again next start.
-      forgetPrivate()
+      await forgetPrivate()
       resetSyncCursor()
       update(sanitizeSettings(pending.settings))
       setMessage({ ok: true, text: t.restored(pending.lessons.length) })
