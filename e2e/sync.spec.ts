@@ -371,6 +371,6 @@ test('"Prepare all lessons" makes every read-aloud sentence once, and a second r
   await mac.goto('./#/settings')
   await mac.getByTestId('voice-select').selectOption({ label: 'Nanami · female' })
   await mac.goto('./#/library')
-  await expect(mac.getByRole('heading', { name: 'Library' })).toBeVisible()
+  await expect(mac.locator('.lesson-row').first()).toBeVisible() // lessons loaded, so the panel has decided
   await expect(mac.getByTestId('prepare-all')).toHaveCount(0)
 })
