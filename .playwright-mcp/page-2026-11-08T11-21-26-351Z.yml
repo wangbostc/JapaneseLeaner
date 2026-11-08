@@ -1,0 +1,112 @@
+- generic [ref=f4e3]:
+  - navigation [ref=f4e4]:
+    - link "Today" [ref=f4e5] [cursor=pointer]:
+      - /url: "#/"
+    - link "Library" [ref=f4e9] [cursor=pointer]:
+      - /url: "#/library"
+    - link "Cards" [ref=f4e13] [cursor=pointer]:
+      - /url: "#/cards"
+    - link "Stats" [ref=f4e17] [cursor=pointer]:
+      - /url: "#/stats"
+    - link "Settings" [ref=f4e21] [cursor=pointer]:
+      - /url: "#/settings"
+  - main [ref=f4e25]:
+    - generic [ref=f4e26]:
+      - heading "Settings" [level=1] [ref=f4e27]
+      - generic [ref=f4e28]:
+        - text: Interface language
+        - combobox "Interface language" [ref=f4e29]:
+          - option "English" [selected]
+          - option "简体中文"
+      - generic [ref=f4e30]:
+        - checkbox "Show furigana" [checked] [ref=f4e31]
+        - text: Show furigana
+      - generic [ref=f4e32]:
+        - checkbox "Show translations" [checked] [ref=f4e33]
+        - text: Show translations
+      - generic [ref=f4e34]:
+        - checkbox "Show phrase chunks (文節 gaps, and 意群 splits in long sentences)" [checked] [ref=f4e35]
+        - text: Show phrase chunks (文節 gaps, and 意群 splits in long sentences)
+      - generic [ref=f4e36]:
+        - text: "Playback speed: 1.00×"
+        - 'slider "Playback speed: 1.00×" [ref=f4e37]': "1"
+      - generic [ref=f4e38]:
+        - text: New core words per day
+        - combobox "New core words per day Flashcards for the 3,500 most frequent Japanese words, most frequent first. Words you’ve already saved are skipped." [ref=f4e39]:
+          - option "Off"
+          - option "5"
+          - option "10" [selected]
+          - option "20"
+          - option "30"
+        - generic [ref=f4e40]: Flashcards for the 3,500 most frequent Japanese words, most frequent first. Words you’ve already saved are skipped.
+      - generic [ref=f4e41]:
+        - text: Japanese voice
+        - combobox "Japanese voice Natural voices come from the server once this device is connected and the server has an Azure Speech key (see the README)." [ref=f4e87]:
+          - option "Kyoko" [selected]
+          - option "Eddy (Japanese (Japan))"
+          - option "Flo (Japanese (Japan))"
+          - option "Grandma (Japanese (Japan))"
+          - option "Grandpa (Japanese (Japan))"
+          - option "Reed (Japanese (Japan))"
+          - option "Rocko (Japanese (Japan))"
+          - option "Sandy (Japanese (Japan))"
+          - option "Shelley (Japanese (Japan))"
+        - generic [ref=f4e88]: Natural voices come from the server once this device is connected and the server has an Azure Speech key (see the README).
+      - button "▶ Try" [ref=f4e44] [cursor=pointer]
+      - generic [ref=f4e45]:
+        - checkbox "Use AivisSpeech / VOICEVOX on this computer" [ref=f4e46]
+        - text: Use AivisSpeech / VOICEVOX on this computer
+      - region [ref=f4e89]:
+        - heading "Sync" [level=2] [ref=f4e90]
+        - paragraph [ref=f4e91]: Keep lessons, progress, cards and audio in step across your devices. Each device connects once with your setup code.
+        - paragraph [ref=f4e92]: Connected as “Claude test (delete me)”.
+        - status [ref=f4e93]: Last synced this minute.
+        - generic [ref=f4e94]:
+          - button "Sync now" [ref=f4e95] [cursor=pointer]
+          - button "Disconnect this device" [ref=f4e96] [cursor=pointer]
+      - heading "Reminders" [level=2] [ref=f4e47]
+      - paragraph [ref=f4e48]: "Best effort: browsers limit what a website can do while closed. Adding each next review to your calendar is the most reliable way to be reminded, on any device."
+      - paragraph [ref=f4e49]: Notifications are blocked for this site. Allow them in your browser settings.
+      - list [ref=f4e50]:
+        - listitem [ref=f4e51]:
+          - generic [ref=f4e52]: Calendar events
+          - generic [ref=f4e53]: available
+        - listitem [ref=f4e97]:
+          - generic [ref=f4e98]: Push from your serverArrives with the app closed, on time (checked every 15 minutes). Needs sync connected; on iPhone, add the app to the Home Screen first (iOS 16.4+).
+          - generic [ref=f4e99]: Not available in this browser.
+        - listitem [ref=f4e54]:
+          - generic [ref=f4e55]: Due-review count on the app icon
+          - generic [ref=f4e56]: not available
+        - listitem [ref=f4e57]:
+          - generic [ref=f4e58]: Background check while closedInstalled app in Chrome or Edge only; the browser decides how often (often every 12 hours or more), so a reminder can come late.
+          - generic [ref=f4e59]: not available
+      - heading "AI assistant (optional)" [level=2] [ref=f4e60]
+      - paragraph [ref=f4e61]: Adds sentence explanations and lesson translations using your own Anthropic API key. Requests go straight from this browser to Anthropic.
+      - generic [ref=f4e62]:
+        - text: Anthropic API key
+        - textbox "Anthropic API key Save key" [ref=f4e63]:
+          - /placeholder: sk-ant-…
+        - button "Save key" [disabled] [ref=f4e64]
+      - paragraph [ref=f4e65]: The key is stored in this browser only (not in backups). Anyone who can use this browser profile can read it, so use a key you can revoke.
+      - heading "Your data" [level=2] [ref=f4e66]
+      - paragraph [ref=f4e67]: Everything lives on this device. Export a backup to move it or keep it safe.
+      - generic [ref=f4e68]:
+        - button "Export backup" [ref=f4e69] [cursor=pointer]
+        - button "Restore backup" [ref=f4e70] [cursor=pointer]
+      - heading "Browser support" [level=2] [ref=f4e71]
+      - list [ref=f4e72]:
+        - listitem [ref=f4e73]:
+          - generic [ref=f4e74]: Speech scoring
+          - generic [ref=f4e75]: available
+        - listitem [ref=f4e76]:
+          - generic [ref=f4e77]: Recording
+          - generic [ref=f4e78]: not available
+        - listitem [ref=f4e79]:
+          - generic [ref=f4e80]: Text to speech
+          - generic [ref=f4e81]: available
+        - listitem [ref=f4e82]:
+          - generic [ref=f4e83]: Offline use
+          - generic [ref=f4e84]: not available
+      - paragraph [ref=f4e85]: Works offline once the dictionary has loaded.
+      - link "About & sources →" [ref=f4e86] [cursor=pointer]:
+        - /url: "#/about"

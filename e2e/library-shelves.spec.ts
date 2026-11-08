@@ -20,7 +20,7 @@ const rows = (page: Page) => page.locator('.lesson-row .lesson-title')
 test('without a textbook, the library is one list, newest first', async ({ page }) => {
   await addLesson(page, '自分の課', 'N4')
   await page.goto('./#/library')
-  await expect(page.getByRole('tablist')).toHaveCount(0)
+  await expect(page.locator('.shelf-tabs, .chapter-tabs')).toHaveCount(0)
   await expect(page.locator('.lesson-row')).toHaveCount(SAMPLES + 1)
   await expect(rows(page).first()).toContainText('自分の課')
 })
@@ -30,25 +30,25 @@ test('a textbook gets its own shelf, a chapter at a time, in book order', async 
   await addLesson(page, 'テスト本 第一課 読み物', 'Test book · L1 読み書き')
   // Back in the library after an import, it opens where that lesson is.
   await page.goto('./#/library')
-  await expect(page.getByRole('tab', { name: /Test book/, selected: true })).toBeVisible()
-  await expect(page.getByRole('tab', { name: 'L1', selected: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Test book/, pressed: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'L1', pressed: true })).toBeVisible()
   await addLesson(page, 'テスト本 第一課 会話', 'Test book · L1')
 
   await page.goto('./#/library')
-  const shelves = page.getByRole('tablist', { name: 'Library' }).getByRole('tab')
+  const shelves = page.getByRole('group', { name: 'Library' }).getByRole('button')
   await expect(shelves).toHaveText([/Test book\s*3/, new RegExp(`Starter lessons\\s*${SAMPLES}`)])
-  await expect(page.getByRole('tab', { name: 'L1', selected: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'L1', pressed: true })).toBeVisible()
   // The chapter's dialogue before its reading.
   await expect(rows(page)).toHaveText([/テスト本 第一課 会話/, /テスト本 第一課 読み物/])
 
-  await page.getByRole('tab', { name: 'L2' }).click()
+  await page.getByRole('button', { name: 'L2', exact: true }).click()
   await expect(rows(page)).toHaveText([/テスト本 第二課 会話/])
   // Coming back from a lesson keeps the chapter.
   await rows(page).first().click()
   await page.goBack()
-  await expect(page.getByRole('tab', { name: 'L2', selected: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'L2', pressed: true })).toBeVisible()
 
-  await page.getByRole('tab', { name: /Starter lessons/ }).click()
+  await page.getByRole('button', { name: /Starter lessons/ }).click()
   await expect(page.locator('.lesson-row')).toHaveCount(SAMPLES)
-  await expect(page.getByRole('tab', { name: 'L1' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'L1', exact: true })).toHaveCount(0)
 })

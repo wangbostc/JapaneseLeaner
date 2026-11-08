@@ -86,7 +86,7 @@ export function Import() {
         media: audio ? { blob: audio, name: audio.name } : undefined,
       })
       // Back in the library, it's on screen: its shelf (and chapter).
-      rememberLesson(await db.lessons.toArray(), id)
+      await db.lessons.toArray().then((all) => rememberLesson(all, id)).catch(() => {}) // the lesson is saved either way
       navigate(`/lesson/${id}`)
     } catch (e) {
       // e.g. an IndexedDB quota error for a large audio file on iOS.
