@@ -350,7 +350,10 @@ export async function prepareMissing(
       const res = await step(() => api('/api/tts/missing', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ voice, texts: batch }), signal }), 'offline')
       if (res.status === 401) throw new Error('notConnected')
       // Only a server from before /api/tts/missing (404) gets everything made again; any other error stops the run.
-      if (!res.ok && res.status !== 404) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? `HTTP ${res.status}`)
+      if (!res.ok && res.status !== 404) {
+        console.warn('[prepare] /api/tts/missing:', res.status, await res.text().catch(() => ''))
+        throw new Error('serverError')
+      }
       const missing = res.ok ? ((await res.json()) as { missing: string[] }).missing : batch
       progress.done += batch.length - missing.length
       onProgress({ ...progress })

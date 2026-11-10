@@ -366,4 +366,11 @@ test('"Prepare all lessons" makes every read-aloud sentence once, and a second r
   await expect(panel.getByRole('button', { name: 'Stop' })).toHaveCount(0)
   await expect(panel).toContainText(`All ${lessons} lessons ready on your other devices.`)
   expect(uploads).toHaveLength(sentences)
+
+  // Another kind of voice chosen (the server's Azure one): nothing to prepare here, so no panel.
+  await mac.goto('./#/settings')
+  await mac.getByTestId('voice-select').selectOption({ label: 'Nanami · female' })
+  await mac.goto('./#/library')
+  await expect(mac.locator('.lesson-row').first()).toBeVisible() // lessons loaded, so the panel has decided
+  await expect(mac.getByTestId('prepare-all')).toHaveCount(0)
 })
