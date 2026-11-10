@@ -139,6 +139,7 @@ const en = {
   settingsVoice: 'Japanese voice',
   voiceEngineHere: (engine: string) => `${engine} (this computer)`,
   voiceEnginePrepared: (engine: string) => `${engine} (prepared on your computer)`,
+  voiceEngineServer: (engine: string) => `${engine} (made by your computer)`,
   voicevoxUse: 'Use AivisSpeech / VOICEVOX on this computer',
   voicevoxChecking: 'Looking for AivisSpeech and VOICEVOX…',
   enginesFound: (found: [string, number][], shared: boolean) =>
@@ -496,6 +497,7 @@ const zh: Strings = {
   settingsVoice: '日语语音',
   voiceEngineHere: (engine) => `${engine}（本机）`,
   voiceEnginePrepared: (engine) => `${engine}（已在电脑上生成）`,
+  voiceEngineServer: (engine) => `${engine}（由你的电脑生成）`,
   voicevoxUse: '在这台电脑上使用 AivisSpeech / VOICEVOX',
   voicevoxChecking: '正在查找 AivisSpeech 和 VOICEVOX…',
   enginesFound: (found, shared) =>

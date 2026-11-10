@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cacheUrl, defaultVoice, neuralSynth, parseRemembered, prepareClips, prepareMissing, type PrepareProgress } from './neuralVoice'
+import { cacheUrl, defaultVoice, neuralSynth, parseRemembered, prepareClips, prepareMissing, serverOffers, type PrepareProgress } from './neuralVoice'
 import { NEURAL_VOICES } from '@kikitori/core/voices'
 
 /** Just enough of Cache Storage: match/put by URL. */
@@ -206,6 +206,20 @@ describe('defaultVoice', () => {
   it('is the most recently prepared voice on a device without an engine, else none', () => {
     expect(defaultVoice(null, null, [vv('voicevox:8'), vv('aivis:888753760')])).toBe('voicevox:8')
     expect(defaultVoice(null, null, [])).toBeUndefined()
+  })
+})
+
+describe('serverOffers', () => {
+  const vv = (id: `voicevox:${number}` | `aivis:${number}`) => ({ id, name: id, speaker: 'x' })
+  it('lists prepared voices first, then the others the server can make, each once', () => {
+    expect(serverOffers([vv('voicevox:81'), vv('voicevox:3')], [vv('aivis:888753760'), vv('voicevox:3'), vv('voicevox:13')]).map((v) => v.id)).toEqual([
+      'voicevox:81',
+      'voicevox:3',
+      'aivis:888753760',
+      'voicevox:13',
+    ])
+    expect(serverOffers([], [vv('voicevox:13')]).map((v) => v.id)).toEqual(['voicevox:13'])
+    expect(serverOffers([vv('voicevox:8')], [])).toEqual([vv('voicevox:8')])
   })
 })
 

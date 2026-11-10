@@ -12,7 +12,8 @@ afterEach(async () => {
 const AZURE = { AZURE_SPEECH_KEY: 'azure-key', AZURE_SPEECH_REGION: 'japaneast' }
 
 async function env(extra = {}) {
-  const t = await testEnv({ ...AZURE, ...extra })
+  // No engines unless a test gives some, whatever a developer's .dev.vars says.
+  const t = await testEnv({ ...AZURE, VOICEVOX_URL: undefined, AIVIS_URL: undefined, ...extra })
   dispose = t.dispose
   return t.env
 }
@@ -117,7 +118,7 @@ describe('/api/tts', () => {
     const on = (await get(e)) as { enabled: boolean; voices: { id: string }[] }
     expect(on.enabled).toBe(true)
     expect(on.voices.map((v) => v.id)).toContain('ja-JP-NanamiNeural')
-    expect(await get({ ...e, AZURE_SPEECH_KEY: undefined })).toEqual({ enabled: false, voices: [], prepared: [] })
+    expect(await get({ ...e, AZURE_SPEECH_KEY: undefined })).toEqual({ enabled: false, voices: [], prepared: [], live: [] })
     const anon = await handleApi(new Request('https://k.test/api/tts', { method: 'POST', body: '{}' }), e)
     expect(anon.status).toBe(401)
   })
@@ -224,5 +225,78 @@ describe('AivisSpeech clips', () => {
     const keys = (await e.FILES.list({ prefix: 'tts/' })).objects.map((o) => o.key)
     expect(keys).toContain(`tts/voicevox-13/${hex}.wav`)
     expect(keys.some((k) => k.startsWith('tts/aivis-888753760/'))).toBe(true)
+  })
+})
+
+describe('engines on the server’s own computer', () => {
+  const ENGINES = { AZURE_SPEECH_KEY: undefined, VOICEVOX_URL: 'http://127.0.0.1:50021/', AIVIS_URL: 'http://127.0.0.1:10101' }
+  const status = async (res: Response) => [res.status, res.ok ? null : ((await res.json()) as { error: string }).error]
+
+  /** A fake VOICEVOX/AivisSpeech pair: records each call; `down` engines refuse to connect. */
+  function fakeEngines({ down = [] as string[], synthesis = () => new Response(new Uint8Array([4, 5, 6]), { headers: { 'Content-Type': 'audio/wav' } }) } = {}) {
+    const calls: string[] = []
+    const fetcher = (async (input: string | URL | Request) => {
+      const url = new URL(String(input))
+      calls.push(`${url.port} ${url.pathname}`)
+      if (down.includes(url.port)) throw new TypeError('connection refused')
+      if (url.pathname === '/speakers')
+        return Response.json(
+          url.port === '50021'
+            ? [{ name: '青山龍星', styles: [{ name: '熱血', id: 81, type: 'talk' }, { name: 'ハミング', id: 3001, type: 'humming' }] }]
+            : [{ name: 'まお', styles: [{ name: 'ノーマル', id: 888753760 }] }],
+        )
+      if (url.pathname === '/audio_query') return Response.json({ accent_phrases: [] })
+      if (url.pathname === '/synthesis') return synthesis()
+      return new Response('?', { status: 404 })
+    }) as typeof fetch
+    return { calls, fetcher }
+  }
+
+  it('makes a sentence nobody prepared with its own engine, keeps it, and serves it from storage after', async () => {
+    const e = await env(ENGINES)
+    const eng = fakeEngines()
+    const res = await speech(e, { text: '私は学生です。', voice: 'voicevox:81' }, eng.fetcher)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Content-Type')).toBe('audio/wav')
+    expect([...new Uint8Array(await res.arrayBuffer())]).toEqual([4, 5, 6])
+    expect(eng.calls).toEqual(['50021 /audio_query', '50021 /synthesis'])
+    const again = await speech(e, { text: ' 私は学生です。 ', voice: 'voicevox:81' }, eng.fetcher)
+    expect([...new Uint8Array(await again.arrayBuffer())]).toEqual([4, 5, 6])
+    expect(eng.calls).toHaveLength(2)
+    // Kept like an uploaded clip, so Prepare finds it already there.
+    expect(await (await missingClips(e, { voice: 'voicevox:81', texts: ['私は学生です。'] })).json()).toEqual({ missing: [] })
+    // AivisSpeech voices go to AivisSpeech.
+    await (await speech(e, { text: 'はい。', voice: 'aivis:888753760' }, eng.fetcher)).arrayBuffer()
+    expect(eng.calls.slice(2)).toEqual(['10101 /audio_query', '10101 /synthesis'])
+  })
+
+  it('makes a sentence asked for twice at once only once', async () => {
+    const e = await env(ENGINES)
+    const eng = fakeEngines()
+    const both = await Promise.all([1, 2].map(() => speech(e, { text: 'こんにちは。', voice: 'voicevox:81' }, eng.fetcher)))
+    expect(both.map((r) => r.status)).toEqual([200, 200])
+    expect(eng.calls.filter((c) => c.endsWith('/synthesis'))).toHaveLength(1)
+  })
+
+  it('says not prepared when its engine is down, fails, or isn’t configured, and keeps nothing', async () => {
+    const e = await env(ENGINES)
+    expect(await status(await speech(e, { text: 'はい。', voice: 'voicevox:81' }, fakeEngines({ down: ['50021'] }).fetcher))).toEqual([404, 'notPrepared'])
+    expect(await status(await speech(e, { text: 'はい。', voice: 'voicevox:81' }, fakeEngines({ synthesis: () => new Response('busy', { status: 500 }) }).fetcher))).toEqual([404, 'notPrepared'])
+    const only = fakeEngines()
+    expect(await status(await speech({ ...e, AIVIS_URL: undefined }, { text: 'はい。', voice: 'aivis:888753760' }, only.fetcher))).toEqual([404, 'notPrepared'])
+    expect(only.calls).toEqual([])
+    expect((await e.FILES.list({ prefix: 'tts/' })).objects).toEqual([])
+  })
+
+  it('lists the talking voices its engines can make, AivisSpeech first; none when they’re down or not configured', async () => {
+    const e = await env(ENGINES)
+    expect((await ttsInfo(e, fakeEngines().fetcher)).live).toEqual([
+      { id: 'aivis:888753760', name: 'まお（ノーマル）', speaker: 'まお' },
+      { id: 'voicevox:81', name: '青山龍星（熱血）', speaker: '青山龍星' },
+    ])
+    expect((await ttsInfo(e, fakeEngines({ down: ['10101'] }).fetcher)).live.map((v) => v.id)).toEqual(['voicevox:81'])
+    const none = fakeEngines()
+    expect((await ttsInfo({ ...e, VOICEVOX_URL: undefined, AIVIS_URL: undefined }, none.fetcher)).live).toEqual([])
+    expect(none.calls).toEqual([])
   })
 })

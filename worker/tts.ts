@@ -1,11 +1,13 @@
-import { engineOf, isEngineVoiceId, isNeuralVoiceId, MAX_TTS_CHARS, NEURAL_VOICES, type EngineVoice } from '@kikitori/core/voices'
+import { probeEngine, synthesize } from '@kikitori/core/engines'
+import { engineOf, isEngineVoiceId, isNeuralVoiceId, MAX_TTS_CHARS, NEURAL_VOICES, type EngineKind, type EngineVoice, type EngineVoiceId } from '@kikitori/core/voices'
 import type { Env } from './env'
 
 /**
  * Natural Japanese speech, kept in R2 per sentence and voice:
  * - Azure neural voices, synthesised here (its free F0 tier covers 500k characters a month);
  * - VOICEVOX and AivisSpeech voices, made on the learner's own computer and uploaded
- *   (PUT /api/tts/clip), so their other devices can play them. The server only stores and serves those.
+ *   (PUT /api/tts/clip), so their other devices can play them. A server running on that computer
+ *   (VOICEVOX_URL / AIVIS_URL set) also makes the ones nobody has prepared, when a device asks.
  */
 
 export const ttsEnabled = (env: Env) => Boolean(env.AZURE_SPEECH_KEY && env.AZURE_SPEECH_REGION)
@@ -27,8 +29,32 @@ async function preparedVoices(env: Env): Promise<EngineVoice[]> {
   }
 }
 
-/** Azure's voices when it's configured, and the engine voices with clips here, most recently used first. */
-export const ttsInfo = async (env: Env) => ({ enabled: ttsEnabled(env), voices: ttsEnabled(env) ? NEURAL_VOICES : [], prepared: await preparedVoices(env) })
+/** The engines this server can reach itself (see Env.VOICEVOX_URL), by kind. */
+export function serverEngines(env: Env): Partial<Record<EngineKind, string>> {
+  const urls: Partial<Record<EngineKind, string>> = {}
+  if (env.VOICEVOX_URL) urls.voicevox = env.VOICEVOX_URL.replace(/\/+$/, '')
+  if (env.AIVIS_URL) urls.aivis = env.AIVIS_URL.replace(/\/+$/, '')
+  return urls
+}
+
+/** The voices this server's engines can make right now (AivisSpeech first; none when they aren't configured or don't answer). */
+async function liveVoices(env: Env, fetcher: typeof fetch): Promise<EngineVoice[]> {
+  const urls = serverEngines(env)
+  const kinds = (['aivis', 'voicevox'] as const).filter((k) => urls[k])
+  const found = await Promise.all(kinds.map((k) => probeEngine(k, urls[k]!, undefined, fetcher)))
+  return found.flatMap((v) => v ?? [])
+}
+
+/**
+ * Azure's voices when it's configured; the engine voices with clips here, most recently used
+ * first; and the engine voices this server can make on demand (`live`).
+ */
+export const ttsInfo = async (env: Env, fetcher: typeof fetch = fetch) => ({
+  enabled: ttsEnabled(env),
+  voices: ttsEnabled(env) ? NEURAL_VOICES : [],
+  prepared: await preparedVoices(env),
+  live: await liveVoices(env, fetcher),
+})
 
 // Mono MP3 at 24 kHz: small, and every browser plays it.
 const OUTPUT_FORMAT = 'audio-24khz-48kbitrate-mono-mp3'
@@ -51,15 +77,53 @@ async function cacheKey(voice: string, text: string) {
 const audio = (body: ReadableStream | ArrayBuffer, type: string) =>
   new Response(body, { headers: { 'Content-Type': type, 'Cache-Control': 'private, max-age=31536000, immutable' } })
 
-export async function speech(env: Env, body: Record<string, unknown> | null, fetcher: typeof fetch = fetch): Promise<Response> {
+/** Same sentence and voice asked for at once (a prefetch, then the play): one synthesis. */
+const making = new Map<string, Promise<ArrayBuffer | null>>()
+
+/**
+ * Makes an engine clip with this server's own engine and keeps it, or null when there's no such
+ * engine or it fails (the device's own voice speaks instead).
+ */
+function makeHere(env: Env, key: string, voice: EngineVoiceId, text: string, fetcher: typeof fetch, signal?: AbortSignal): Promise<ArrayBuffer | null> {
+  const url = serverEngines(env)[engineOf(voice)]
+  if (!url) return Promise.resolve(null)
+  let pending = making.get(key)
+  if (!pending) {
+    pending = (async () => {
+      try {
+        // Not tied to one request's signal: another may be waiting on the same clip.
+        const bytes = await (await synthesize(url, voice, text, undefined, fetcher)).arrayBuffer()
+        if (!bytes.byteLength) return null
+        await env.FILES.put(key, bytes, { httpMetadata: { contentType: 'audio/wav' } })
+        return bytes
+      } catch (e) {
+        console.warn('[tts] engine:', voice, e instanceof Error ? e.message : e)
+        return null
+      }
+    })().finally(() => making.delete(key))
+    making.set(key, pending)
+  }
+  if (!signal) return pending
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) return reject(signal.reason)
+    signal.addEventListener('abort', () => reject(signal.reason), { once: true })
+    pending.then(resolve, reject)
+  })
+}
+
+export async function speech(env: Env, body: Record<string, unknown> | null, fetcher: typeof fetch = fetch, signal?: AbortSignal): Promise<Response> {
   const voice = body?.voice
   const text = typeof body?.text === 'string' ? body.text.trim() : ''
   if (typeof voice === 'string' && isEngineVoiceId(voice)) {
-    // Made elsewhere: serve it if it's been uploaded; the device's own voice covers the rest.
+    // Made on the learner's computer: serve it if it's been uploaded, or make it with this
+    // server's own engine; the device's own voice covers the rest.
     if (!text) return fail(400, 'invalid')
     if (text.length > MAX_TTS_CHARS) return fail(400, 'tooLong')
-    const clip = await env.FILES.get(await cacheKey(voice, text))
-    return clip ? audio(clip.body, clip.httpMetadata?.contentType ?? 'audio/wav') : fail(404, 'notPrepared')
+    const key = await cacheKey(voice, text)
+    const clip = await env.FILES.get(key)
+    if (clip) return audio(clip.body, clip.httpMetadata?.contentType ?? 'audio/wav')
+    const made = await makeHere(env, key, voice, text, fetcher, signal)
+    return made ? audio(made, 'audio/wav') : fail(404, 'notPrepared')
   }
   if (!ttsEnabled(env)) return fail(503, 'serverOff')
   if (typeof voice !== 'string' || !isNeuralVoiceId(voice) || !text) return fail(400, 'invalid')

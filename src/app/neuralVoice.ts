@@ -37,6 +37,8 @@ export interface NaturalVoices {
   engineVoices: readonly EngineVoice[] | null
   /** The engines on this computer that answered (none: the voices listed were prepared elsewhere). */
   enginesUp: readonly EngineKind[]
+  /** The server makes engine voices itself when asked (it runs on the learner's computer), so every one listed plays in full. */
+  serverMakes: boolean
 }
 
 /** Reads the remembered voice lists. Before VOICEVOX, only the Azure list was kept, as a bare array. */
@@ -68,6 +70,14 @@ export function defaultVoice(azure: readonly NeuralVoice[] | null, engineVoices:
   if (engineVoices?.length) return DEFAULT_ENGINE_VOICES.find((id) => engineVoices.some((v) => v.id === id)) ?? engineVoices[0].id
   return prepared[0]?.id
 }
+/**
+ * The engine voices a device without an engine can choose: those with clips on the server (most
+ * recently used first), then the rest the server can make when asked.
+ */
+export function serverOffers(prepared: readonly EngineVoice[], live: readonly EngineVoice[]): EngineVoice[] {
+  return [...prepared, ...live.filter((v) => !prepared.some((p) => p.id === v.id))]
+}
+
 const remember = (k: Known | null) => {
   try {
     if (k && (k.azure?.length || k.prepared.length)) localStorage.setItem(VOICES_KEY, JSON.stringify(k))
@@ -78,8 +88,10 @@ const remember = (k: Known | null) => {
 }
 
 let known: Known = { azure: null, prepared: [] }
+/** Engine voices the server can make itself right now; not remembered, as they need it reachable. */
+let live: readonly EngineVoice[] = []
 let engine: { voices: readonly EngineVoice[]; up: readonly EngineKind[] } | null = null
-let snapshot: NaturalVoices = { azure: null, engineVoices: null, enginesUp: [] }
+let snapshot: NaturalVoices = { azure: null, engineVoices: null, enginesUp: [], serverMakes: false }
 let checking: Promise<void> | null = null
 let askedThisConnection = false
 const listeners = new Set<() => void>()
@@ -89,9 +101,11 @@ function apply() {
   const api = storedDeviceApi()
   const azure = api && known.azure?.length ? known.azure : null
   const prepared = api ? known.prepared : []
+  const made = api ? live : []
   const here = engine?.voices.length ? engine.voices : null
-  snapshot = { azure, engineVoices: here ?? (prepared.length ? prepared : null), enginesUp: here ? engine!.up : [] }
-  const fallback = defaultVoice(azure, here, prepared)
+  const offered = serverOffers(prepared, made)
+  snapshot = { azure, engineVoices: here ?? (offered.length ? offered : null), enginesUp: here ? engine!.up : [], serverMakes: !here && made.length > 0 }
+  const fallback = defaultVoice(azure, here, prepared) ?? defaultVoice(null, made.length ? made : null, [])
   setNeuralSynth(fallback ? neuralSynth(api) : null, fallback)
   listeners.forEach((l) => l())
 }
@@ -100,16 +114,20 @@ export function refreshNeuralVoices(): Promise<void> {
   const api = storedDeviceApi()
   if (!api) {
     known = { azure: null, prepared: [] }
+    live = []
     remember(null)
     apply()
     return Promise.resolve()
   }
   checking ??= api('/api/tts')
     .then(async (res) => {
-      if (res.status === 401) known = { azure: null, prepared: [] }
-      else if (res.ok) {
-        const body = (await res.json()) as { enabled: boolean; voices: NeuralVoice[]; prepared?: EngineVoice[] }
+      if (res.status === 401) {
+        known = { azure: null, prepared: [] }
+        live = []
+      } else if (res.ok) {
+        const body = (await res.json()) as { enabled: boolean; voices: NeuralVoice[]; prepared?: EngineVoice[]; live?: EngineVoice[] }
         known = { azure: body.enabled && body.voices.length ? body.voices : null, prepared: body.prepared ?? [] }
+        live = Array.isArray(body.live) ? body.live : []
         remember(known)
       }
       apply()
@@ -148,6 +166,7 @@ export function useNaturalVoices(): NaturalVoices {
     } else if (sync.kind === 'disconnected') {
       askedThisConnection = false
       known = { azure: null, prepared: [] }
+      live = []
       remember(null)
       apply()
     }
