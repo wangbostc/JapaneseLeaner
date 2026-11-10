@@ -278,6 +278,27 @@ describe('engines on the server’s own computer', () => {
     expect(eng.calls.filter((c) => c.endsWith('/synthesis'))).toHaveLength(1)
   })
 
+  it('answers a device that gave up with not prepared, and still keeps the clip for the next ask', async () => {
+    const e = await env(ENGINES)
+    let release!: () => void
+    const slow = fakeEngines({ synthesis: () => new Response(new Uint8Array([7])) })
+    const gated = (async (input: string | URL | Request, init?: RequestInit) => {
+      if (String(input).includes('/synthesis')) await new Promise<void>((r) => (release = r))
+      return slow.fetcher(input, init)
+    }) as typeof fetch
+    const gaveUp = new AbortController()
+    const first = speech(e, { text: '遅い。', voice: 'voicevox:81' }, gated, gaveUp.signal)
+    const waiting = speech(e, { text: '遅い。', voice: 'voicevox:81' }, gated)
+    await new Promise((r) => setTimeout(r, 20))
+    gaveUp.abort()
+    expect(await status(await first)).toEqual([404, 'notPrepared'])
+    release()
+    expect([...new Uint8Array(await (await waiting).arrayBuffer())]).toEqual([7])
+    // Kept: served from storage now, without asking the engine.
+    expect(await status(await speech(e, { text: '遅い。', voice: 'voicevox:81' }, gated, AbortSignal.abort()))).toEqual([200, null])
+    expect(slow.calls.filter((c) => c.endsWith('/synthesis'))).toHaveLength(1)
+  })
+
   it('says not prepared when its engine is down, fails, or isn’t configured, and keeps nothing', async () => {
     const e = await env(ENGINES)
     expect(await status(await speech(e, { text: 'はい。', voice: 'voicevox:81' }, fakeEngines({ down: ['50021'] }).fetcher))).toEqual([404, 'notPrepared'])

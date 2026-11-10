@@ -95,6 +95,8 @@ const dev = spawn(
     '--var', 'SETUP_CODE:e2e-sync-setup-code', '--var', `VAPID_PUBLIC_KEY:${vapidPublic}`, '--var', `VAPID_PRIVATE_KEY:${vapidPrivate}`,
     '--var', 'ANTHROPIC_API_KEY:e2e-fake-key', '--var', `ANTHROPIC_BASE_URL:${anthropicUrl}`,
     '--var', 'AZURE_SPEECH_KEY:e2e-fake-key', '--var', 'AZURE_SPEECH_REGION:e2e', '--var', `AZURE_SPEECH_ENDPOINT:${azureUrl}`,
+    // The server never makes engine voices itself here, whatever a developer's .dev.vars says.
+    '--var', 'VOICEVOX_URL:', '--var', 'AIVIS_URL:',
   ],
   { stdio: 'inherit' },
 )

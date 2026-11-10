@@ -1,6 +1,6 @@
 import { useEffect, useSyncExternalStore } from 'react'
 import { setNeuralSynth, type NeuralSynth } from '../lib/speech'
-import { DEFAULT_ENGINE_VOICES, DEFAULT_NEURAL_VOICE, engineOf, isEngineVoiceId, MAX_TTS_CHARS, type EngineKind, type EngineVoice, type EngineVoiceId, type NaturalVoiceId, type NeuralVoice } from '@kikitori/core/voices'
+import { DEFAULT_ENGINE_VOICES, DEFAULT_NEURAL_VOICE, ENGINES, engineOf, isEngineVoiceId, MAX_TTS_CHARS, type EngineKind, type EngineVoice, type EngineVoiceId, type NaturalVoiceId, type NeuralVoice } from '@kikitori/core/voices'
 import type { Api } from '@kikitori/core/sync'
 import { storedDeviceApi, useSyncStatus } from './sync'
 import { engineUrls, probeEngines, synthesize } from './engines'
@@ -37,8 +37,8 @@ export interface NaturalVoices {
   engineVoices: readonly EngineVoice[] | null
   /** The engines on this computer that answered (none: the voices listed were prepared elsewhere). */
   enginesUp: readonly EngineKind[]
-  /** The server makes engine voices itself when asked (it runs on the learner's computer), so every one listed plays in full. */
-  serverMakes: boolean
+  /** The engines whose voices the server makes itself when asked (it runs on the learner's computer), so they play in full. */
+  serverMakes: readonly EngineKind[]
 }
 
 /** Reads the remembered voice lists. Before VOICEVOX, only the Azure list was kept, as a bare array. */
@@ -91,7 +91,7 @@ let known: Known = { azure: null, prepared: [] }
 /** Engine voices the server can make itself right now; not remembered, as they need it reachable. */
 let live: readonly EngineVoice[] = []
 let engine: { voices: readonly EngineVoice[]; up: readonly EngineKind[] } | null = null
-let snapshot: NaturalVoices = { azure: null, engineVoices: null, enginesUp: [], serverMakes: false }
+let snapshot: NaturalVoices = { azure: null, engineVoices: null, enginesUp: [], serverMakes: [] }
 let checking: Promise<void> | null = null
 let askedThisConnection = false
 const listeners = new Set<() => void>()
@@ -104,7 +104,7 @@ function apply() {
   const made = api ? live : []
   const here = engine?.voices.length ? engine.voices : null
   const offered = serverOffers(prepared, made)
-  snapshot = { azure, engineVoices: here ?? (offered.length ? offered : null), enginesUp: here ? engine!.up : [], serverMakes: !here && made.length > 0 }
+  snapshot = { azure, engineVoices: here ?? (offered.length ? offered : null), enginesUp: here ? engine!.up : [], serverMakes: here ? [] : ENGINES.filter((k) => made.some((v) => engineOf(v.id) === k)) }
   const fallback = defaultVoice(azure, here, prepared) ?? defaultVoice(null, made.length ? made : null, [])
   setNeuralSynth(fallback ? neuralSynth(api) : null, fallback)
   listeners.forEach((l) => l())

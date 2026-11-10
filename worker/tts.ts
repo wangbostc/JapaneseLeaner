@@ -49,12 +49,10 @@ async function liveVoices(env: Env, fetcher: typeof fetch): Promise<EngineVoice[
  * Azure's voices when it's configured; the engine voices with clips here, most recently used
  * first; and the engine voices this server can make on demand (`live`).
  */
-export const ttsInfo = async (env: Env, fetcher: typeof fetch = fetch) => ({
-  enabled: ttsEnabled(env),
-  voices: ttsEnabled(env) ? NEURAL_VOICES : [],
-  prepared: await preparedVoices(env),
-  live: await liveVoices(env, fetcher),
-})
+export async function ttsInfo(env: Env, fetcher: typeof fetch = fetch) {
+  const [prepared, live] = await Promise.all([preparedVoices(env), liveVoices(env, fetcher)])
+  return { enabled: ttsEnabled(env), voices: ttsEnabled(env) ? NEURAL_VOICES : [], prepared, live }
+}
 
 // Mono MP3 at 24 kHz: small, and every browser plays it.
 const OUTPUT_FORMAT = 'audio-24khz-48kbitrate-mono-mp3'
@@ -104,10 +102,13 @@ function makeHere(env: Env, key: string, voice: EngineVoiceId, text: string, fet
     making.set(key, pending)
   }
   if (!signal) return pending
-  return new Promise((resolve, reject) => {
-    if (signal.aborted) return reject(signal.reason)
-    signal.addEventListener('abort', () => reject(signal.reason), { once: true })
-    pending.then(resolve, reject)
+  // The device gave up waiting (it speaks with its own voice): answer nothing, and let the clip
+  // finish for whoever asks next.
+  return new Promise((resolve) => {
+    if (signal.aborted) return resolve(null)
+    const stop = () => resolve(null)
+    signal.addEventListener('abort', stop, { once: true })
+    void pending.then(resolve).finally(() => signal.removeEventListener('abort', stop))
   })
 }
 
