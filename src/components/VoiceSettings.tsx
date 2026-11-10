@@ -67,7 +67,7 @@ export function VoiceSettings({ voices }: { voices: SpeechSynthesisVoice[] | nul
             {(['aivis', 'voicevox'] as const).map(
               (kind) =>
                 byEngine(kind).length > 0 && (
-                  <optgroup key={kind} label={here ? t.voiceEngineHere(ENGINE_NAMES[kind]) : t.voiceEnginePrepared(ENGINE_NAMES[kind])}>
+                  <optgroup key={kind} label={here ? t.voiceEngineHere(ENGINE_NAMES[kind]) : natural.serverMakes.includes(kind) ? t.voiceEngineServer(ENGINE_NAMES[kind]) : t.voiceEnginePrepared(ENGINE_NAMES[kind])}>
                     {byEngine(kind).map((v) => (
                       <option key={v.id} value={v.id}>
                         {v.name}

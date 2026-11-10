@@ -23,6 +23,14 @@ export interface Env {
    * a private network: set it in .dev.vars, never in wrangler.jsonc or a deployed Worker.
    */
   PRIVATE_LESSONS?: string
+  /**
+   * The speech engines on the computer running this server (e.g. http://127.0.0.1:50021 and
+   * http://127.0.0.1:10101). When set, a sentence in an engine voice that no device has prepared
+   * yet is made here on the spot and kept. Only for a server on the learner's own computer
+   * (`wrangler dev`): set them in .dev.vars; a deployed Worker can't reach that computer.
+   */
+  VOICEVOX_URL?: string
+  AIVIS_URL?: string
   /** Contact for push services (mailto: or https:); defaults to the project URL. */
   VAPID_SUBJECT?: string
 }

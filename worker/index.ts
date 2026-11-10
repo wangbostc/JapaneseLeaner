@@ -40,7 +40,7 @@ const routes: [string, RegExp, Handler][] = [
   ['GET', /^\/api\/tts$/, async (_req, env) => json(await ttsInfo(env))],
   ['PUT', /^\/api\/tts\/clip$/, (req, env) => putClip(env, req)],
   ['POST', /^\/api\/tts\/missing$/, async (req, env) => missingClips(env, await readJson(req))],
-  ['POST', /^\/api\/tts$/, async (req, env) => speech(env, await readJson(req))],
+  ['POST', /^\/api\/tts$/, async (req, env) => speech(env, await readJson(req), fetch, req.signal)],
   ['GET', /^\/api\/push\/key$/, async (_req, env) => (env.VAPID_PUBLIC_KEY ? json({ key: env.VAPID_PUBLIC_KEY }) : error(503, 'push is not configured'))],
   ['POST', /^\/api\/push\/subscriptions$/, async (req, env, device) => subscribe(env, device.id, await readJson(req))],
   [

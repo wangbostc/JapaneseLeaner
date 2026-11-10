@@ -193,6 +193,15 @@ AivisSpeech speaks VOICEVOX's API, so Kikitori treats them alike. The computer m
 4. On a lesson page, press **Prepare this voice for your other devices**. Every sentence is made on the computer and uploaded, and sentences you just play there are uploaded too.
 5. On your phone, the prepared voice appears under "<engine> (prepared on your computer)". With no Azure, it's the default once anything has been prepared. Sentences that haven't been prepared use the phone's own voice; after one miss, the phone doesn't ask again for 10 minutes.
 
+**Server on the same computer as the engines?** If your Kikitori server is your own `wrangler dev` running next to the engines (for example reached from your phone over Tailscale), it can make the voices itself, so nothing needs preparing:
+
+```sh
+echo VOICEVOX_URL=http://127.0.0.1:50021 >> .dev.vars   # either or both
+echo AIVIS_URL=http://127.0.0.1:10101 >> .dev.vars
+```
+
+Restart `wrangler dev`. Your connected devices then list every voice those engines have, under "<engine> (made by your computer)". The first time a sentence is played in a voice, the server makes it, in well under a second for VOICEVOX, and keeps it like a prepared clip. Prepare is still worth running for listening while that computer is off or asleep. A deployed Worker can't reach your computer, so leave these out there. If an engine isn't answering, its sentences fall back to each device's own voice as before.
+
 Kikitori credits the engine and character wherever such a voice can speak: lessons, cards, the word sheet and Settings. The app only contacts the engines after you turn them on, because a page probing `localhost` can make the browser ask for local-network permission.
 
 ### Moving from the GitHub Pages site
